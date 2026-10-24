@@ -38,6 +38,7 @@ export const projects: readonly Project[] = [
     cover: "/images/cs-market-portfolio.png",
     coverAlt:
       "CS 饰品虚拟投资模拟器线上真实界面：投资组合页的总资产、资产曲线、组合分析与当前持仓",
+    coverPosition: "center top",
     coverKind: "real",
     status: "已上线",
     links: [

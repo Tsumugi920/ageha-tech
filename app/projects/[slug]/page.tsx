@@ -109,6 +109,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
                 fill
                 priority
                 sizes="(min-width: 1024px) 71rem, 100vw"
+                style={project.coverPosition ? { objectPosition: project.coverPosition } : undefined}
                 className="object-cover"
               />
               {project.coverKind === "concept" && (

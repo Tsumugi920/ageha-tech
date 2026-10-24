@@ -51,6 +51,7 @@ export function ProjectCard({
           fill
           sizes={sizes}
           priority={priority}
+          style={project.coverPosition ? { objectPosition: project.coverPosition } : undefined}
           className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
         />
         {project.coverKind === "concept" && (

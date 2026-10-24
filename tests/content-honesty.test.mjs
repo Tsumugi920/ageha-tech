@@ -35,6 +35,7 @@ const PROJECT_FIELDS = [
   "tags",
   "cover",
   "coverAlt",
+  "coverPosition",
   "coverKind",
   "status",
   "links",

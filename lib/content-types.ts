@@ -44,6 +44,8 @@ export type Project = {
   cover: string;
   /** 封面替代文本（如实描述图片内容与性质） */
   coverAlt: string;
+  /** 封面裁切焦点（object-position，默认居中；用于把真实截图对准最有信息量的区域） */
+  coverPosition?: string;
   /** 封面性质：real = 项目真实界面截图；concept = 概念视觉占位 */
   coverKind: "real" | "concept";
   /** 如实状态：已上线 / 可本地运行 */
