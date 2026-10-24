@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { FlaskConical } from "lucide-react";
+import { ArrowUpRight, FlaskConical, Globe } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { projects } from "@/lib/projects";
-
-/**
- * 状态徽标：三个项目均为「正在构建 / 持续打磨 / 技术探索」中的作品，
- * 详情页只提供这一种如实状态，不出现任何成果宣言类表述。
- */
-const STATUS_LABEL = "探索中";
 
 type ProjectPageProps = {
   params: Promise<{ slug: string }>;
@@ -40,11 +34,12 @@ export async function generateMetadata({
 }
 
 /**
- * 项目详情页：封面（概念视觉占位，如实在图内标注）+ 类别 + 描述 + 技术标签
- * + 「探索中」状态徽标 + 返回列表链接。
+ * 项目详情页：封面（按 coverKind 如实标注）+ 类别 + 描述 + 技术标签
+ * + 如实状态徽标 + 真实入口按钮（仅渲染 lib/projects.ts 里存在的 links）
+ * + 返回列表链接。
  *
- * 【诚实边界】只渲染 lib/projects.ts 里真实存在的字段（Project 类型没有
- * 演示 / 源码链接字段），因此本页不存在任何演示或源码入口；
+ * 【诚实边界】状态与入口一律来自项目数据（站长仓库 README 载明的事实）：
+ * 没有上线记录的项目不渲染任何入口；本页源码不出现字面外链。
  * 非法 slug 一律 notFound()。
  */
 export default async function ProjectDetailPage({ params }: ProjectPageProps) {
@@ -53,6 +48,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
   if (!project) {
     notFound();
   }
+  const isLive = project.status === "已上线";
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-14 md:px-8">
@@ -70,14 +66,41 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
             back={{ href: "/projects", label: "返回项目列表" }}
           />
 
-          {/* 标题行右侧：状态徽标（只写「探索中」，无上线 / 发布等虚构状态） */}
-          <p className="sr-only">{`项目状态：${STATUS_LABEL}`}</p>
-          <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-dashed border-line bg-white/45 px-3 py-1 text-xs font-medium leading-5 text-text-secondary">
-            <FlaskConical className="size-3.5 text-blue" aria-hidden="true" />
-            {STATUS_LABEL}
-          </span>
+          {/* 标题行右侧：状态徽标（文案来自项目数据）+ 真实入口按钮 */}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <p className="sr-only">{`项目状态：${project.status}`}</p>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium leading-5 ${
+                isLive
+                  ? "border border-blue/30 bg-[#D9EDFF]/70 text-text-primary"
+                  : "border border-dashed border-line bg-white/45 text-text-secondary"
+              }`}
+            >
+              {isLive ? (
+                <Globe className="size-3.5 text-blue" aria-hidden="true" />
+              ) : (
+                <FlaskConical className="size-3.5 text-blue" aria-hidden="true" />
+              )}
+              {project.status}
+            </span>
+            {project.links?.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                className="group inline-flex items-center gap-1.5 rounded-full bg-linear-to-br from-cyan to-blue px-4 py-1.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(38,157,255,0.30)] transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                {link.label}
+                <ArrowUpRight
+                  className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  aria-hidden="true"
+                />
+              </a>
+            ))}
+          </div>
 
-          {/* 封面：概念视觉占位（参考图裁切，非真实运行界面），首屏大图 priority */}
+          {/* 封面：按 coverKind 渲染徽标（真实界面截图不挂占位徽标），首屏大图 priority */}
           <figure className="m-0 mt-7">
             <div className="relative aspect-[2/1] overflow-hidden rounded-2xl border border-white/70 shadow-[0_16px_48px_rgba(71,115,183,0.16)]">
               <Image
@@ -88,9 +111,11 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
                 sizes="(min-width: 1024px) 71rem, 100vw"
                 className="object-cover"
               />
-              <span className="absolute left-3 top-3 rounded-full border border-white/70 bg-white/75 px-2.5 py-0.5 text-[10px] font-medium text-text-secondary backdrop-blur-sm">
-                概念视觉占位
-              </span>
+              {project.coverKind === "concept" && (
+                <span className="absolute left-3 top-3 rounded-full border border-white/70 bg-white/75 px-2.5 py-0.5 text-[10px] font-medium text-text-secondary backdrop-blur-sm">
+                  概念视觉占位
+                </span>
+              )}
             </div>
             {/* 12px 图注小字：text-muted 不达 4.5:1，用 text-secondary */}
             <figcaption className="mt-2.5 text-xs leading-relaxed text-text-secondary">
@@ -108,7 +133,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
                 {project.description}
               </p>
               <p className="mt-4 text-sm leading-[1.95] text-text-secondary">
-                项目仍在持续打磨中，更多过程记录与阶段性成果会在完善后补充到这里。
+                更多过程记录与阶段性成果会在完善后补充到这里。
               </p>
             </section>
 

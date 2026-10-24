@@ -2,8 +2,21 @@
 
 独立数字创作者的数字花园 —— 个人作品集站点：项目作品、技术栈、写作札记与联系方式。
 
-> **当前状态：正在建设中。** 项目、文章与联系方式均处于占位阶段（详见
-> [素材与占位说明](#素材与占位说明)），本 README 只描述已实现的内容，不含任何未落地功能的预告链接。
+> **当前状态：正在建设中。** 三个精选项目已接入真实信息 —— AgehaOS 与
+> CS 饰品虚拟投资模拟器已上线，Moss World 可本地运行（详见
+> [收录的项目](#收录的项目)）；文章仍为写作计划，「关于我」照片与部分
+> 联系方式仍为占位（详见 [素材与占位说明](#素材与占位说明)）。
+
+## 收录的项目
+
+三个项目均来自站长的本地仓库，状态与入口链接以各项目仓库 README 为准
+（`lib/projects.ts` 单源管理，站点上的状态徽标与入口按钮只渲染其中有据可查的内容）：
+
+| 项目 | 简介 | 状态 | 入口 |
+| --- | --- | --- | --- |
+| AgehaOS | 浏览器里的操作系统式 Web OS：窗口管理器、虚拟文件系统、App Store 沙箱运行时 + AI 动态桌面与羽化生成应用 | 已上线 | [os.ageha.cn](https://os.ageha.cn) |
+| CS 饰品虚拟投资模拟器 | 真实行情 + 虚拟资金的投资练习终端：定时采集、比价预警、模拟买卖、复盘回放 | 已上线 | [cs.ageha.cn](https://cs.ageha.cn) · [GitHub](https://github.com/Ageha6912/cs-market) |
+| Moss World | 程序化生成的 3D 数字生态缸：光照湿度、成长系统与氛围预设，全程离线可用 | 可本地运行 | 无线上地址（未上线，不设入口） |
 
 ## 视觉方向：明亮蝴蝶版
 
@@ -79,7 +92,7 @@ AgehaTech/
 │   └── ui/                     # GlassCard / GlassPanel / GlassButton / Badge / SectionHeading
 ├── lib/                        # 集中管理的数据与配置（站点配置 / 项目 / 文章计划 / 技术栈）
 ├── tests/                      # node:test 契约测试（结构 / 路由 / 设计系统 / 对比度 / 诚实边界…）
-├── public/images/              # 参考图裁切的概念占位素材（见下表）
+├── public/images/              # Hero 场景插画 + 项目真实界面截图 + 关于照片（见下表）
 ├── Ageha.tech未来数字世界作品集.png   # 设计参考原图（仓库根目录）
 ├── _assets/                    # 参考图裁切素材源（仅本地，不入库）
 └── Discarded proposal/         # 废案文件夹（仅本地，不入库）
@@ -87,28 +100,30 @@ AgehaTech/
 
 ## 素材与占位说明
 
-**所有站点图片均为设计参考图（根目录 `Ageha.tech未来数字世界作品集.png`）
-的裁切产物，是概念视觉占位，不是真实产品界面或个人照片。**
-裁切源文件存放在本地 `_assets/`（已被 `.gitignore` 排除），
-`public/images/` 中入库的六张如下：
+`public/images/` 中入库的六张素材分两类 —— **项目封面为真实界面截图**，
+参考图裁切产物仅用于场景插画与「关于我」照片位（仍是概念视觉，非真实照片）。
+参考图裁切的源文件存放在本地 `_assets/`（已被 `.gitignore` 排除）：
 
-| 文件 | 用途 | 引用位置 | 占位性质 |
+| 文件 | 用途 | 引用位置 | 素材性质 |
 | --- | --- | --- | --- |
 | `hero-clean.png` | Hero 主视觉场景插画（水晶蝴蝶 + 悬浮尖塔城市 + 光环） | `components/home/HeroScene.tsx` | 参考图裁切的概念视觉 |
 | `hero-full.png` | 完整版场景图（备用素材） | 暂未被代码引用（测试仅校验其存在） | 参考图裁切的概念视觉 |
 | `about-photo.png` | 「关于我」版块照片位 | `components/home/AboutSection.tsx` | 参考图裁切，**非真实个人照片** |
-| `cover-agehaos.png` | 项目 AgehaOS 封面 | `lib/projects.ts` → 项目卡片 / 详情页 | 概念占位，**非真实运行界面** |
-| `cover-cs.png` | 项目 CS 饰品虚拟投资模拟器封面 | 同上 | 概念占位，**非真实运行界面** |
-| `cover-moss.png` | 项目 Moss World 封面 | 同上 | 概念占位，**非真实运行界面** |
+| `agehaos-desktop.jpg` | AgehaOS 封面 | `lib/projects.ts` → 项目卡片 / 详情页 | **真实界面截图**（取自 AgehaOS 仓库桌面截图） |
+| `cs-market-portfolio.png` | CS 饰品虚拟投资模拟器封面 | 同上 | **真实界面截图**（取自 cs.ageha.cn 线上投资组合页） |
+| `moss-world-terrarium.png` | Moss World 封面 | 同上 | **真实界面截图**（本地运行实拍） |
 
 ### 内容占位（诚实边界）
 
-以下内容由 `tests/content-honesty.test.mjs` 数值级守护，接入真实信息前一律保持占位：
+以下边界由 `tests/content-honesty.test.mjs` 数值级守护：
 
-- **联系方式**（`lib/site.ts`）：GitHub / Email / X / Bilibili 四项均为「待配置」，
-  页面上无任何虚构的外链；
-- **项目**（`lib/projects.ts`）：三个项目均为探索中的作品，无上线状态、
-  无演示 / 源码链接、无日期，封面 alt 文本如实标注「非真实运行界面」；
+- **联系方式**（`lib/site.ts`）：GitHub 已接入站长真实账号
+  [Ageha6912](https://github.com/Ageha6912)（与 CS 模拟器公开仓库同源）；
+  邮箱与其他平台仍为「待配置」占位，页面上不出现任何虚构外链；
+- **项目**（`lib/projects.ts`）：状态与入口链接只来自各项目仓库 README 的事实
+  （已上线 → 在线体验 / 源码链接；未上线 → 「可本地运行」且不设任何入口），
+  外链域名受测试白名单约束（ageha.cn 系与 github.com/Ageha6912）；
+  不写日期、不写成果指标；
 - **文章**（`lib/notes.ts`）：三条均为「写作计划中」的占位条目，
   无日期、无阅读量、无链接；
 - **探索时间线**（首页 JourneySection）：不含任何年份。
@@ -144,6 +159,6 @@ AgehaTech/
 | `responsive-perf.test.mjs` | 断点 / 触控面积 / 焦点环 / 图片加载策略 / reduced-motion |
 | `hero.test.mjs` | 首屏文案、场景实现要点、Logo 接口、无 emoji |
 | `home-sections.test.mjs` / `sections.test.mjs` | 版块数据单源、占位标注、无年份承诺 |
-| `content-honesty.test.mjs` | 数据级诚实边界：无外链 / 无日期 / 全部「待配置」 |
-| `site.test.mjs` | 站点配置、`.gitignore` 必含项、六张素材非空 |
+| `content-honesty.test.mjs` | 数据级诚实边界：外链白名单 / 无日期 / 联系渠道「待配置」 |
+| `site.test.mjs` | 站点配置、`.gitignore` 必含项、素材非空 |
 | `readme.test.mjs` | README 与仓库真实状态一致（命令 / 素材表 / 占位说明） |

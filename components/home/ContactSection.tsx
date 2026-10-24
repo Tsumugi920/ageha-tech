@@ -1,17 +1,19 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Cat, Mail, Network } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Cat, Mail, Network } from "lucide-react";
 import { ButterflyLogo } from "@/components/layout/ButterflyLogo";
+import { site } from "@/lib/site";
 
 /**
- * 联系渠道：【诚实占位】三项全部「待配置」且非链接 ——
- * 在站长提供真实账号前，绝不虚构任何邮箱或社交账号
- * （参考图中的示意账号与示意邮箱均不得照抄）。
+ * 联系渠道：数据单源于 lib/site.ts 的 contacts。
+ * 【诚实边界】GitHub 为站长真实账号（有据可查，新窗口打开）；
+ * 其余渠道仍是「待配置」占位且非链接——在站长提供真实账号前，
+ * 绝不虚构任何邮箱或社交账号。
  */
-const CONTACT_CHANNELS: { label: string; icon: LucideIcon }[] = [
-  { label: "GitHub", icon: Cat },
-  { label: "邮箱", icon: Mail },
-  { label: "其他平台", icon: Network },
-];
+const CHANNEL_ICONS: Record<string, LucideIcon> = {
+  GitHub: Cat,
+  邮箱: Mail,
+  其他平台: Network,
+};
 
 /** 星空：静态点缀（装饰性，aria-hidden 由外层承担） */
 const STARS = [
@@ -123,26 +125,39 @@ export function ContactSection() {
             </a>
           </div>
 
-          {/* 中：深色玻璃渠道板（三渠道横排，细竖线分隔；全部非链接） */}
+          {/* 中：深色玻璃渠道板（渠道横排，细竖线分隔；真实链接新窗口打开，其余「待配置」非链接） */}
           <ul className="grid grid-cols-1 divide-y divide-white/10 rounded-2xl border border-white/15 bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_18px_46px_rgba(3,10,28,0.45)] backdrop-blur-xl sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {CONTACT_CHANNELS.map((channel) => {
-              const Icon = channel.icon;
+            {site.contacts.map((contact) => {
+              const Icon = CHANNEL_ICONS[contact.label] ?? Network;
               return (
                 <li
-                  key={channel.label}
-                  className="flex items-center gap-2.5 px-4 py-5"
+                  key={contact.label}
+                  className="flex items-stretch"
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
-                    <Icon className="size-[18px]" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold whitespace-nowrap text-white">
-                      {channel.label}
-                    </p>
-                    <span className="mt-1 inline-flex items-center whitespace-nowrap rounded-full border border-dashed border-white/30 px-1.5 py-px text-[10px] leading-4 text-white/70">
-                      待配置
-                    </span>
-                  </div>
+                  {contact.href ? (
+                    <a
+                      href={contact.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`${contact.label}：${contact.value}（新窗口打开）`}
+                      className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-4 py-5 transition-colors duration-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#54E3FF]"
+                    >
+                      <ChannelBody
+                        icon={<Icon className="size-[18px]" aria-hidden="true" />}
+                        label={contact.label}
+                        value={contact.value}
+                        linked
+                      />
+                    </a>
+                  ) : (
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-5">
+                      <ChannelBody
+                        icon={<Icon className="size-[18px]" aria-hidden="true" />}
+                        label={contact.label}
+                        value={contact.value}
+                      />
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -167,5 +182,44 @@ export function ContactSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** 渠道条目本体：图标圆片 + 渠道名 + 值（真实链接带外跳箭头；占位挂虚线徽标） */
+function ChannelBody({
+  icon,
+  label,
+  value,
+  linked = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  linked?: boolean;
+}) {
+  return (
+    <>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold whitespace-nowrap text-white">
+          {label}
+        </p>
+        {linked ? (
+          <span className="mt-1 inline-flex items-center gap-0.5 text-[13px] font-medium whitespace-nowrap text-white underline decoration-white/40 underline-offset-4 transition-colors group-hover:decoration-white">
+            {value}
+            <ArrowUpRight
+              className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              aria-hidden="true"
+            />
+          </span>
+        ) : (
+          <span className="mt-1 inline-flex items-center whitespace-nowrap rounded-full border border-dashed border-white/30 px-1.5 py-px text-[10px] leading-4 text-white/70">
+            {value}
+          </span>
+        )}
+      </div>
+    </>
   );
 }

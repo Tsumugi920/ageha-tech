@@ -28,10 +28,10 @@ const DEFAULT_SIZES = "(min-width: 768px) 33vw, 100vw";
 /**
  * 项目卡（首页「精选项目」与 /projects 列表页共用的唯一实现，保证视觉一致）。
  *
- * 【诚实边界】封面为参考图裁切的概念视觉占位：
- * 图内左上以「概念视觉占位」小徽标如实标注，alt 同样如实描述；
+ * 【诚实边界】封面徽标按 coverKind 如实渲染：concept 挂「概念视觉占位」，
+ * real（项目真实界面截图）不挂任何徽标；alt 同样如实描述。
  * 卡片只展示 lib/projects.ts 里真实存在的字段（名称 / 类别 / 描述 / 标签），
- * 唯一入口为右上圆形箭头 → /projects/<slug> 详情页，绝不虚构演示或源码链接。
+ * 唯一入口为右上圆形箭头 → /projects/<slug> 详情页（真实上线/源码入口在详情页）。
  */
 export function ProjectCard({
   project,
@@ -43,7 +43,7 @@ export function ProjectCard({
   const TitleTag = headingLevel;
   return (
     <GlassCard className="group flex h-full flex-col p-4 sm:p-5">
-      {/* 封面：统一比例，左上「概念视觉占位」徽标 + 右上编号角标 */}
+      {/* 封面：统一比例，左上徽标（仅概念占位）+ 右上编号角标 */}
       <div className="relative aspect-[2/1] overflow-hidden rounded-xl border border-white/70">
         <Image
           src={project.cover}
@@ -53,9 +53,11 @@ export function ProjectCard({
           priority={priority}
           className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
         />
-        <span className="absolute left-2.5 top-2.5 rounded-full border border-white/70 bg-white/75 px-2.5 py-0.5 text-[10px] font-medium text-text-secondary backdrop-blur-sm">
-          概念视觉占位
-        </span>
+        {project.coverKind === "concept" && (
+          <span className="absolute left-2.5 top-2.5 rounded-full border border-white/70 bg-white/75 px-2.5 py-0.5 text-[10px] font-medium text-text-secondary backdrop-blur-sm">
+            概念视觉占位
+          </span>
+        )}
         {index !== undefined && (
           <span
             aria-hidden="true"

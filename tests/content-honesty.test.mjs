@@ -26,8 +26,7 @@ const projectRoot = path.resolve(
 const readProjectFile = (relativePath) =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
-/* 与 lib/content-types.ts 的 Project 类型一一对应的诚实字段白名单：
-   刻意不设上线状态、演示/源码链接、日期等字段 */
+/* 与 lib/content-types.ts 的 Project 类型一一对应的诚实字段白名单 */
 const PROJECT_FIELDS = [
   "slug",
   "name",
@@ -36,6 +35,16 @@ const PROJECT_FIELDS = [
   "tags",
   "cover",
   "coverAlt",
+  "coverKind",
+  "status",
+  "links",
+];
+
+/* 真实入口链接的域名白名单：只允许站长仓库 README 载明的线上地址与公开源码仓库 */
+const PROJECT_LINK_HOST_PATTERNS = [
+  /^https:\/\/os\.ageha\.cn\/?$/,
+  /^https:\/\/cs\.ageha\.cn\/?$/,
+  /^https:\/\/github\.com\/Ageha6912(\/|$)/,
 ];
 
 /* 与 PlannedNote 类型对应的诚实字段白名单：无日期、无阅读量、无链接 */
@@ -47,22 +56,35 @@ const accountPattern =
 
 /* ------------------------------ 项目数据 ------------------------------ */
 
-test("lib/projects.ts：任何字段都不含 http(s) 外链", () => {
-  const source = readProjectFile("lib/projects.ts");
-  assert.doesNotMatch(
-    source,
-    /https?:\/\//,
-    "项目数据源码不应出现任何 http(s) 链接",
-  );
-
+test("lib/projects.ts：links 仅含白名单域名的真实入口，且只属于已上线项目", () => {
   assert.ok(projects.length > 0, "项目数据不应为空");
   for (const project of projects) {
-    assert.doesNotMatch(
-      JSON.stringify(project),
-      /https?:\/\//,
-      `${project.slug} 的任何字段值都不应包含外链（项目未上线，无演示/源码可链）`,
-    );
+    const links = project.links ?? [];
+    if (project.status === "已上线") {
+      assert.ok(links.length > 0, `${project.slug} 已上线，应提供真实入口链接`);
+    } else {
+      assert.equal(
+        links.length,
+        0,
+        `${project.slug} 没有上线记录，不应渲染任何入口链接`,
+      );
+    }
+    for (const link of links) {
+      assert.ok(
+        PROJECT_LINK_HOST_PATTERNS.some((pattern) => pattern.test(link.href)),
+        `${project.slug} 的入口 ${link.href} 不在真实链接白名单内`,
+      );
+      assert.equal(link.label.length > 0, true, "入口按钮应有文案");
+      assert.equal(link.external, true, "入口应为外链（新窗口打开）");
+    }
   }
+
+  // 源码层兜底：项目数据源码中的 http(s) 只能出现在 links 的 href 里
+  const source = readProjectFile("lib/projects.ts");
+  const outsideLinks = source
+    .split("\n")
+    .filter((line) => /https?:\/\//.test(line) && !/href:/.test(line));
+  assert.deepEqual(outsideLinks, [], "links 之外不应出现任何 http(s) 链接");
 });
 
 test("lib/projects.ts：不设日期类字段，字段值不含年份或 ISO 日期", () => {
@@ -122,40 +144,65 @@ test("lib/notes.ts：写作计划条目无日期、无阅读量、无链接字�
 
 /* ------------------------------ 联系方式 ------------------------------ */
 
-test("lib/site.ts：联系方式全部「待配置」占位且不携带链接，全站配置无任何账号/外链", () => {
-  assert.ok(site.contacts.length >= 3, "应至少有 3 条联系方式占位");
+test("lib/site.ts：GitHub 为白名单内真实账号，其余渠道保持「待配置」无链接", () => {
+  assert.ok(site.contacts.length >= 3, "应至少有 3 条联系方式");
   for (const contact of site.contacts) {
     assert.ok(contact.label.length > 0, "联系方式应有渠道名");
-    assert.equal(
-      contact.value,
-      "待配置",
-      `${contact.label} 应为「待配置」占位，接入真实账号前绝不虚构`,
-    );
-    assert.ok(
-      !Object.hasOwn(contact, "href"),
-      `${contact.label} 占位不应携带 href 链接`,
-    );
+    if (Object.hasOwn(contact, "href")) {
+      // 真实账号：必须有非占位值，且域名在白名单内
+      assert.notEqual(
+        contact.value,
+        "待配置",
+        `${contact.label} 携带链接时应填真实账号`,
+      );
+      assert.match(
+        contact.href,
+        /^https:\/\/github\.com\/Ageha6912\/?$/,
+        `${contact.label} 的链接应在真实账号白名单内`,
+      );
+    } else {
+      assert.equal(
+        contact.value,
+        "待配置",
+        `${contact.label} 未接入真实账号前应保持「待配置」占位`,
+      );
+    }
   }
 
+  // 除白名单域外，全站配置不得出现任何邮箱 / 社交账号 / 外链
   const serialized = JSON.stringify(site);
-  assert.doesNotMatch(serialized, accountPattern, "全站配置不应出现任何邮箱或社交账号");
-  assert.doesNotMatch(serialized, /https?:\/\//, "全站配置不应出现任何 http(s) 外链");
+  const urls = serialized.match(/https?:\/\/[^"]+/g) ?? [];
+  assert.ok(urls.length >= 1, "GitHub 真实链接应存在");
+  for (const url of urls) {
+    assert.match(
+      url,
+      /^https:\/\/github\.com\/Ageha6912\/?$/,
+      `全站配置只允许 GitHub 白名单链接，发现 ${url}`,
+    );
+  }
+  assert.doesNotMatch(serialized, accountPattern, "全站配置不应出现任何邮箱或 @ 账号");
 });
 
-test("ContactSection：渠道全部渲染「待配置」虚线徽标，绝无真实账号或外链", () => {
+test("ContactSection：渠道单源 site.contacts 渲染，GitHub 为真实链接，其余「待配置」非链接", () => {
   const section = readProjectFile("components/home/ContactSection.tsx");
 
-  // 渠道清单：逐条声明、名称不重复，并经 CONTACT_CHANNELS.map 统一渲染徽标
-  const labels = [
-    ...section.matchAll(/\{\s*label:\s*"([^"]+)",\s*icon:/g),
-  ].map((match) => match[1]);
-  assert.ok(labels.length >= 3, `应声明至少 3 个联系渠道，实际 ${labels.length}`);
-  assert.equal(new Set(labels).size, labels.length, "联系渠道名不应重复");
-  assert.match(section, /CONTACT_CHANNELS\.map/, "渠道应经统一映射渲染");
-  assert.match(section, /待配置/, "渠道应挂「待配置」占位徽标");
+  // 渠道数据单源 lib/site.ts（不再在本组件内重复声明渠道清单）
+  assert.match(
+    section,
+    /site\.contacts\.map/,
+    "渠道应经 site.contacts 统一映射渲染",
+  );
+  assert.ok(
+    !section.includes('label: "GitHub"'),
+    "组件内不应重复硬编码渠道清单",
+  );
+  // 真实链接：新窗口打开 + noreferrer
+  assert.match(section, /target="_blank"/);
+  assert.match(section, /rel="noreferrer"/);
+  // 占位渠道：虚线徽标（区别于正式链接按钮）
   assert.match(section, /border-dashed/, "占位徽标应为虚线样式（区别于正式链接按钮）");
 
-  // 诚实边界：整个版块源码不出现任何邮箱 / 社交账号 / http(s) 外链
+  // 诚实边界：整个版块源码不出现任何邮箱 / 社交账号 / http(s) 外链（链接来自 site.ts）
   assert.doesNotMatch(section, accountPattern);
   assert.doesNotMatch(section, /https?:\/\//);
 });

@@ -60,13 +60,13 @@ test("README 素材表登记 public/images 全部六张图，且引用的文件�
   }
 });
 
-test("README 保留诚实占位说明，不伪装占位内容为真实成果", () => {
+test("README 保留诚实说明：真实素材如实标注，占位内容不伪装成真实成果", () => {
   const readme = readProjectFile("README.md");
 
-  assert.match(readme, /概念.*占位|占位/, "README 应说明图片为概念占位");
-  assert.match(readme, /待配置/, "README 应说明联系方式待配置");
+  assert.match(readme, /占位/, "README 应说明仍处于占位的内容");
+  assert.match(readme, /待配置/, "README 应说明部分联系方式待配置");
   assert.match(readme, /写作计划中/, "README 应说明文章为写作计划占位");
-  assert.match(readme, /非真实运行界面/, "README 应声明项目封面非真实界面");
-  assert.match(readme, /非真实个人照片/, "README 应声明照片位非真实照片");
+  assert.match(readme, /真实界面截图/, "README 应如实声明项目封面为真实界面截图");
+  assert.match(readme, /非真实个人照片/, "README 应声明关于照片位非真实照片");
   assert.match(readme, /正在建设中/, "README 应如实标注站点建设状态");
 });

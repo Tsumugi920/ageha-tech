@@ -1,8 +1,9 @@
 /**
  * 站点全局配置：品牌、身份、导航与联系方式。
  *
- * 【诚实占位说明】所有联系方式均为「待配置」占位，
- * 在站长提供真实账号前，绝不虚构任何邮箱 / 社交链接。
+ * 【诚实边界】GitHub 为站长真实账号（github.com/Ageha6912，与 CS 模拟器
+ * 公开仓库同源）；其余渠道仍是「待配置」占位，在站长提供真实账号前，
+ * 绝不虚构任何邮箱 / 社交链接。
  */
 
 export type NavItem = {
@@ -38,14 +39,13 @@ export const site = {
     { label: "文章", href: "#notes" },
   ] satisfies NavItem[],
   /**
-   * 联系方式占位：一律 { label, value: "待配置" } 形式，
-   * 绝不填入真实账号。
+   * 联系方式：GitHub 已接入真实账号（有据可查）；其余渠道保持
+   * { label, value: "待配置" } 占位，绝不虚构。
    */
   contacts: [
-    { label: "GitHub", value: "待配置" },
-    { label: "Email", value: "待配置" },
-    { label: "X / Twitter", value: "待配置" },
-    { label: "Bilibili", value: "待配置" },
+    { label: "GitHub", value: "Ageha6912", href: "https://github.com/Ageha6912" },
+    { label: "邮箱", value: "待配置" },
+    { label: "其他平台", value: "待配置" },
   ] satisfies ContactItem[],
 } as const;
 

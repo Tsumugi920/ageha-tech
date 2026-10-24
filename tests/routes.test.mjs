@@ -1,7 +1,7 @@
 /**
  * 路由与导航契约测试（node:test）：
- * 校验六个内页就位与各自 metadata、项目详情页诚实边界（只写「探索中」、
- * 无虚构演示/源码入口）、Navbar/Footer 完整实现与锚点↔路由映射、
+ * 校验六个内页就位与各自 metadata、项目详情页诚实边界（状态/入口来自数据、
+ * 未上线项目无任何入口）、Navbar/Footer 完整实现与锚点↔路由映射、
  * 以及全站图片一律 next/image（首屏 priority，其余懒加载）。
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
@@ -58,24 +58,37 @@ test("app/projects/[slug]/page.tsx：generateStaticParams 覆盖三个项目，�
   assert.match(page, /params: Promise<\{ slug: string \}>/, "Next.js 16 params 为 Promise");
 });
 
-test("项目详情页：状态徽标只写「探索中」，绝无上线/发布等虚构状态与演示/源码入口", () => {
+test("项目详情页：状态徽标来自数据，仅渲染数据里真实存在的入口链接", () => {
   const page = readProjectFile("app/projects/[slug]/page.tsx");
 
-  assert.match(page, /STATUS_LABEL = "探索中"/);
-  assert.ok(page.includes("项目状态：${STATUS_LABEL}"), "状态应有无障碍文本");
-  // 诚实边界：全页不出现虚构状态词或演示/源码入口（字段、按钮、外链均无）
-  for (const banned of ["已上线", "正式发布", "已发布", "demoUrl", "sourceUrl", "liveUrl", "查看演示", "查看源码", "访问演示", "访问源码"]) {
-    assert.ok(!page.includes(banned), `详情页不应出现 ${banned}`);
-  }
-  assert.doesNotMatch(page, /https?:\/\//, "不应出现任何外部链接");
+  // 状态徽标渲染 project.status（已上线 / 可本地运行），无障碍文本就位
+  assert.match(page, /\{project\.status\}/, "状态徽标应渲染数据里的 status");
+  assert.ok(page.includes("项目状态：${project.status}"), "状态应有无障碍文本");
+  assert.ok(
+    !page.includes("正式发布") && !page.includes("已发布"),
+    "详情页不应出现未经验证的发布状态词",
+  );
+  assert.ok(!page.includes("demoUrl") && !page.includes("sourceUrl") && !page.includes("liveUrl"),
+    "详情页不应出现演示/源码类字段名");
+  // 入口按钮渲染 project.links（在线体验 / 查看源码），文案来自数据
+  assert.match(page, /\{link\.label\}/, "入口按钮文案应来自数据");
+  assert.match(page, /\{link\.href\}/, "入口按钮链接应来自数据");
+  assert.match(page, /target="_blank"/, "外链应新窗口打开");
+  assert.match(page, /rel="noreferrer"/, "外链应带 noreferrer");
+  // 诚实边界：页面源码不出现字面外链（链接全部来自 lib/projects.ts）
+  assert.doesNotMatch(page, /https?:\/\//, "页面源码不应出现字面外部链接");
 });
 
-test("项目详情页：封面（概念视觉占位 + 首屏 priority）、类别/描述/标签/返回链接就位", () => {
+test("项目详情页：封面按 coverKind 如实标注 + 首屏 priority，类别/描述/标签/返回链接就位", () => {
   const page = readProjectFile("app/projects/[slug]/page.tsx");
 
   assert.match(page, /from "next\/image"/, "封面应使用 next/image");
   assert.match(page, /priority/, "详情页封面为首屏大图，应 priority");
-  assert.match(page, /概念视觉占位/, "封面应保留概念视觉占位标注");
+  assert.match(
+    page,
+    /project\.coverKind === "concept"/,
+    "封面徽标应按 coverKind 条件渲染（概念占位才挂徽标，真实界面截图不挂）",
+  );
   assert.match(page, /alt=\{project\.coverAlt\}/, "alt 应如实引用 coverAlt");
   assert.match(page, /\{project\.category\}/, "应渲染类别");
   assert.match(page, /\{project\.description\}/, "应渲染描述");

@@ -129,7 +129,7 @@ test("LatestNotes：左头部块 + 三张写作计划卡（明确标注，不伪
 
 /* ------------------------------- 联系我 ------------------------------- */
 
-test("ContactSection：夜景深色带 + 三渠道全部「待配置」且非链接，无任何真实账号", () => {
+test("ContactSection：夜景深色带 + 渠道单源 site.contacts（GitHub 真实链接，其余「待配置」）", () => {
   const section = readProjectFile("components/home/ContactSection.tsx");
 
   assert.match(section, /id="contact"/);
@@ -140,19 +140,19 @@ test("ContactSection：夜景深色带 + 三渠道全部「待配置」且非链
   assert.match(section, /联系我/);
   assert.match(section, /href="\/contact"/);
 
-  // 三个渠道：GitHub / 邮箱 / 其他平台，每项一个「待配置」徽标
-  for (const label of ["GitHub", "邮箱", "其他平台"]) {
-    assert.match(section, new RegExp(`label: "${label}"`));
-  }
+  // 渠道数据单源 lib/site.ts：GitHub 真实链接（新窗口 + noreferrer），其余挂「待配置」虚线徽标
+  assert.match(section, /site\.contacts\.map/);
+  assert.match(section, /target="_blank"/);
+  assert.match(section, /rel="noreferrer"/);
   const badges = section.match(/待配置/g) ?? [];
-  assert.ok(badges.length >= 3, "三个渠道均应有「待配置」徽标");
+  assert.ok(badges.length >= 2, "未接入的渠道应有「待配置」徽标");
 
-  // 诚实边界：绝不出现参考图里的账号 / 邮箱，渠道项不是 <a> 链接
+  // 诚实边界：组件源码不出现任何账号 / 邮箱 / 外链字面量（真实链接来自 site.ts）
   assert.doesNotMatch(
     section,
     /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|@ageha/,
   );
-  assert.doesNotMatch(section, /<a[^>]*channel/);
+  assert.doesNotMatch(section, /https?:\/\//);
   assert.doesNotMatch(section, emojiPattern);
 });
 

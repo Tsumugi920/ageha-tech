@@ -34,17 +34,32 @@ test("globals.css 定义了 --color-sky 等明亮设计令牌与玻璃拟态基�
   assert.match(css, /linear-gradient\(/i);
 });
 
-test("lib/site.ts 的联系方式一律为「待配置」占位，绝不填真实账号", () => {
+test("lib/site.ts 的联系方式：GitHub 为白名单真实账号，其余渠道「待配置」", () => {
   const siteConfig = readProjectFile("lib/site.ts");
 
-  // 每条联系方式都使用「待配置」占位
+  // 每条联系方式：真实账号必须带白名单链接；占位必须保持「待配置」
   const contactMatches = [
-    ...siteConfig.matchAll(/\{\s*label:\s*"([^"]+)",\s*value:\s*"([^"]+)"/g),
+    ...siteConfig.matchAll(
+      /\{\s*label:\s*"([^"]+)",\s*value:\s*"([^"]+)"(?:,\s*href:\s*"([^"]+)")?/g,
+    ),
   ];
-  assert.ok(contactMatches.length >= 4, "至少有 4 条联系方式占位");
-  for (const [, label, value] of contactMatches) {
-    assert.equal(value, "待配置", `${label} 的联系方式应为「待配置」占位`);
+  assert.ok(contactMatches.length >= 3, "至少有 3 条联系方式");
+  for (const [, label, value, href] of contactMatches) {
+    if (href) {
+      assert.match(
+        href,
+        /^https:\/\/github\.com\/Ageha6912\/?$/,
+        `${label} 的链接应在真实账号白名单内`,
+      );
+      assert.notEqual(value, "待配置", `${label} 携带链接时应填真实账号`);
+    } else {
+      assert.equal(value, "待配置", `${label} 未接入前应为「待配置」占位`);
+    }
   }
+  assert.ok(
+    siteConfig.includes('label: "GitHub"') && siteConfig.includes("Ageha6912"),
+    "GitHub 应为站长真实账号 Ageha6912",
+  );
 
   // 品牌、身份与品牌短句就位
   assert.match(siteConfig, /name:\s*"Ageha\.tech"/);
@@ -101,14 +116,14 @@ test(".gitignore 覆盖 node_modules、.next、废案、素材、截图与 tsbui
   }
 });
 
-test("public/images/ 下六张参考素材已就位且非空", () => {
+test("public/images/ 下六张素材已就位且非空（参考素材 + 三张项目真实截图）", () => {
   const requiredImages = [
     "hero-clean.png",
     "hero-full.png",
-    "cover-agehaos.png",
-    "cover-cs.png",
-    "cover-moss.png",
     "about-photo.png",
+    "agehaos-desktop.jpg",
+    "cs-market-portfolio.png",
+    "moss-world-terrarium.png",
   ];
   for (const image of requiredImages) {
     const imagePath = path.join(projectRoot, "public", "images", image);

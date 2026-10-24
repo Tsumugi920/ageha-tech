@@ -17,7 +17,7 @@ const projectRoot = path.resolve(
 const readProjectFile = (relativePath) =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
-test("lib/projects.ts 集中管理三个项目，slug、标签与封面素材真实就位", () => {
+test("lib/projects.ts 集中管理三个项目，slug、标签与真实封面素材就位", () => {
   const data = readProjectFile("lib/projects.ts");
 
   // 三个 slug 齐全
@@ -26,7 +26,11 @@ test("lib/projects.ts 集中管理三个项目，slug、标签与封面素材真
   }
 
   // 封面路径指向 public/images/ 下真实存在的文件
-  for (const cover of ["cover-agehaos.png", "cover-cs.png", "cover-moss.png"]) {
+  for (const cover of [
+    "agehaos-desktop.jpg",
+    "cs-market-portfolio.png",
+    "moss-world-terrarium.png",
+  ]) {
     assert.ok(
       existsSync(path.join(projectRoot, "public", "images", cover)),
       `缺少 public/images/${cover}`,
@@ -34,42 +38,55 @@ test("lib/projects.ts 集中管理三个项目，slug、标签与封面素材真
     assert.ok(data.includes(`/images/${cover}`), `应引用 /images/${cover}`);
   }
 
-  // 技术标签与参考一致
+  // 技术标签来自各项目仓库的实际依赖
   for (const tag of [
+    "React 19",
     "TypeScript",
-    "Next.js",
-    "Tailwind CSS",
-    "React",
-    "Chart.js",
-    "Python",
+    "Vite",
+    "Zustand",
+    "Tailwind CSS 4",
+    "Next.js 15",
+    "FastAPI",
+    "ECharts",
+    "SQLAlchemy",
     "Three.js",
-    "WebGL",
+    "React Three Fiber",
   ]) {
     assert.ok(data.includes(`"${tag}"`), `应包含标签 ${tag}`);
   }
 });
 
-test("项目数据不虚构上线状态、演示/源码链接与日期", () => {
+test("项目状态与入口链接如实：已上线才给链接，封面一律真实界面截图", () => {
   const data = readProjectFile("lib/projects.ts");
 
-  for (const banned of [
-    "已上线",
-    "正式发布",
-    "已发布",
-    "demoUrl",
-    "sourceUrl",
-    "liveUrl",
-    "http://",
-    "https://",
-  ]) {
+  // 只允许两种有据可查的状态词；未上线的表述仍禁止
+  for (const banned of ["正式发布", "已发布", "demoUrl", "sourceUrl", "liveUrl"]) {
     assert.ok(!data.includes(banned), `项目数据不应出现 ${banned}`);
   }
-
-  // 三张封面全部明确标注「概念视觉占位」（诚实规则）
+  assert.ok(data.includes('status: "已上线"'), "AgehaOS/CS 已上线（站长 README 载明）");
   assert.ok(
-    (data.match(/概念视觉占位/g) || []).length >= 3,
-    "每张封面的 alt 都应如实标注概念视觉占位",
+    data.includes('status: "可本地运行"'),
+    "Moss World 无上线记录，应为可本地运行",
   );
+
+  // 三张封面全部为真实界面截图，不再使用概念占位
+  assert.equal((data.match(/coverKind: "real"/g) ?? []).length, 3, "三张封面应均为真实界面截图");
+  assert.ok(
+    !data.includes("概念视觉占位"),
+    "项目封面已是真实截图，不应再出现概念占位标注",
+  );
+
+  // 真实入口链接（域名白名单）只属于已上线项目
+  const linkHosts = [...data.matchAll(/href: "(https?:\/\/[^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  for (const href of linkHosts) {
+    assert.match(
+      href,
+      /^https:\/\/(os\.ageha\.cn|cs\.ageha\.cn|github\.com\/Ageha6912)(\/|$)/,
+      `入口链接 ${href} 不在真实链接白名单内`,
+    );
+  }
 });
 
 test("三个版块源文件与共享数据一律不出现年份或时间区间", () => {
