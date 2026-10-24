@@ -1,0 +1,33 @@
+import type { Metadata } from "next";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AboutSection } from "@/components/home/AboutSection";
+import { JourneySection } from "@/components/home/JourneySection";
+
+export const metadata: Metadata = {
+  title: "关于我",
+  description:
+    "关于 Ageha：独立开发者，热爱技术，专注于构建有意义的数字产品 —— 自我介绍、兴趣方向、个人理念与探索路径。",
+};
+
+/**
+ * 关于页：统一页头 + 复用首页「关于我」「探索与成长」两个版块
+ * （设计语言与首页完全一致；照片为概念插画，版块内已如实标注）。
+ */
+export default function AboutPage() {
+  return (
+    <>
+      <div className="mx-auto w-full max-w-6xl px-4 pt-14 md:px-8">
+        <PageHeader
+          eyebrow="About"
+          title="关于我"
+          description="我热爱技术，专注于构建有意义的数字产品；这一页汇总我的自我介绍、兴趣方向与探索路径。"
+          back={{ href: "/", label: "返回首页" }}
+        />
+      </div>
+
+      {/* 复用首页版块：桌面端 journey 嵌入 About 大板，移动端独立成块 */}
+      <AboutSection />
+      <JourneySection />
+    </>
+  );
+}

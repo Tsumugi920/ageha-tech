@@ -23,6 +23,17 @@
   --color-purple: #9C83FF;
   --color-pink: #E3A1FF;
 
+  /* 链接用色（文字级）：品牌蓝 #269DFF 作为 14px 文字落在玻璃底仅 2.66:1
+     （WCAG AA 正文需 4.5:1），链接 / 按钮文字统一用加深档并逐底实测：
+     #1A64BE 对 sky / glass/sky / glass(氛围斑)/sky / glass/ice / 导航白75底
+     实测 5.08~5.72:1；hover 紫同步加深（#9C83FF 2.76:1 → 4.89~5.50:1） */
+  --color-link: #1A64BE;
+  --color-link-hover: #6A4DE0;
+
+  /* 键盘焦点环：焦点指示需对周边 ≥3:1（WCAG 1.4.11 / 2.4.11），
+     品牌蓝 #269DFF 对浅蓝天空仅 2.66:1；#1668C4 实测 4.81~5.41:1 */
+  --color-focus-ring: #1668C4;
+
   /* 玻璃拟态 */
   --color-glass: rgba(255,255,255,0.48);
   --color-glass-strong: rgba(255,255,255,0.74);
@@ -62,6 +73,15 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* 触屏设备撤下 background-attachment: fixed：
+     固定背景在移动端滚动时逐帧重绘（低端安卓掉帧主因之一），
+     iOS Safari 本就忽略 fixed，撤掉后触屏滚动明显更顺 */
+  @media (hover: none), (pointer: coarse) {
+    body {
+      background-attachment: scroll;
+    }
+  }
+
   /* 蓝紫氛围光斑：叠加在天空渐变之上，营造数字世界的通透感 */
   body::before {
     content: "";
@@ -78,6 +98,29 @@
   ::selection {
     background: rgba(38,157,255,0.24);
     color: var(--color-text-primary);
+  }
+
+  /* 全局键盘焦点环：任何可交互元素获得焦点时都有清晰可见的深蓝描边
+     （对浅蓝天空 / 玻璃底 ≥3:1，实测 4.81:1 起；
+     组件内更具体的 focus-visible 样式按级联覆盖本规则） */
+  :focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* 触控命中区扩展（视觉不变）：用透明 ::before 把小号可点击元素
+     的命中区外扩到 ≥44×44px；扩展量可用 --tap-extend-x / --tap-extend-y 覆盖 */
+  .tap-44 {
+    position: relative;
+  }
+
+  .tap-44::before {
+    content: "";
+    position: absolute;
+    inset-block: var(--tap-extend-y, -0.75rem);
+    inset-inline: var(--tap-extend-x, -0.25rem);
   }
 }
 
@@ -121,5 +164,431 @@
       var(--shadow-glow),
       inset 0 1px 0 rgba(255,255,255,0.95),
       inset 0 0 0 1px rgba(255,255,255,0.28);
+  }
+}
+
+/* =============================================================
+   Hero 专用样式（仅首屏使用，不影响其他版块）
+   渐变端点源自参考图采样（青→蓝→紫），为满足对比度整体加深：
+   大字渐变（tech / zh）最浅端对 sky ≥3:1，正文渐变（accent）≥4.5:1
+   （原 #00B2FF / #009FFF / #0093D8 起始端仅 2.08 / 2.48 / 2.97:1）
+   ============================================================= */
+@layer components {
+  /* ---- 首屏局部氛围：左上角加深的天空蓝，保证白色品牌字对比度 ---- */
+  .hero-atmosphere {
+    background:
+      radial-gradient(54rem 34rem at 14% 4%, rgba(64, 139, 237, 0.42), transparent 64%),
+      radial-gradient(42rem 26rem at 46% 0%, rgba(102, 167, 243, 0.28), transparent 60%),
+      radial-gradient(40rem 30rem at 72% 72%, rgba(156, 131, 255, 0.14), transparent 62%);
+  }
+
+  /* ---- 渐变文字：.tech / 中文第二行 / 简介高亮 ---- */
+  .hero-gradient-tech,
+  .hero-gradient-zh,
+  .hero-gradient-accent {
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero-gradient-tech {
+    background-image: linear-gradient(92deg, #0072ce 0%, #2e7bff 46%, #9a19fc 100%);
+  }
+
+  .hero-gradient-zh {
+    background-image: linear-gradient(92deg, #0072ce 0%, #0087db 48%, #9a19fc 100%);
+  }
+
+  .hero-gradient-accent {
+    background-image: linear-gradient(92deg, #0067a8 0%, #2a62d4 55%, #7a3ff2 100%);
+  }
+
+  /* ---- 主按钮：青蓝渐变胶囊 + 青色柔光；次按钮：白玻璃胶囊 ---- */
+  .hero-primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.8rem 1.7rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #ffffff;
+    background-image: linear-gradient(102deg, #22c3fe 0%, #0b9ff7 58%, #2f8df2 100%);
+    box-shadow:
+      0 10px 30px rgba(11, 167, 253, 0.42),
+      0 2px 10px rgba(11, 167, 253, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  .hero-primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 16px 42px rgba(11, 167, 253, 0.5),
+      0 4px 14px rgba(11, 167, 253, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  .hero-primary-btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 3px;
+  }
+
+  .hero-ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.8rem 1.7rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1e3a66;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    box-shadow:
+      0 8px 24px rgba(71, 115, 183, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition:
+      transform 0.3s ease,
+      background 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  .hero-ghost-btn:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow:
+      0 14px 32px rgba(71, 115, 183, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  }
+
+  .hero-ghost-btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 3px;
+  }
+
+  /* ---- 场景图边缘遮罩：径向渐隐过渡到页面冰蓝底色 ---- */
+  .hero-scene-mask {
+    -webkit-mask-image: radial-gradient(
+      76% 74% at 51% 46%,
+      #000 42%,
+      rgba(0, 0, 0, 0.6) 60%,
+      transparent 79%
+    );
+    mask-image: radial-gradient(
+      76% 74% at 51% 46%,
+      #000 42%,
+      rgba(0, 0, 0, 0.6) 60%,
+      transparent 79%
+    );
+  }
+
+  /* ---- 横向二次渐隐（嵌套层，与径向遮罩相乘）：
+         彻底消除场景图左右边缘的贴图接缝 ---- */
+  .hero-fade-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      #000 20%,
+      #000 86%,
+      transparent 99%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      #000 20%,
+      #000 86%,
+      transparent 99%
+    );
+  }
+
+  /* ---- 蝴蝶后方柔和光晕（呼吸） ---- */
+  .hero-glow {
+    background: radial-gradient(
+      closest-side,
+      rgba(84, 227, 255, 0.34),
+      rgba(84, 190, 255, 0.18) 42%,
+      rgba(156, 131, 255, 0.1) 62%,
+      transparent 78%
+    );
+    animation: hero-breathe 8s ease-in-out infinite;
+  }
+
+  /* ---- CSS 轨道环：父层倾斜压扁，子层旋转出椭圆轨迹光弧 ---- */
+  .hero-orbit-tilt {
+    position: absolute;
+    left: 50%;
+    top: 45%;
+    width: var(--orbit-size, 42rem);
+    aspect-ratio: 1;
+    /* 位移并入 transform，避免依赖独立的 translate 属性 */
+    transform: translate(-50%, -50%) rotateX(68deg) rotateZ(-14deg);
+    pointer-events: none;
+  }
+
+  .hero-orbit-tilt-b {
+    top: 48%;
+    transform: translate(-50%, -50%) rotateX(76deg) rotateZ(20deg);
+  }
+
+  .hero-orbit {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 40deg,
+      transparent 0deg,
+      transparent 58%,
+      rgba(84, 227, 255, 0.12) 66%,
+      rgba(84, 227, 255, 0.95) 78%,
+      rgba(156, 131, 255, 0.8) 88%,
+      transparent 97%
+    );
+    -webkit-mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 5px),
+      #000 calc(100% - 2.5px)
+    );
+    mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 5px),
+      #000 calc(100% - 2.5px)
+    );
+    filter: drop-shadow(0 0 8px rgba(84, 227, 255, 0.65));
+    animation: hero-spin 32s linear infinite;
+  }
+
+  .hero-orbit-b {
+    background: conic-gradient(
+      from 200deg,
+      transparent 0deg,
+      transparent 70%,
+      rgba(156, 131, 255, 0.55) 84%,
+      rgba(84, 227, 255, 0.4) 92%,
+      transparent 100%
+    );
+    animation: hero-spin-rev 48s linear infinite;
+  }
+
+  /* ---- 漂浮光点：位置 / 尺寸 / 节奏由内联 CSS 变量驱动 ---- */
+  .hero-particle {
+    position: absolute;
+    left: var(--x, 50%);
+    top: var(--y, 50%);
+    width: var(--s, 4px);
+    height: var(--s, 4px);
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle at 35% 35%,
+      rgba(255, 255, 255, 0.95),
+      rgba(84, 227, 255, 0.55) 55%,
+      transparent 78%
+    );
+    box-shadow: 0 0 12px rgba(84, 227, 255, 0.75);
+    opacity: 0.55;
+    animation: hero-drift var(--d, 7s) ease-in-out var(--dl, 0s) infinite;
+  }
+
+  /* ---- 场景整体缓慢悬浮（蝴蝶随之轻浮） ---- */
+  .hero-float {
+    animation: hero-float 9s ease-in-out infinite;
+  }
+
+  /* ---- 竖排小字 ---- */
+  .hero-vtext {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  /* ---- 心电脉冲描线 ---- */
+  .hero-pulse path {
+    stroke-dasharray: 64;
+    animation: hero-pulse 3.6s ease-in-out infinite;
+  }
+
+  /* ---- SCROLL 菱形圆钮 ---- */
+  .hero-knob {
+    animation: hero-knob 3.2s ease-in-out infinite;
+  }
+
+  /* ---- 轨道环尺寸：随断点收缩（移动端蝴蝶主视觉整体缩小、装饰克制），
+         lg+ 恢复设计稿尺寸；轨道尺寸变量由 HeroScene 消费 ---- */
+  .hero-orbit-layer {
+    --orbit-a: clamp(16rem, 52vw, 42rem);
+    --orbit-b: clamp(20rem, 66vw, 52rem);
+  }
+
+  /* lg+ 恢复设计稿轨道尺寸（与原内联值逐字一致） */
+  @media (min-width: 1024px) {
+    .hero-orbit-layer {
+      --orbit-a: clamp(24rem, 46vw, 46rem);
+      --orbit-b: clamp(30rem, 60vw, 56rem);
+    }
+  }
+
+  /* ---- 入场分层渐显：--reveal-delay 控制节奏 ---- */
+  .hero-reveal {
+    opacity: 0;
+    animation: hero-rise 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: var(--reveal-delay, 0s);
+  }
+
+  /* ---- 鼠标视差：CSS 变量由 pointer 事件写入（无单位 -1..1）。
+         will-change 一并收进精确指针媒体查询，触屏设备不再常驻合成层 ---- */
+  @media (hover: hover) and (pointer: fine) {
+    .hero-parallax {
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+
+    .hero-px-deep {
+      transform: translate3d(calc(var(--hero-px, 0) * -6px), calc(var(--hero-py, 0) * -4px), 0);
+    }
+
+    .hero-px-scene {
+      transform: translate3d(calc(var(--hero-px, 0) * 10px), calc(var(--hero-py, 0) * 7px), 0);
+    }
+
+    .hero-px-orbit {
+      transform: translate3d(calc(var(--hero-px, 0) * 18px), calc(var(--hero-py, 0) * 12px), 0);
+    }
+
+    .hero-px-far {
+      transform: translate3d(calc(var(--hero-px, 0) * 26px), calc(var(--hero-py, 0) * 18px), 0);
+    }
+  }
+
+  /* ---- Hero 滚出视口时暂停全部装饰动画（IntersectionObserver 切换） ---- */
+  .hero-root[data-hero-active="false"] * {
+    animation-play-state: paused;
+  }
+}
+
+/* ---- Hero 动画关键帧 ---- */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes hero-breathe {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
+
+@keyframes hero-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hero-spin-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes hero-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.32;
+  }
+  50% {
+    transform: translate3d(4px, -16px, 0);
+    opacity: 0.9;
+  }
+}
+
+@keyframes hero-pulse {
+  0% {
+    stroke-dashoffset: 64;
+  }
+  55%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hero-knob {
+  0%,
+  100% {
+    transform: translateY(-5px);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+/* ---- 动效克制：偏好减弱动效时全部静止，文字与场景保持完整可读 ---- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero-reveal {
+    animation: none;
+    opacity: 1;
+  }
+
+  .hero-float,
+  .hero-glow,
+  .hero-orbit,
+  .hero-particle,
+  .hero-knob,
+  .hero-pulse path {
+    animation: none;
+  }
+
+  .hero-px-deep,
+  .hero-px-scene,
+  .hero-px-orbit,
+  .hero-px-far {
+    transform: none;
+    transition: none;
+  }
+
+  .hero-parallax {
+    transition: none;
+    will-change: auto;
+  }
+
+  /* 全局兜底：偏好减弱动效时，站内任何动画 / 过渡 / 平滑滚动一律瞬时完成
+     （覆盖 hero 专用块之外的所有组件级 transition 与 animation） */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

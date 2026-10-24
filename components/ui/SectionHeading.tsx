@@ -57,7 +57,7 @@ export function SectionHeading({
       {link ? (
         <a
           href={link.href}
-          className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-blue transition-colors hover:text-purple"
+          className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-link transition-colors hover:text-link-hover"
         >
           {link.label}
           <ArrowRight
