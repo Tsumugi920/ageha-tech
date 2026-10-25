@@ -1,7 +1,10 @@
 /**
- * Hero 首屏测试（node:test）：
- * 校验首屏文案一字不差、场景实现要点、hero 专用样式与减弱动效降级、
- * 蝴蝶 Logo 接口稳定与站点图标就位，并保证无 emoji 混入。
+ * 首页世界入口测试（node:test）：
+ * Hero.tsx 已随首页 3D 化退役（蓝图 §14.0/§14.1）——原 Hero 首屏文案契约
+ * 逐字搬迁至世界 HTML 信息层新家：品牌标题 → WorldShell/LoadingScreen 的
+ * 常驻 <h1>；个人简介 / 双按钮 / 统计口径 → IntroToast 首次引导卡。
+ * 本文件守护搬迁后的文案一字不差、加载屏真实进度纪律、世界沉浸 CSS、
+ * ButterflyLogo 接口稳定与站点图标就位，并保证无 emoji 混入。
  * 运行方式：npm test（即 node --test tests/*.test.mjs）
  */
 import assert from "node:assert/strict";
@@ -18,132 +21,95 @@ const projectRoot = path.resolve(
 const readProjectFile = (relativePath) =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
-test("Hero 文案一字不差：品牌组合标题 / 中文双行 / 简介 / 按钮 / 摘要", () => {
-  const hero = readProjectFile("components/home/Hero.tsx");
+test("世界品牌标题一字不差：h1 常驻 SSR，加载态大字 → 就绪态 HUD 角标", () => {
+  const brand = readProjectFile("components/world/loading/LoadingScreen.tsx");
 
-  // Eyebrow 与品牌标题（identity 由 lib/site.ts 提供，见 site.test.mjs）
-  assert.match(hero, /\{site\.identity\}/);
-  assert.match(readProjectFile("lib/site.ts"), /INDEPENDENT DIGITAL CREATOR/);
-  assert.match(hero, /Ageha\./);
-  assert.match(hero, /hero-gradient-tech">tech</);
+  // 品牌标题与 tagline（tagline 与 metadata 同源 lib/site.ts:30）
+  assert.match(brand, /<h1 className="world-brand__title">Ageha\.tech<\/h1>/);
+  assert.match(readProjectFile("lib/site.ts"), /用技术构建更有趣的数字世界/);
+  assert.match(brand, /用技术构建更有趣的数字世界/);
+  // 同一 h1 节点经 CSS 过渡收缩为角标（§13.1：节点不卸载、文字不变）
+  assert.match(brand, /world-brand--dock/);
+  const css = readProjectFile("app/globals.css");
+  assert.match(css, /\.world-brand--dock\s*\{/);
+  assert.match(css, /transition:[^;]*cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
+});
 
-  // 中文主标题两行（一字不差，含句末句号）
-  assert.match(hero, /用技术构建/);
-  assert.match(hero, /更有趣的数字世界。/);
+test("IntroToast 文案一字不差：个人简介 / 双按钮 / 统计口径（自 Hero 逐字搬迁）", () => {
+  const toast = readProjectFile("components/world/ui/IntroToast.tsx");
 
-  // 个人介绍（一字不差）与「有趣且优雅」渐变高亮
+  // 个人介绍（一字不差，含「有趣且优雅」高亮）
   assert.match(
-    hero,
+    toast,
     /我是 Ageha，一名独立开发者，热爱探索技术与设计的边界，致力于构建有价值、/,
   );
-  assert.match(hero, /有趣且优雅/);
-  assert.match(hero, /的数字产品。/);
-  assert.match(hero, /hero-gradient-accent/);
+  assert.match(toast, /有趣且优雅/);
+  assert.match(toast, /的数字产品。/);
 
-  // 按钮：主（/projects）+ 次（#about）
-  assert.match(hero, /href="\/projects"/);
-  assert.match(hero, /查看我的项目/);
-  assert.match(hero, /href="#about"/);
-  assert.match(hero, /了解我/);
+  // 按钮：主（/projects）+ 次（/about）
+  assert.match(toast, /href="\/projects"/);
+  assert.match(toast, /查看我的项目/);
+  assert.match(toast, /href="\/about"/);
+  assert.match(toast, /了解我/);
 
   // 摘要统计（口径与站内可数内容对齐：3 个项目、16 项在用/在学技术，
-  // 数据级对齐校验见 contrast.test.mjs）
-  assert.match(hero, /3\+/);
-  assert.match(hero, /代表项目/);
-  assert.match(hero, /\{ value: "16", label: "在用\/在学技术" \}/);
-  assert.match(hero, /∞/);
-  assert.match(hero, /持续探索/);
+  // 数据级对齐校验见 contrast.test.mjs；∞ 为装饰性表达）
+  assert.match(toast, /3\+/);
+  assert.match(toast, /代表项目/);
+  assert.match(toast, /\{ value: "16", label: "在用\/在学技术" \}/);
+  assert.match(toast, /∞/);
+  assert.match(toast, /持续探索/);
+
+  // 引导卡纪律：可关闭、任意操作即隐（§13.1）
+  assert.match(toast, /开始探索/);
+  assert.match(toast, /pointerdown/);
+  assert.match(toast, /Escape/);
 });
 
-test("Hero 右缘面板与左缘滚动提示：品牌短句 / 分页 / 六章 / SCROLL", () => {
-  const hero = readProjectFile("components/home/Hero.tsx");
-
-  assert.match(hero, /BUILDING DIGITAL THINGS WITH CURIOSITY\./);
-  assert.match(hero, /hero-vtext/);
-
-  // 六个章节（01 当前高亮 → aria-current）
-  for (const label of ["Explore", "Build", "Create", "Iterate", "Share", "More"]) {
-    assert.match(hero, new RegExp(`label: "${label}"`));
-  }
-  for (const num of ["01", "02", "03", "04", "05", "06"]) {
-    assert.match(hero, new RegExp(`"${num}"`));
-  }
-  assert.match(hero, /aria-current=/);
-
-  assert.match(hero, /SCROLL/);
-  assert.match(hero, /hero-knob/);
+test("加载屏：真实进度纪律（useProgress 实测，禁假百分比）+ 品牌呼吸", () => {
+  const loading = readProjectFile("components/world/loading/LoadingScreen.tsx");
+  assert.match(loading, /useProgress/);
+  assert.match(loading, /正在点亮群岛/);
+  // 百分比只能来自 useProgress 的 progress 实测值（模板插值），
+  // 不允许硬编码假进度字面量
+  assert.doesNotMatch(loading, /9[05]%|100%/);
+  const css = readProjectFile("app/globals.css");
+  assert.match(css, /@keyframes world-breathe/);
+  assert.match(css, /@keyframes world-progress-sweep/);
 });
 
-test("HeroScene：场景主视觉 + 遮罩渐隐 + 轨道环 / 光晕 / 光点 / 悬浮", () => {
-  const scene = readProjectFile("components/home/HeroScene.tsx");
-
-  assert.match(scene, /\/images\/hero-clean\.png/);
-  assert.match(scene, /alt=""/);
-  assert.match(scene, /aria-hidden="true"/);
-  assert.match(scene, /priority/);
-  assert.match(scene, /hero-scene-mask/);
-  assert.match(scene, /hero-orbit/);
-  assert.match(scene, /hero-glow/);
-  assert.match(scene, /hero-particle/);
-  assert.match(scene, /hero-float/);
-  // 纯 CSS + 少量事件：场景组件本身不引入动画库
-  assert.doesNotMatch(scene, /requestAnimationFrame|gsap|framer-motion/i);
-});
-
-test("globals.css hero 专用块：渐变文字 / 按钮 / 遮罩 / 关键帧 / 视差，且不动既有令牌", () => {
+test("世界沉浸 CSS：body:has(#world-root) 隐藏 Footer / 禁滚动，HUD 玻璃令牌就位", () => {
   const css = readProjectFile("app/globals.css");
 
-  assert.match(css, /\.hero-gradient-tech\s*\{/);
-  assert.match(css, /\.hero-gradient-zh\s*\{/);
-  assert.match(css, /\.hero-gradient-accent\s*\{/);
-  assert.match(css, /\.hero-primary-btn\s*\{/);
-  assert.match(css, /\.hero-ghost-btn\s*\{/);
-  assert.match(css, /\.hero-scene-mask\s*\{/);
-  assert.match(css, /mask-image:\s*radial-gradient\(/i);
-  assert.match(css, /@keyframes hero-rise/);
-  assert.match(css, /@keyframes hero-float/);
-  assert.match(css, /@keyframes hero-spin/);
-  assert.match(css, /@keyframes hero-drift/);
-  assert.match(css, /@keyframes hero-breathe/);
-  assert.match(css, /--hero-px/);
-  // 视差仅精确指针设备启用
-  assert.match(css, /@media \(hover: hover\) and \(pointer: fine\)/);
-  // 既有设计令牌保持原样
-  assert.match(css, /--color-sky:\s*#DDF3FF/i);
-  assert.match(css, /--color-purple:\s*#9C83FF/i);
+  assert.match(css, /body:has\(#world-root\)\s*\{/);
+  const immersive = css.slice(css.indexOf("body:has(#world-root)"));
+  assert.match(immersive, /overflow:\s*hidden/);
+  assert.match(immersive, /footer\s*\{[^}]*display:\s*none/);
+  assert.match(css, /\.world-root\s*\{[^}]*position:\s*fixed/);
+  assert.match(css, /\.world-canvas\s*\{[^}]*touch-action:\s*none/);
+  // HUD 件类就位（§13.3）
+  for (const cls of [
+    ".world-hud__zone",
+    ".world-hud__prompt",
+    ".world-hud__hint",
+    ".world-hud__quick",
+    ".world-toast",
+    ".world-joystick",
+    ".world-nameplate",
+    ".world-fallback",
+  ]) {
+    assert.ok(css.includes(cls), `globals.css 应有 ${cls}`);
+  }
 });
 
-test("prefers-reduced-motion 下 Hero 全部动画静止且文字完整可读", () => {
+test("prefers-reduced-motion 下世界层动画静止且文字完整可读", () => {
   const css = readProjectFile("app/globals.css");
-
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   const reducedBlock = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
-  assert.match(reducedBlock, /\.hero-reveal\s*\{[^}]*animation:\s*none/);
-  assert.match(reducedBlock, /opacity:\s*1/);
-  for (const cls of [
-    ".hero-float",
-    ".hero-glow",
-    ".hero-orbit",
-    ".hero-particle",
-    ".hero-knob",
-  ]) {
-    assert.ok(
-      reducedBlock.includes(cls),
-      `reduced-motion 块应静止 ${cls}`,
-    );
-  }
-  assert.match(reducedBlock, /\.hero-px-deep/);
-});
-
-test("Hero 离屏暂停（IntersectionObserver）与视差仅在客户端增强", () => {
-  const hero = readProjectFile("components/home/Hero.tsx");
-
-  assert.match(hero, /"use client"/);
-  assert.match(hero, /IntersectionObserver/);
-  assert.match(hero, /data-hero-active/);
-  assert.match(hero, /pointermove/);
-  assert.match(hero, /prefers-reduced-motion: reduce/);
-  assert.match(hero, /hover: hover/) ;
+  // 世界层专用降级 + 全局兜底（动画 / 过渡 / 平滑滚动瞬时化）
+  assert.match(reducedBlock, /\.world-brand__logo[^{]*\{[^}]*animation:\s*none/);
+  assert.match(reducedBlock, /\*,\s*\*::before,\s*\*::after\s*\{/);
+  assert.match(reducedBlock, /animation-duration:\s*0\.01ms !important/);
 });
 
 test("ButterflyLogo：几何切面蓝紫渐变，接口保持 gradientId / className / title", () => {
@@ -156,9 +122,13 @@ test("ButterflyLogo：几何切面蓝紫渐变，接口保持 gradientId / class
   assert.match(logo, /url\(#\$\{gradientId\}\)/);
   assert.match(logo, /#54E3FF/);
   assert.match(logo, /#9C83FF/);
-  // Navbar / Footer 调用方无需改动
+  // 调用方无需改动（世界加载屏复用同一 Logo）
   assert.match(readProjectFile("components/layout/Navbar.tsx"), /gradientId="navbar-butterfly"/);
   assert.match(readProjectFile("components/layout/Footer.tsx"), /gradientId="footer-butterfly"/);
+  assert.match(
+    readProjectFile("components/world/loading/LoadingScreen.tsx"),
+    /gradientId="world-butterfly"/,
+  );
 });
 
 test("app/icon.svg 站点图标就位：渐变 + 蝴蝶四翅 + 星芒，非空有效 SVG", () => {
@@ -176,10 +146,12 @@ test("app/icon.svg 站点图标就位：渐变 + 蝴蝶四翅 + 星芒，非空�
   assert.match(icon, /url\(#icon-wing-lower\)/);
 });
 
-test("Hero 相关文件不包含 emoji（主视觉禁止 emoji 拼凑）", () => {
+test("世界入口相关文件不包含 emoji（主视觉禁止 emoji 拼凑）", () => {
   const files = [
-    "components/home/Hero.tsx",
-    "components/home/HeroScene.tsx",
+    "components/world/WorldShell.tsx",
+    "components/world/loading/LoadingScreen.tsx",
+    "components/world/ui/IntroToast.tsx",
+    "components/world/ui/HudOverlay.tsx",
     "components/layout/ButterflyLogo.tsx",
     "app/icon.svg",
   ];

@@ -16,6 +16,7 @@ const eslintConfig = [
       "out/**",
       "next-env.d.ts",
       ".zcode/**",
+      "screenshots/**",
       "Discarded proposal/**",
     ],
   },

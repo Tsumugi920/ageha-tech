@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import {
   NAV_LINKS,
   isNavLinkActive,
-  resolveNavLinkHref,
   type NavLinkItem,
 } from "./navigation";
 
@@ -19,8 +18,8 @@ type NavAnchorProps = {
 };
 
 /**
- * 单个导航项：首页渲染为页内锚点 <a>（原生平滑滚动），
- * 其他页渲染为路由 <Link>；命中当前路由的项加高亮与 aria-current。
+ * 单个导航项：内容路由 <Link>（首页 3D 化后全站统一路由链接，
+ * 不再有页内锚点形态）；命中当前路由的项加高亮与 aria-current。
  */
 function NavAnchor({
   item,
@@ -29,32 +28,18 @@ function NavAnchor({
   activeClassName,
   onNavigate,
 }: NavAnchorProps) {
-  const { href, isRouteLink } = resolveNavLinkHref(item, pathname);
   const active = isNavLinkActive(item, pathname);
   const classes = cn(className, active && activeClassName);
 
-  if (isRouteLink) {
-    return (
-      <Link
-        href={href}
-        className={classes}
-        aria-current={active ? "page" : undefined}
-        onClick={onNavigate}
-      >
-        {item.label}
-      </Link>
-    );
-  }
-
   return (
-    <a
-      href={href}
+    <Link
+      href={item.href}
       className={classes}
-      aria-current={active ? "true" : undefined}
+      aria-current={active ? "page" : undefined}
       onClick={onNavigate}
     >
       {item.label}
-    </a>
+    </Link>
   );
 }
 
@@ -82,7 +67,7 @@ type NavLinksProps = {
 
 /**
  * 导航条链接组（<li> 条目，置于 Navbar 的 <ul> 内）：
- * 数据与解析逻辑来自 ./navigation.ts，首页锚点与其他页路由自动切换。
+ * 数据与高亮判定来自 ./navigation.ts，与页脚共用同一份 NAV_LINKS。
  */
 export function NavLinks({ layout, onNavigate }: NavLinksProps) {
   const pathname = usePathname();
@@ -105,8 +90,8 @@ export function NavLinks({ layout, onNavigate }: NavLinksProps) {
 }
 
 /**
- * 页脚链接组：与导航条共用同一份 NAV_LINKS 数据与 href 解析逻辑，
- * 保证页脚链接始终与顶部导航对齐（首页锚点 ↔ 内容路由页）。
+ * 页脚链接组：与导航条共用同一份 NAV_LINKS 数据与高亮判定，
+ * 保证页脚链接始终与顶部导航对齐。
  */
 export function FooterNavLinks() {
   const pathname = usePathname();

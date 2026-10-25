@@ -1,8 +1,8 @@
 /**
  * 结构契约测试（node:test）：
- * 校验七个首页版块组件存在且被 app/page.tsx 引用、
- * 项目详情页提供 generateStaticParams、
- * Navbar 的五个导航项数据单源且双形态渲染。
+ * 校验首页 3D 世界入口（page.tsx → WorldShell、SSR 安全动态加载、
+ * lib/world 数据层、#world-root 沉浸锚点、组件退役与保留边界）、
+ * 项目详情页 generateStaticParams、Navbar 导航项数据单源与双形态渲染。
  * 断言基于文件存在性检查、源码正则与 lib/*.ts 数据级解析。
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
@@ -22,44 +22,80 @@ const projectRoot = path.resolve(
 const readProjectFile = (relativePath) =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
-/* app/page.tsx 依序渲染的七个首页版块 */
-const HOME_SECTIONS = [
-  "Hero",
-  "FeaturedProjects",
-  "AboutSection",
-  "JourneySection",
-  "TechStackSection",
-  "LatestNotes",
-  "ContactSection",
-];
+/* ------------------------- 首页 3D 世界入口 ------------------------- */
 
-/* ------------------------------ 首页版块 ------------------------------ */
-
-test("七个首页版块组件文件存在且被 app/page.tsx 导入并渲染", () => {
+test("首页渲染 WorldShell：SSR 壳 + ssr:false 动态加载 Canvas + #world-root 锚点", () => {
   const page = readProjectFile("app/page.tsx");
-
-  for (const name of HOME_SECTIONS) {
-    const sectionFile = path.join(projectRoot, "components", "home", `${name}.tsx`);
-    assert.ok(existsSync(sectionFile), `缺少版块组件 components/home/${name}.tsx`);
-    assert.ok(
-      statSync(sectionFile).size > 0,
-      `components/home/${name}.tsx 不应为空文件`,
-    );
-    assert.match(
-      page,
-      new RegExp(`import \\{ ${name} \\} from "@/components/home/${name}"`),
-      `app/page.tsx 应导入 ${name}`,
-    );
-    assert.ok(page.includes(`<${name}`), `app/page.tsx 应渲染 <${name}>`);
-  }
-
-  // 除这七个版块外，page.tsx 不应再引入其他 home 组件（防止游离版块）
-  const homeImports = page.match(/from "@\/components\/home\//g) ?? [];
-  assert.equal(
-    homeImports.length,
-    HOME_SECTIONS.length,
-    `app/page.tsx 的 home 版块导入应恰好 ${HOME_SECTIONS.length} 个`,
+  assert.match(
+    page,
+    /import \{ WorldShell \} from "@\/components\/world\/WorldShell"/,
+    "app/page.tsx 应导入 WorldShell",
   );
+  assert.ok(page.includes("<WorldShell />"), "app/page.tsx 应渲染 <WorldShell />");
+  // 首页不再消费任何 home 版块组件（世界即首页）
+  assert.doesNotMatch(page, /from "@\/components\/home\//);
+
+  const shell = readProjectFile("components/world/WorldShell.tsx");
+  assert.match(shell, /"use client"/, "WorldShell 应为客户端组件");
+  assert.match(
+    shell,
+    /dynamic\(\(\) => import\("\.\/WorldCanvas"\),\s*\{\s*ssr: false/s,
+    "3D Canvas 必须 ssr:false 动态加载（Next 16 SSR 安全）",
+  );
+  assert.ok(
+    shell.includes('id="world-root"'),
+    "WorldShell 根节点应带 id=world-root（沉浸 CSS 契约锚点）",
+  );
+  // 首页唯一 h1 常驻 SSR（加载屏品牌大字 → 就绪收缩为角标，§13.1）
+  const brand = readProjectFile("components/world/loading/LoadingScreen.tsx");
+  assert.match(brand, /<h1 className="world-brand__title">Ageha\.tech<\/h1>/);
+  assert.match(brand, /用技术构建更有趣的数字世界/);
+});
+
+test("lib/world 四模块存在且为纯 TS 数据层（node 可 import）", async () => {
+  for (const name of ["constants", "layout", "colliders", "performance", "index"]) {
+    const file = path.join(projectRoot, "lib", "world", `${name}.ts`);
+    assert.ok(existsSync(file), `缺少 lib/world/${name}.ts`);
+    assert.ok(statSync(file).size > 0, `lib/world/${name}.ts 不应为空文件`);
+  }
+  // 数据级导入（Node 24 原生类型剥离）——不应引入 three / JSX
+  const world = await import("../lib/world/index.ts");
+  assert.ok(world.TRAILS.length === 3, "应有三条蝶径");
+  assert.ok(world.PROJECT_ISLES.length === 3, "应有三座项目屿");
+  for (const name of ["constants", "layout", "colliders", "performance"]) {
+    const source = readProjectFile(`lib/world/${name}.ts`);
+    assert.ok(!source.includes('from "three"'), `lib/world/${name}.ts 不应依赖 three`);
+    assert.ok(!source.includes("import React"), `lib/world/${name}.ts 不应依赖 React（纯数据层）`);
+  }
+});
+
+test("组件退役边界：四个首页组件已退役，保留组件仍被内页消费", () => {
+  // §14.0 退役清单：仅首页消费的版块随 3D 化删除
+  for (const name of ["Hero", "HeroScene", "FeaturedProjects", "LatestNotes"]) {
+    assert.ok(
+      !existsSync(path.join(projectRoot, "components", "home", `${name}.tsx`)),
+      `components/home/${name}.tsx 应已退役（蓝图 §14.0）`,
+    );
+  }
+  // §14.0 保留清单：内页路由仍在消费
+  const preserved = [
+    ["AboutSection.tsx", "app/about/page.tsx"],
+    ["JourneySection.tsx", "app/about/page.tsx"],
+    ["TechStackSection.tsx", "app/tech/page.tsx"],
+    ["ContactSection.tsx", "app/contact/page.tsx"],
+    ["ProjectCard.tsx", "app/projects/page.tsx"],
+  ];
+  for (const [component, consumer] of preserved) {
+    assert.ok(
+      existsSync(path.join(projectRoot, "components", "home", component)) ||
+        existsSync(path.join(projectRoot, "components", "projects", component)),
+      `${component} 应保留`,
+    );
+    assert.ok(
+      readProjectFile(consumer).includes(component.replace(".tsx", "")),
+      `${consumer} 应仍消费 ${component}`,
+    );
+  }
 });
 
 /* ---------------------------- 项目详情路由 ---------------------------- */
@@ -90,7 +126,7 @@ test("app/projects/[slug]/page.tsx：generateStaticParams 映射全部项目 slu
 
 /* ------------------------------- 导航结构 ------------------------------- */
 
-test("Navbar 五个导航项：数据单源 lib/site.ts，标签与锚点齐备且不重复", () => {
+test("Navbar 五个导航项：数据单源 lib/site.ts，标签与路由链接齐备且不重复", () => {
   assert.equal(site.navItems.length, 5, "导航应恰好 5 项");
   assert.deepEqual(
     site.navItems.map((item) => item.label),
@@ -98,34 +134,32 @@ test("Navbar 五个导航项：数据单源 lib/site.ts，标签与锚点齐备�
     "五个导航标签应与站点信息一致",
   );
 
-  const hrefs = site.navItems.map((item) => item.href);
-  assert.equal(new Set(hrefs).size, 5, "导航锚点不应重复");
-  for (const href of hrefs) {
-    assert.match(href, /^#[\w-]+$/, `导航项 ${href} 应为首页页内锚点`);
-  }
+  // 首页 3D 化后无页内锚点：导航项一律为内容路由链接（锚点失效的处置）
+  const expectedRoutes = ["/", "/projects", "/about", "/tech", "/articles"];
+  assert.deepEqual(
+    site.navItems.map((item) => item.href),
+    expectedRoutes,
+    "导航项应为五个内容路由链接（不再有 # 锚点）",
+  );
+  assert.equal(new Set(site.navItems.map((item) => item.href)).size, 5, "导航路由不应重复");
 });
 
-test("Navbar 五个导航项：锚点↔路由映射齐全，桌面/移动双形态渲染同一份数据", () => {
+test("Navbar 五个导航项：路由链接数据单源，桌面/移动双形态渲染同一份数据", () => {
   const navigation = readProjectFile("components/layout/navigation.ts");
   const navbar = readProjectFile("components/layout/Navbar.tsx");
   const siteNavLinks = readProjectFile("components/layout/SiteNavLinks.tsx");
 
-  // NAV_LINKS 派生自 lib/site.ts 的 navItems，不为每个锚点另立数据
+  // NAV_LINKS 派生自 lib/site.ts 的 navItems，不为每个路由另立数据
   assert.match(
     navigation,
-    /site\.navItems\.map/,
+    /site\.navItems/,
     "NAV_LINKS 应派生自 lib/site.ts 的 navItems",
   );
-  for (const { href } of site.navItems) {
-    assert.ok(
-      navigation.includes(`"${href}"`),
-      `navigation.ts 应为锚点 ${href} 提供对应内容路由映射`,
-    );
-  }
 
-  // Navbar 以桌面 bar + 移动 sheet 两种形态渲染同一份导航数据，
-  // 条目数由 NAV_LINKS.map 展开保证（五项数据 → 五个 <li>）
+  // Navbar 以桌面 bar + 移动 sheet 两种形态渲染同一份导航数据
   assert.match(navbar, /<NavLinks layout="bar"/, "桌面导航应复用共享 NavLinks");
   assert.match(navbar, /<NavLinks layout="sheet"/, "移动菜单应复用共享 NavLinks");
   assert.match(siteNavLinks, /NAV_LINKS\.map/, "SiteNavLinks 应遍历 NAV_LINKS 渲染全部导航项");
+  assert.match(siteNavLinks, /isNavLinkActive/, "应做当前路由高亮判定");
+  assert.match(siteNavLinks, /aria-current=/, "当前项应有 aria-current");
 });

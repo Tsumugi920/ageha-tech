@@ -65,34 +65,38 @@ npm run start
 # 5. 代码检查
 npm run lint
 
-# 6. 测试套件（node --test，11 个测试文件 / 95 条断言用例）
+# 6. 测试套件（node --test，13 个测试文件 / 121 条断言用例）
 npm test
 ```
 
 以上命令均来自 `package.json` 的 `scripts` 字段，其中 `lint`、`test`、`build`
-已在提交前于本机实际运行通过（0 告警 / 95 通过 0 失败 / 构建成功）。
+已在提交前于本机实际运行通过（0 告警 / 121 通过 0 失败 / 构建成功）。
 
 ## 目录结构
 
 ```
 AgehaTech/
 ├── app/                        # Next.js App Router 路由
-│   ├── page.tsx                # 首页：七个版块（Hero → 项目 → 关于 → 成长 → 技术栈 → 文章 → 联系）
+│   ├── page.tsx                # 首页：3D 世界入口（WorldShell，SSR 壳 + ssr:false Canvas）
 │   ├── layout.tsx              # 根布局：Navbar / Footer / 键盘跳转链接
-│   ├── globals.css             # @theme 设计令牌 + 玻璃拟态工具类 + hero 动效
+│   ├── globals.css             # @theme 设计令牌 + 玻璃拟态工具类 + 3D 世界沉浸层样式
 │   ├── icon.svg                # 站点图标（蝴蝶 Logo）
 │   ├── about/ · tech/ · articles/ · contact/   # 内容路由页（含各自 metadata）
 │   └── projects/
 │       ├── page.tsx            # 项目列表页
 │       └── [slug]/page.tsx     # 项目详情页（generateStaticParams SSG ×3）
 ├── components/
-│   ├── home/                   # 七个首页版块 + HeroScene 主视觉场景
+│   ├── world/                  # 3D 世界（WorldShell / WorldCanvas / 地形 / 信灯控制器 /
+│   │                           #   跟随相机 / 交互 / HUD / 摇杆 / WebGL 降级页）
+│   ├── home/                   # 保留版块（AboutSection / JourneySection / TechStackSection / ContactSection，内页复用）
 │   ├── layout/                 # Navbar / Footer / ButterflyLogo / PageHeader / 导航数据模型
 │   ├── projects/ProjectCard.tsx
 │   └── ui/                     # GlassCard / GlassPanel / GlassButton / Badge / SectionHeading
 ├── lib/                        # 集中管理的数据与配置（站点配置 / 项目 / 文章计划 / 技术栈）
-├── tests/                      # node:test 契约测试（结构 / 路由 / 设计系统 / 对比度 / 诚实边界…）
+├── lib/world/                  # 3D 世界纯 TS 数据层（布局坐标 / 碰撞与交互登记 / 性能档位）
+├── tests/                      # node:test 契约测试（结构 / 路由 / 设计系统 / 对比度 / 诚实边界 / 世界布局与资产…）
 ├── public/images/              # Hero 场景插画 + 项目真实界面截图 + 关于照片（见下表）
+├── docs/                       # 3D 世界重构简报与施工蓝图（权威文档）
 ├── Ageha.tech未来数字世界作品集.png   # 设计参考原图（仓库根目录）
 ├── _assets/                    # 参考图裁切素材源（仅本地，不入库）
 └── Discarded proposal/         # 废案文件夹（仅本地，不入库）
@@ -106,7 +110,7 @@ AgehaTech/
 
 | 文件 | 用途 | 引用位置 | 素材性质 |
 | --- | --- | --- | --- |
-| `hero-clean.png` | Hero 主视觉场景插画（水晶蝴蝶 + 悬浮尖塔城市 + 光环） | `components/home/HeroScene.tsx` | 参考图裁切的概念视觉 |
+| `hero-clean.png` | 参考图裁切场景插画（水晶蝴蝶 + 悬浮尖塔城市） | 暂未被代码引用（阶段 3 茧居所画廊将以压缩版引用） | 参考图裁切的概念视觉 |
 | `hero-full.png` | 完整版场景图（备用素材） | 暂未被代码引用（测试仅校验其存在） | 参考图裁切的概念视觉 |
 | `about-photo.png` | 「关于我」版块照片位 | `components/home/AboutSection.tsx` | 参考图裁切，**非真实个人照片** |
 | `agehaos-desktop.jpg` | AgehaOS 封面 | `lib/projects.ts` → 项目卡片 / 详情页 | **真实界面截图**（取自 AgehaOS 仓库桌面截图） |
@@ -126,7 +130,7 @@ AgehaTech/
   不写日期、不写成果指标；
 - **文章**（`lib/notes.ts`）：三条均为「写作计划中」的占位条目，
   无日期、无阅读量、无链接；
-- **探索时间线**（首页 JourneySection）：不含任何年份。
+- **探索时间线**（JourneySection，/about 路由页渲染）：不含任何年份。
 
 ## 部署提示（.tech 域名）
 
@@ -152,13 +156,15 @@ AgehaTech/
 
 | 文件 | 守护内容 |
 | --- | --- |
-| `structure.test.mjs` | 首页七版块就位并被 `app/page.tsx` 渲染、SSG 参数、导航单源 |
+| `structure.test.mjs` | 首页世界入口（WorldShell + ssr:false + lib/world）、组件退役边界、SSG 参数、导航单源 |
 | `routes.test.mjs` | 六个内页 metadata、诚实边界、图片一律 `next/image` |
 | `design-system.test.mjs` | `@theme` 设计令牌与玻璃拟态类的存在与消费 |
-| `contrast.test.mjs` | WCAG 对比度数值级回归（真实叠层 alpha 合成计算） |
-| `responsive-perf.test.mjs` | 断点 / 触控面积 / 焦点环 / 图片加载策略 / reduced-motion |
-| `hero.test.mjs` | 首屏文案、场景实现要点、Logo 接口、无 emoji |
+| `contrast.test.mjs` | WCAG 对比度数值级回归（真实叠层 alpha 合成计算，含世界 HUD） |
+| `responsive-perf.test.mjs` | 断点 / 触控面积 / 焦点环 / 性能档位 / 输入清理 / reduced-motion |
+| `hero.test.mjs` | 世界品牌标题与引导卡文案（原 Hero 契约迁移新家）、加载屏真实进度、Logo 接口、无 emoji |
 | `home-sections.test.mjs` / `sections.test.mjs` | 版块数据单源、占位标注、无年份承诺 |
-| `content-honesty.test.mjs` | 数据级诚实边界：外链白名单 / 无日期 / 联系渠道「待配置」 |
+| `content-honesty.test.mjs` | 数据级诚实边界：外链白名单 / 无日期 / 联系渠道「待配置」/ 世界层零外链 |
+| `world-layout.test.mjs` | 世界坐标级校验：蝶径起终点与弧长、交互登记、碰撞体、性能档位 |
+| `world-assets.test.mjs` | 世界资产纪律：客户端组件、禁 troika Text、零外链、无裸 img |
 | `site.test.mjs` | 站点配置、`.gitignore` 必含项、素材非空 |
 | `readme.test.mjs` | README 与仓库真实状态一致（命令 / 素材表 / 占位说明） |

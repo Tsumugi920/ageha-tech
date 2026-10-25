@@ -13,15 +13,14 @@ import { cn } from "@/lib/utils";
 /**
  * 顶部导航（完整实现）：
  * - 当前路由高亮：首页高亮「首页」，其他页按路由前缀匹配（/projects/xxx 高亮「项目」）；
- * - 首页内锚点（#projects、#about 等）原生效：首页上导航项就是页内锚点，
- *   其他页则切换为对应内容路由页（/projects、/about …），滚动后玻璃底座
- *   背景透明度轻微提升（0.48 → 0.70 白）；
+ * - 导航项为内容路由链接（首页 3D 化后不再有页内锚点），滚动后玻璃底座
+ *   背景透明度轻微提升（0.48 → 0.70 白）；首页沉浸态由 globals.css 的
+ *   body:has(#world-root) 让本导航叠加在世界之上（结构不动）；
  * - 移动端汉堡菜单可展开 / 关闭：44px 触控按钮、条目 ≥44px 高、
  *   Esc 关闭、路由变化自动收起、关闭态 inert 不可聚焦。
  */
 export function Navbar() {
   const pathname = usePathname();
-  const isHome = !pathname || pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -75,26 +74,16 @@ export function Navbar() {
           scrolled && "bg-white/70 shadow-[0_12px_36px_rgba(71,115,183,0.18)]",
         )}
       >
-        {/* 品牌：首页回页首锚点，其他页回首页（tap-44 外扩命中区至 ≥44px） */}
-        {isHome ? (
-          <a
-            href="#home"
-            className="tap-44 flex shrink-0 items-center gap-2.5"
-            aria-label={`${site.name} 首页`}
-          >
-            {brand}
-          </a>
-        ) : (
-          <Link
-            href="/"
-            className="tap-44 flex shrink-0 items-center gap-2.5"
-            aria-label={`${site.name} 首页`}
-          >
-            {brand}
-          </Link>
-        )}
+        {/* 品牌：始终链接回首页（tap-44 外扩命中区至 ≥44px） */}
+        <Link
+          href="/"
+          className="tap-44 flex shrink-0 items-center gap-2.5"
+          aria-label={`${site.name} 首页`}
+        >
+          {brand}
+        </Link>
 
-        {/* 桌面导航：首页为页内锚点，其他页为路由链接并高亮当前路由 */}
+        {/* 桌面导航：内容路由链接并高亮当前路由 */}
         <ul className="hidden list-none items-center gap-1 lg:flex">
           <NavLinks layout="bar" />
         </ul>

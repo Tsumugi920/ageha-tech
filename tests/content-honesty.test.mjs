@@ -10,7 +10,7 @@
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
@@ -110,16 +110,17 @@ test("lib/projects.ts：不设日期类字段，字段值不含年份或 ISO 日
 
 /* ------------------------------ 写作计划 ------------------------------ */
 
-test("lib/notes.ts：条目全部标记「写作计划」，标注由 LatestNotes 逐条渲染", () => {
+test("lib/notes.ts：条目全部标记「写作计划」，标注由 /articles 路由页逐条渲染", () => {
   assert.match(plannedNoteLabel, /写作计划/, "统一状态标注应含「写作计划」字样");
   assert.ok(plannedNotes.length > 0, "写作计划不应为空");
 
-  // 首页组件必须真实消费这一标注，而不是只在数据文件里声明
-  const latestNotes = readProjectFile("components/home/LatestNotes.tsx");
+  // 渲染组件必须真实消费这一标注，而不是只在数据文件里声明
+  // （LatestNotes.tsx 退役后，渲染新家为 app/articles/page.tsx）
+  const articlesPage = readProjectFile("app/articles/page.tsx");
   assert.match(
-    latestNotes,
+    articlesPage,
     /\{plannedNoteLabel\}/,
-    "LatestNotes 应渲染 {plannedNoteLabel}，让每条计划条目都带上「写作计划中」标注",
+    "/articles 页应渲染 {plannedNoteLabel}，让每条计划条目都带上「写作计划中」标注",
   );
 });
 
@@ -223,6 +224,37 @@ test("ContactSection：渠道单源 site.contacts 按 configured 开关渲染，
   // 组件源码不出现任何邮箱 / 社交账号 / http(s) 外链（链接来自 site.ts）
   assert.doesNotMatch(section, accountPattern);
   assert.doesNotMatch(section, /https?:\/\//);
+});
+
+/* ------------------------------ 3D 世界层 ------------------------------ */
+
+test("3D 世界层诚实边界：世界源码不出现白名单外链接与编造宣称", () => {
+  // 世界组件与数据层源码不出现任何 http(s) 字面量——真实链接只能来自
+  // lib/projects.ts / lib/site.ts 在运行时注入（Moss World 无链接铁律的
+  // 世界侧延伸：阶段 2 详情面板 / 彩蛋文案同样受此扫描约束）
+  const worldDirs = ["components/world", "lib/world"];
+  const offenders = [];
+  const scan = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        scan(full);
+      } else if (/\.(ts|tsx)$/.test(entry.name)) {
+        const src = readFileSync(full, "utf8");
+        if (/https?:\/\//.test(src)) offenders.push(path.relative(projectRoot, full));
+        // 不编造上线状态（状态文案来自 lib/projects.ts 渲染）
+        if (/正式发布|已发布|即将上线/.test(src)) offenders.push(`${path.relative(projectRoot, full)}（状态词）`);
+      }
+    }
+  };
+  for (const dir of worldDirs) {
+    scan(path.join(projectRoot, dir));
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `3D 世界层源码不应出现外链或编造状态词：${offenders.join(", ")}`,
+  );
 });
 
 /* ------------------------------ 探索时间线 ------------------------------ */

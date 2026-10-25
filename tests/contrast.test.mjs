@@ -1,5 +1,5 @@
 /**
- * 对比度与可读性测试（node:test）—— 对应视觉审计 9 条意见的数值级回归。
+ * 对比度与可读性测试（node:test）—— 数值级回归。
  *
  * 以 WCAG 2.x 相对亮度公式真实核算（sRGB 线性化 → 亮度 → 对比度），
  * 背景按站点真实叠层做 alpha 合成：
@@ -8,10 +8,15 @@
  * - 导航激活胶囊 = 白 75% 叠在玻璃上；
  * - body::before 氛围斑（fixed，滚动时内容会穿过）取较强的
  *   rgba(38,157,255,0.14) 叠加态作为玻璃底的最坏情况；
- * - Hero 右缘面板 = 白 45% 玻璃叠在明暗两端场景色上（夹逼）。
+ * - 世界 HUD 件（world-hud__* / world-toast）= 白 60%~74% 玻璃底。
  *
  * 阈值：正文/小字 4.5:1，大字（≥24px 或 ≥18.66px bold）3:1，
  * 非文本焦点指示 3:1。运行方式：npm test
+ *
+ * 【迁移记录】原 hero-gradient-* 渐变文字端点断言与 Hero.tsx 右缘面板断言
+ * 随 Hero 退役删除（globals.css hero 专用块已一并移除，HTML 层不再有渐变
+ * 文字）；其守护意图（品牌字对玻璃底 ≥3:1 / 正文 ≥4.5:1）由下方
+ * 「世界品牌字 / 世界 HUD 深墨文字」断言承接（蓝图 §14.1）。
  */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
@@ -82,12 +87,8 @@ const GLASS_BGS = {
   "裸sky(页面顶)": SKY,
 };
 
-/** Hero 右缘面板：白 45% 玻璃叠在场景图明暗两端（夹逼最坏情况） */
-const PANEL_BGS = [
-  over(WHITE, 0.45, hexToRgb("#F0F8FE")),
-  over(WHITE, 0.45, hexToRgb("#7FB0E0")),
-  over(WHITE, 0.45, hexToRgb("#5E93CC")),
-];
+/** 世界 HUD / 引导卡玻璃底（白 60% 与 74% 叠 sky，取最坏一档） */
+const WORLD_HUD_BGS = [over(WHITE, 0.6, SKY), over(WHITE, 0.74, SKY)];
 
 /** 解析 globals.css @theme 块（与 design-system.test.mjs 同款配平解析） */
 function parseThemeTokens(css) {
@@ -118,17 +119,8 @@ const tokens = parseThemeTokens(css);
 const linkRgb = hexToRgb(tokens.get("--color-link"));
 const linkHoverRgb = hexToRgb(tokens.get("--color-link-hover"));
 const focusRgb = hexToRgb(tokens.get("--color-focus-ring"));
-
-/** 解析 .hero-gradient-* 的全部渐变端点（按出现顺序） */
-function parseGradientStops(className) {
-  const rule = css.match(
-    new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`),
-  );
-  assert.ok(rule, `globals.css 应包含 .${className} 规则`);
-  return [...rule[1].matchAll(/#[0-9a-fA-F]{6}/g)].map((m) =>
-    hexToRgb(m[0]),
-  );
-}
+const textPrimaryRgb = hexToRgb(tokens.get("--color-text-primary"));
+const textSecondaryRgb = hexToRgb(tokens.get("--color-text-secondary"));
 
 /* ------------------------------ 链接用色 ------------------------------ */
 
@@ -150,10 +142,8 @@ test("链接用色 ≥4.5:1：--color-link / --color-link-hover 在全套真实�
   }
 });
 
-test("文字链接不再使用品牌蓝/品牌紫：View All / 查看更多 / 了解更多 / 导航激活全部换加深档", () => {
+test("文字链接不再使用品牌蓝/品牌紫：查看更多 / 了解更多 / 导航激活全部换加深档", () => {
   const strictFiles = [
-    "components/home/FeaturedProjects.tsx",
-    "components/home/LatestNotes.tsx",
     "components/home/TechStackSection.tsx",
     "components/ui/SectionHeading.tsx",
     "components/layout/SiteNavLinks.tsx",
@@ -215,102 +205,119 @@ test("焦点环 ≥3:1（WCAG 1.4.11/2.4.11）：--color-focus-ring 对天空/�
   }
 });
 
-/* --------------------------- Hero 渐变文字 --------------------------- */
+/* --------------------- 世界品牌字与 HUD（Hero 契约迁移新家） --------------------- */
 
-test("hero-gradient-tech / -zh（大字）：全部端点对 sky ≥3:1", () => {
-  for (const className of ["hero-gradient-tech", "hero-gradient-zh"]) {
-    const stops = parseGradientStops(className);
-    assert.ok(stops.length >= 3, `${className} 应至少有 3 个渐变端点`);
-    stops.forEach((stop, i) => {
-      const ratio = contrast(stop, SKY);
-      assert.ok(
-        ratio >= 3,
-        `${className} 端点#${i + 1} 对 sky 实测 ${ratio.toFixed(2)}:1，大字需 ≥3:1`,
-      );
-    });
+test("世界品牌字「Ageha.tech」深墨令牌：对 sky / 氛围层 / 加载底 ≥3:1（大字）", () => {
+  const brand = readProjectFile("components/world/loading/LoadingScreen.tsx");
+  // 品牌标题用 --color-text-primary 深蓝（#10294B），不使用白字
+  assert.match(brand, /world-brand__title/);
+  const cssRule = css.match(/\.world-brand__title\s*\{([\s\S]*?)\}/);
+  assert.ok(cssRule, "globals.css 应有 .world-brand__title 规则");
+  assert.match(cssRule[1], /color:\s*var\(--color-text-primary\)/);
+
+  assert.ok(
+    contrast(textPrimaryRgb, SKY) >= 3,
+    `深蓝对 sky 实测 ${contrast(textPrimaryRgb, SKY).toFixed(2)}:1`,
+  );
+  // 氛围层（rgba(38,157,255,0.16) 叠 sky，加载屏 ::before 较强处）比 sky 略深
+  const loadingAtmosphere = over(hexToRgb("#269DFF"), 0.16, SKY);
+  assert.ok(
+    contrast(textPrimaryRgb, loadingAtmosphere) >= 3,
+    `深蓝对加载屏氛围层实测 ${contrast(textPrimaryRgb, loadingAtmosphere).toFixed(2)}:1`,
+  );
+  // tagline（secondary，约 15px 正文）在玻璃/天空底上需 ≥4.5:1
+  for (const bg of [SKY, ...WORLD_HUD_BGS]) {
+    assert.ok(
+      contrast(textSecondaryRgb, bg) >= 4.5,
+      `tagline 深蓝灰对 HUD 底实测 ${contrast(textSecondaryRgb, bg).toFixed(2)}:1，正文需 ≥4.5:1`,
+    );
   }
 });
 
-test("hero-gradient-accent（15px 正文）：全部端点对 sky ≥4.5:1", () => {
-  const stops = parseGradientStops("hero-gradient-accent");
-  stops.forEach((stop, i) => {
-    const ratio = contrast(stop, SKY);
+test("世界 HUD / 引导卡：玻璃底上一律深墨文字，白字仅限青色渐变 CTA 一处", () => {
+  const cssHud = css;
+
+  // HUD 件文字色只允许消费 text-primary / text-secondary / link 令牌
+  for (const cls of [
+    "world-hud__zone",
+    "world-hud__prompt-link",
+    "world-hud__hint",
+    "world-hud__quick-name",
+    "world-toast__intro",
+    "world-fallback__note",
+  ]) {
+    const rule = cssHud.match(new RegExp(`\\.${cls}\\s*\\{([\\s\\S]*?)\\}`));
+    assert.ok(rule, `globals.css 应有 .${cls} 规则`);
+    assert.match(
+      rule[1],
+      /var\(--color-(text-primary|text-secondary|link)\)/,
+      `.${cls} 文字应消费深墨 / 加深链接令牌`,
+    );
+    assert.doesNotMatch(
+      rule[1],
+      /(?<!-)color:\s*#fff|color:\s*white/,
+      `.${cls} 不得使用白色正文`,
+    );
+  }
+
+  // 数值级：primary / secondary / link 对 HUD 玻璃底全部达标
+  for (const [name, fg] of [
+    ["text-primary", textPrimaryRgb],
+    ["text-secondary", textSecondaryRgb],
+    ["link", linkRgb],
+  ]) {
+    for (const bg of WORLD_HUD_BGS) {
+      assert.ok(
+        contrast(fg, bg) >= 4.5,
+        `${name} 对 HUD 玻璃底实测 ${contrast(fg, bg).toFixed(2)}:1，需 ≥4.5:1`,
+      );
+    }
+  }
+
+  // 白字只允许出现在深蓝渐变 CTA（.world-toast__primary，15px semibold）：
+  // 渐变各端点逐个数值核算 ≥4.5:1（浅青渐变白字仅 2.0~3.4:1，已弃用）
+  const ctaRule = cssHud.match(/\.world-toast__primary\s*\{([\s\S]*?)\}/);
+  assert.ok(ctaRule, "globals.css 应有 .world-toast__primary 规则");
+  assert.match(ctaRule[1], /color:\s*#ffffff/);
+  const ctaGradient = ctaRule[1].match(/linear-gradient\(([^)]+)\)/);
+  assert.ok(ctaGradient, "CTA 应为渐变底");
+  const ctaStops = [...ctaGradient[1].matchAll(/#[0-9a-fA-F]{6}\b/g)].map((m) =>
+    hexToRgb(m[0]),
+  );
+  assert.ok(ctaStops.length >= 3, "CTA 渐变应至少三个端点");
+  for (const stop of ctaStops) {
+    const ratio = contrast(WHITE, stop);
     assert.ok(
       ratio >= 4.5,
-      `accent 端点#${i + 1} 对 sky 实测 ${ratio.toFixed(2)}:1，15px 正文需 ≥4.5:1`,
+      `CTA 端点 rgb(${stop.r},${stop.g},${stop.b}) 对白字实测 ${ratio.toFixed(2)}:1，15px semibold 需 ≥4.5:1`,
     );
-  });
-});
-
-/* ------------------------- Hero 品牌字与右缘面板 ------------------------- */
-
-test("Hero 品牌字「Ageha.」深藏青：对 sky 与氛围层 ≥3:1，且不再用白字", () => {
-  const hero = readProjectFile("components/home/Hero.tsx");
-  // 白字对 sky 仅 1.15:1；氛围层 0.75 方案实测也只能到 2.55:1，
-  // 故改深藏青（与第二行中文 #193154 同墨）
-  assert.match(hero, /text-\[#193154\]">Ageha\./);
-  assert.doesNotMatch(
-    hero,
-    /(?<![-\w])text-white(?![\w/-])/,
-    "Hero 左栏玻璃/天空底上不得再有白色正文",
-  );
-  const navy = hexToRgb("#193154");
-  assert.ok(contrast(navy, SKY) >= 3, `深藏青对 sky 实测 ${contrast(navy, SKY).toFixed(2)}:1`);
-  // 氛围层（rgba(64,139,237,0.42) 叠 sky）比 sky 更深，对比度只会更高
-  const atmosphere = over(hexToRgb("#408BED"), 0.42, SKY);
-  assert.ok(
-    contrast(navy, atmosphere) >= 3,
-    `深藏青对氛围层实测 ${contrast(navy, atmosphere).toFixed(2)}:1`,
-  );
-});
-
-test("Hero 右缘面板小字 ≥4.5:1：章节链接不透明加深、竖排/计数同步加深", () => {
-  const hero = readProjectFile("components/home/Hero.tsx");
-
-  // 旧值：#33568C/75 在面板底上 2.27~3.96:1
-  assert.doesNotMatch(hero, /#33568C\/75/, "非激活章节不得再用 /75 透明度品牌蓝");
-  const chapterInk = hexToRgb("#2A4C80");
-  const verticalInk = hexToRgb("#24457A");
-  const activeInk = hexToRgb("#0B2B5C");
-  PANEL_BGS.forEach((bg, i) => {
-    assert.ok(
-      contrast(chapterInk, bg) >= 4.5,
-      `非激活章节 #2A4C80 对面板底#${i + 1} 实测 ${contrast(chapterInk, bg).toFixed(2)}:1`,
-    );
-    assert.ok(
-      contrast(verticalInk, bg) >= 4.5,
-      `竖排/计数 #24457A 对面板底#${i + 1} 实测 ${contrast(verticalInk, bg).toFixed(2)}:1`,
-    );
-    assert.ok(contrast(activeInk, bg) >= 4.5);
-  });
-  // 竖排 / 计数不再带透明度后缀（同步加深为全不透明）
-  assert.doesNotMatch(hero, /#24457A\/\d+/);
+  }
 });
 
 /* --------------------------- 统计口径对齐 --------------------------- */
 
-test("Hero 统计口径与站内可数内容逐项对齐：16 = 技术项实数，3+ = 项目实数", () => {
-  const hero = readProjectFile("components/home/Hero.tsx");
+test("引导卡统计口径与站内可数内容逐项对齐：16 = 技术项实数，3+ = 项目实数", () => {
+  const toast = readProjectFile("components/world/ui/IntroToast.tsx");
   const techItemCount = techGroups.reduce((sum, group) => sum + group.items.length, 0);
 
   // 16 项在用/在学技术 = lib/tech-stack.ts 四组 × 四项的真实计数
   assert.match(
-    hero,
-    new RegExp(`\\{ value: "${techItemCount}", label: "在用/在学技术" \\}`),
+    toast,
+    new RegExp(`\\{ value: "${techItemCount}", label: "在用\\/在学技术" \\}`),
     `统计值应等于 techGroups 实际技术项数 ${techItemCount}`,
   );
   assert.ok(techItemCount > 0 && techGroups.length === 4, "技术栈应为四组真实数据");
 
   // 3+ 代表项目 = lib/projects.ts 项目数（3+ 为「以上」语义，允许 ≥）
   assert.match(
-    hero,
+    toast,
     new RegExp(`\\{ value: "${projects.length}\\+", label: "代表项目" \\}`),
     `统计值应与 projects.length = ${projects.length} 一致`,
   );
 
   // 不得回退到不可数的「5+ 技术领域」式表述
-  assert.doesNotMatch(hero, /5\+/);
-  assert.doesNotMatch(hero, /技术领域/);
+  assert.doesNotMatch(toast, /5\+/);
+  assert.doesNotMatch(toast, /技术领域/);
 });
 
 /* --------------------------- text-muted 小字 --------------------------- */
@@ -337,17 +344,17 @@ test("text-muted（#6F86A4，玻璃底最高 3.67:1）不再用于任何组件�
     `以下文件仍在使用 text-text-muted（#6F86A4 对玻璃底 3.48~3.67:1 < 4.5:1）: ${hits.join(", ")}`,
   );
 
-  // text-secondary #4B668A 在全部玻璃底 ≥5.14:1，承接原三处小字
+  // text-secondary #4B668A 在全部玻璃底 ≥5.14:1，承接小字
   for (const file of [
     "components/layout/Footer.tsx",
-    "components/home/LatestNotes.tsx",
     "app/projects/[slug]/page.tsx",
     "app/articles/page.tsx",
+    "components/world/ui/IntroToast.tsx",
   ]) {
     assert.match(
       readProjectFile(file),
-      /text-text-secondary/,
-      `${file} 的小字应使用 text-secondary`,
+      /text-text-secondary|world-toast__label|color-text-secondary|--color-text-secondary/,
+      `${file} 的小字应使用 text-secondary 令牌`,
     );
   }
   for (const [bgName, bg] of Object.entries(GLASS_BGS)) {
@@ -360,15 +367,19 @@ test("text-muted（#6F86A4，玻璃底最高 3.67:1）不再用于任何组件�
 
 /* --------------------------- 标题层级 --------------------------- */
 
-test("标题层级不跳级：/projects 卡片标题 h2（h1 下无中间层级）；首页卡片保持 h3", () => {
+test("标题层级不跳级：/projects 卡片标题 h2（h1 下无中间层级）；卡片默认 h3", () => {
   const card = readProjectFile("components/projects/ProjectCard.tsx");
   assert.match(card, /headingLevel\?: "h2" \| "h3"/, "ProjectCard 应支持标题级别配置");
-  assert.match(card, /headingLevel = "h3"/, "默认 h3（首页 section 内已有 h2）");
+  assert.match(card, /headingLevel = "h3"/, "默认 h3（世界降级页等 section 内已有 h2）");
   assert.match(card, /const TitleTag = headingLevel;/);
   assert.doesNotMatch(card, /<h3 className="mt-4/, "不得再硬编码 h3");
 
   const listPage = readProjectFile("app/projects/page.tsx");
   assert.match(listPage, /headingLevel="h2"/, "/projects 列表页应传 h2（h1 下直接卡片）");
+
+  // 世界降级页：h2 标题下卡片保持 h3（首页 h1 由 WorldShell 品牌标头承担）
+  const fallback = readProjectFile("components/world/ui/FallbackProjects.tsx");
+  assert.match(fallback, /headingLevel="h3"/);
 });
 
 test("MY JOURNEY 双形态标题级别：独立形态阶段 h3（版块 h2 下）、嵌套形态 h4（卡内 h3 下）", () => {
@@ -385,7 +396,7 @@ test("MY JOURNEY 双形态标题级别：独立形态阶段 h3（版块 h2 下�
 
 /* --------------------------- 装饰性 Logo --------------------------- */
 
-test("ButterflyLogo 支持 decorative 模式，三处并存场景全部启用（避免读屏重复播报）", () => {
+test("ButterflyLogo 支持 decorative 模式，多场景并存全部启用（避免读屏重复播报）", () => {
   const logo = readProjectFile("components/layout/ButterflyLogo.tsx");
   assert.match(logo, /decorative\?: boolean/);
   assert.match(logo, /role=\{decorative \? undefined : "img"\}/);
@@ -393,11 +404,12 @@ test("ButterflyLogo 支持 decorative 模式，三处并存场景全部启用（
   assert.match(logo, /aria-label=\{decorative \? undefined : title\}/);
 
   // Navbar：品牌链接已有 aria-label + 可见文字；Footer：相邻可见品牌文字；
-  // ContactSection：纯视觉点缀。三处都应传 decorative
+  // ContactSection：纯视觉点缀；世界加载屏：纯视觉品牌。全部应传 decorative
   for (const [file, marker] of [
     ["components/layout/Navbar.tsx", /decorative/],
     ["components/layout/Footer.tsx", /decorative/],
     ["components/home/ContactSection.tsx", /decorative/],
+    ["components/world/loading/LoadingScreen.tsx", /decorative/],
   ]) {
     assert.match(readProjectFile(file), marker, `${file} 的 Logo 应标记为纯装饰`);
   }

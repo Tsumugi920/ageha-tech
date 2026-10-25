@@ -1,6 +1,8 @@
 /**
  * 项目地基冒烟测试（node:test）：
- * 校验设计令牌、联系占位、版块组装、忽略规则与素材就位。
+ * 校验设计令牌、联系占位、首页世界入口组装（原「七版块顺序」断言的
+ * 迁移新形态：page.tsx 渲染 WorldShell + lib/world 数据模块就位）、
+ * 忽略规则与素材就位。
  * 运行方式：npm test（即 node --test tests/）
  */
 import assert from "node:assert/strict";
@@ -67,34 +69,32 @@ test("lib/site.ts 的联系方式：GitHub 为白名单真实账号，其余渠�
   assert.match(siteConfig, /brandLine:\s*"Building digital things with curiosity\."/);
 });
 
-test("app/page.tsx 依序引用 Hero 等七个版块组件", () => {
+test("app/page.tsx 渲染 WorldShell，lib/world 数据模块与关键世界组件就位", () => {
   const page = readProjectFile("app/page.tsx");
-  const expectedOrder = [
-    "Hero",
-    "FeaturedProjects",
-    "AboutSection",
-    "JourneySection",
-    "TechStackSection",
-    "LatestNotes",
-    "ContactSection",
-  ];
+  assert.match(
+    page,
+    /import \{ WorldShell \} from "@\/components\/world\/WorldShell"/,
+    "首页应渲染世界入口 WorldShell",
+  );
+  assert.ok(page.includes("<WorldShell />"));
 
-  let lastIndex = -1;
-  for (const component of expectedOrder) {
-    const jsxIndex = page.indexOf(`<${component}`);
-    assert.ok(
-      jsxIndex !== -1 && jsxIndex > lastIndex,
-      `${component} 应在 page.tsx 中按顺序渲染`,
-    );
-    lastIndex = jsxIndex;
+  // 世界数据模块（原七版块断言的迁移新形态）
+  for (const moduleName of ["constants", "layout", "colliders", "performance"]) {
+    const file = path.join(projectRoot, "lib", "world", `${moduleName}.ts`);
+    assert.ok(existsSync(file), `缺少 lib/world/${moduleName}.ts`);
+    assert.ok(statSync(file).size > 0, `lib/world/${moduleName}.ts 不应为空`);
   }
-
-  // 六个锚点 id 由各版块组件提供
-  for (const component of expectedOrder.slice(1)) {
-    assert.match(
-      readProjectFile(`components/home/${component}.tsx`),
-      new RegExp(`id="(projects|about|journey|tech|notes|contact)"`),
-      `${component}.tsx 应带锚点 id`,
+  // 关键世界组件（场景 / 控制 / HUD / 降级）
+  for (const component of [
+    "components/world/WorldCanvas.tsx",
+    "components/world/systems/usePlayerController.ts",
+    "components/world/systems/FollowCamera.tsx",
+    "components/world/ui/HudOverlay.tsx",
+    "components/world/ui/FallbackProjects.tsx",
+  ]) {
+    assert.ok(
+      existsSync(path.join(projectRoot, component)),
+      `缺少 ${component}`,
     );
   }
 });

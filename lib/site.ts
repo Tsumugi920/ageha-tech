@@ -33,13 +33,18 @@ export const site = {
   /** 站点描述 */
   description:
     "Ageha.tech — 独立数字创作者的数字花园：项目作品、技术栈与写作札记（正在建设中）。",
-  /** 首页导航项（锚点路由） */
+  /**
+   * 导航项（内容路由链接）。
+   * 首页 3D 化后不再有页内版块锚点（#projects/#about… 已随版块退役），
+   * 全站导航统一走路由链接——首页与其他页行为一致（蓝图 §10 Navbar
+   * 结构不动；锚点失效问题的处置记录见 docs/3d-world-blueprint.md 评审意见）。
+   */
   navItems: [
-    { label: "首页", href: "#home" },
-    { label: "项目", href: "#projects" },
-    { label: "关于", href: "#about" },
-    { label: "技术栈", href: "#tech" },
-    { label: "文章", href: "#notes" },
+    { label: "首页", href: "/" },
+    { label: "项目", href: "/projects" },
+    { label: "关于", href: "/about" },
+    { label: "技术栈", href: "/tech" },
+    { label: "文章", href: "/articles" },
   ] satisfies NavItem[],
   /**
    * 联系方式：GitHub 已接入真实账号（有据可查，configured: true）；

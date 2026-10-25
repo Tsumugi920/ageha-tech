@@ -1,8 +1,9 @@
 /**
  * 路由与导航契约测试（node:test）：
  * 校验六个内页就位与各自 metadata、项目详情页诚实边界（状态/入口来自数据、
- * 未上线项目无任何入口）、Navbar/Footer 完整实现与锚点↔路由映射、
- * 以及全站图片一律 next/image（首屏 priority，其余懒加载）。
+ * 未上线项目无任何入口）、Navbar/Footer 完整实现与路由导航映射（首页 3D 化
+ * 后全站统一路由链接）、以及全站图片一律 next/image（首屏 priority，
+ * 其余懒加载）。世界 UI 组件同样受裸 <img> 扫描约束（§11.1 图片纪律）。
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
 import assert from "node:assert/strict";
@@ -42,7 +43,7 @@ test("app/projects/page.tsx：全部项目网格复用 ProjectCard，metadata �
   );
   assert.match(page, /全部项目/);
   assert.match(page, /返回首页/);
-  // 过程性注记与首页同源，不做成果宣言
+  // 过程性注记，不做成果宣言
   assert.ok(page.includes("一些正在构建、持续打磨"));
   assert.doesNotMatch(page, emojiPattern);
 });
@@ -161,16 +162,17 @@ test("app/contact/page.tsx：复用暮光联系版块，未配置渠道按开关
 
 /* --------------------------------- 导航 --------------------------------- */
 
-test("navigation.ts：锚点 ↔ 内容路由一一对应，标签仍单源 lib/site.ts", () => {
+test("navigation.ts：导航项即内容路由（首页 3D 化后无页内锚点），标签仍单源 lib/site.ts", () => {
   const nav = readProjectFile("components/layout/navigation.ts");
   const siteConfig = readProjectFile("lib/site.ts");
 
   assert.match(nav, /from "@\/lib\/site"/, "导航数据应派生自 lib/site.ts");
-  assert.match(nav, /"#home": "\/"/);
-  assert.match(nav, /"#projects": "\/projects"/);
-  assert.match(nav, /"#about": "\/about"/);
-  assert.match(nav, /"#tech": "\/tech"/);
-  assert.match(nav, /"#notes": "\/articles"/);
+  // navItems 一律路由链接（原 #home/#projects… 锚点随首页版块退役移除）
+  for (const route of ["/", "/projects", "/about", "/tech", "/articles"]) {
+    assert.ok(siteConfig.includes(`href: "${route}"`), `site.ts 应有路由 ${route}`);
+  }
+  assert.doesNotMatch(siteConfig, /href: "#/, "site.ts 不应再有 # 锚点导航项");
+  assert.match(nav, /isNavLinkActive/, "应保留路由高亮判定");
   // lib/site.ts 的五个导航标签保持不变（Navbar 与 Footer 共用）
   for (const label of ["首页", "项目", "关于", "技术栈", "文章"]) {
     assert.ok(siteConfig.includes(`label: "${label}"`), `site.ts 应有 ${label}`);
@@ -192,6 +194,9 @@ test("Navbar 完整实现：路由高亮、滚动透明度变化、移动端菜�
   assert.match(navbar, /Escape/, "Esc 应能关闭菜单");
   assert.match(navbar, /<NavLinks layout="bar"/, "桌面导航条目应复用共享实现");
   assert.match(navbar, /<NavLinks layout="sheet"/, "移动菜单条目应复用共享实现");
+  // 品牌链接：一律路由链接回首页（不再有 #home 锚点分支）
+  assert.match(navbar, /href="\/"/);
+  assert.doesNotMatch(navbar, /href="#home"/);
   // 联系我按钮 → /contact
   assert.match(navbar, /href="\/contact"/);
   // 蝴蝶 Logo 接口保持稳定（hero.test.mjs 契约）
@@ -199,15 +204,16 @@ test("Navbar 完整实现：路由高亮、滚动透明度变化、移动端菜�
   assert.doesNotMatch(navbar, emojiPattern);
 });
 
-test("SiteNavLinks：首页渲染页内锚点，其他页渲染路由链接并高亮", () => {
+test("SiteNavLinks：导航项渲染路由链接并高亮当前路由，页脚共用同一实现", () => {
   const links = readProjectFile("components/layout/SiteNavLinks.tsx");
 
   assert.match(links, /"use client"/);
   assert.match(links, /from "next\/link"/);
-  assert.match(links, /resolveNavLinkHref/);
   assert.match(links, /isNavLinkActive/, "应做当前路由高亮判定");
   assert.match(links, /aria-current=/, "当前项应有 aria-current");
   assert.match(links, /FooterNavLinks/, "应导出页脚链接组");
+  // 全部条目为 <Link> 路由链接（不再有页内锚点 <a href="#…"> 形态）
+  assert.doesNotMatch(links, /<a\s/);
   assert.doesNotMatch(links, emojiPattern);
 });
 
@@ -240,13 +246,13 @@ test("全站图片一律 next/image：无裸 <img>，首屏 priority，其余懒
   scanDir(path.join(projectRoot, "app"));
   scanDir(path.join(projectRoot, "components"));
 
-  // 首屏大图 priority：Hero 场景与项目详情页封面；首页/列表页卡片封面不 priority
-  const scene = readProjectFile("components/home/HeroScene.tsx");
-  assert.match(scene, /priority/);
-  const featured = readProjectFile("components/home/FeaturedProjects.tsx");
-  assert.ok(!featured.includes("priority"), "首页卡片封面应懒加载");
+  // 首屏大图 priority：项目详情页封面；列表页 / 世界降级页卡片封面不 priority
+  // （原 HeroScene/FeaturedProjects 首屏断言随组件退役移除；阶段 2 将补
+  //   ProjectDetailPanel 封面 next/image 懒加载断言——蓝图 §14.1）
   const listPage = readProjectFile("app/projects/page.tsx");
   assert.ok(!listPage.includes("priority"), "列表页卡片封面应懒加载");
+  const fallback = readProjectFile("components/world/ui/FallbackProjects.tsx");
+  assert.ok(!fallback.includes("priority"), "世界降级页卡片封面应懒加载");
   const detail = readProjectFile("app/projects/[slug]/page.tsx");
   assert.match(detail, /priority/, "详情页封面为首屏大图，应 priority");
 });

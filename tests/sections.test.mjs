@@ -1,6 +1,9 @@
 /**
- * 三版块内容契约测试（node:test）：
- * 技术栈 / 文章与实验 / 联系我 —— 校验文案、诚实占位规则与链接边界。
+ * 版块内容契约测试（node:test）：
+ * 技术栈 / 文章与实验（写作计划渲染新家：/articles 路由页） / 联系我 ——
+ * 校验文案、诚实占位规则与链接边界。
+ * LatestNotes.tsx 已退役（蓝图 §14.0）：其「写作计划条目渲染」断言
+ * 迁移至 app/articles/page.tsx（本文件 + content-honesty.test.mjs 双守护）。
  * 运行方式：npm test（即 node --test tests/*.test.mjs）
  */
 import assert from "node:assert/strict";
@@ -104,27 +107,24 @@ test("lib/notes.ts：三条写作计划条目，无日期、无阅读量字段",
   assert.doesNotMatch(data, /20\d{2}-\d{2}|"date"|"views"|"readCount"|href:/);
 });
 
-test("LatestNotes：左头部块 + 三张写作计划卡（明确标注，不伪装已发布）", () => {
-  const section = readProjectFile("components/home/LatestNotes.tsx");
+test("文章与实验页（写作计划渲染新家）：空状态 + 三张计划卡明确标注，不伪装已发布", () => {
+  const page = readProjectFile("app/articles/page.tsx");
 
-  assert.match(section, /id="notes"/);
-  assert.match(section, /aria-label="文章与实验"/);
-  assert.match(section, /Latest Notes/);
-  assert.match(section, /文章与实验/);
-  assert.match(section, /记录技术选择、设计探索、开发经验与那些值得继续探索的想法。/);
-  assert.match(section, /View All/);
-  assert.match(section, /href="#notes"/);
+  assert.match(page, /当前还没有已发布文章/);
+  assert.match(page, /Latest Notes|Articles/, "页头 eyebrow 应就位");
+  assert.match(page, /文章与实验/);
+  assert.match(page, /记录技术选择、设计探索、开发经验与那些值得继续探索的想法。/);
+  assert.match(page, /\{plannedNotes\.map/, "应渲染写作计划条目");
 
-  // 空状态说明 + 每条目的「写作计划中」状态徽标（虚线边框，文案由 lib/notes.ts 提供）
-  assert.match(section, /当前还没有已发布文章/);
-  assert.match(section, /概念视觉/);
-  assert.match(section, /border-dashed/);
-  assert.match(section, /\{plannedNoteLabel\}/);
+  // 每条目的「写作计划中」状态徽标（虚线边框，文案由 lib/notes.ts 提供）
+  assert.match(page, /border-dashed/);
+  assert.match(page, /\{plannedNoteLabel\}/);
+  assert.match(page, /概念视觉/, "缩略图应如实标注概念视觉");
 
-  // 诚实边界：不出现参考图里的示意日期与阅读量，卡片不是链接
-  assert.doesNotMatch(section, /2024-XX-XX|阅读\s*0|20\d{2}-\d{2}-\d{2}/);
-  assert.doesNotMatch(section, /<a[^>]*[\s\S]{0,200}plannedNotes\.map/);
-  assert.doesNotMatch(section, emojiPattern);
+  // 诚实边界：不出现示意日期与阅读量，卡片不是链接
+  assert.doesNotMatch(page, /2024-XX-XX|阅读\s*0|20\d{2}-\d{2}-\d{2}/);
+  assert.doesNotMatch(page, /<a[^>]*[\s\S]{0,200}plannedNotes\.map/);
+  assert.doesNotMatch(page, emojiPattern);
 });
 
 /* ------------------------------- 联系我 ------------------------------- */

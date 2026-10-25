@@ -1,6 +1,9 @@
 /**
- * 首页三版块（精选项目 / 关于我 / 探索与成长）冒烟测试（node:test）：
- * 校验数据集中管理、诚实占位标注、无年份承诺、版块结构与双形态嵌套。
+ * 项目数据与版块消费冒烟测试（node:test）：
+ * 校验项目数据集中管理与诚实边界、共享卡片实现、保留版块（/about 等）
+ * 与共享数据不出现年份。首页消费侧契约已迁移：三项目的场景内数据渲染
+ * 由 world-layout.test.mjs 守护；HTML 面板（ProjectDetailPanel /
+ * WorldNavPanel 渲染 lib/projects.ts 同源数据）的断言在阶段 2 落地。
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
 import assert from "node:assert/strict";
@@ -89,9 +92,9 @@ test("项目状态与入口链接如实：已上线才给链接，封面一律�
   }
 });
 
-test("三个版块源文件与共享数据一律不出现年份或时间区间", () => {
+test("保留版块源文件与共享数据一律不出现年份或时间区间", () => {
+  // FeaturedProjects / LatestNotes 已退役；名单收窄到保留文件
   const files = [
-    "components/home/FeaturedProjects.tsx",
     "components/projects/ProjectCard.tsx",
     "components/home/AboutSection.tsx",
     "components/home/JourneySection.tsx",
@@ -108,40 +111,7 @@ test("三个版块源文件与共享数据一律不出现年份或时间区间",
   }
 });
 
-test("FeaturedProjects：统一容器上的头部行 + 卡片网格复用共享 ProjectCard", () => {
-  const src = readProjectFile("components/home/FeaturedProjects.tsx");
-
-  assert.match(src, /id="projects"/, "应带 projects 锚点");
-  assert.match(src, /Featured Projects/i, "应有 FEATURED PROJECTS eyebrow");
-  assert.ok(src.includes("精选项目"), "应有版块标题");
-  assert.ok(src.includes("View All"), "应有 View All 链接");
-  assert.ok(src.includes("/projects"), "View All 应指向 /projects");
-  assert.ok(
-    src.includes("一些正在构建、持续打磨") &&
-      src.includes("或记录我技术探索过程的作品"),
-    "右上注记应保留「正在构建/打磨」的过程性定位",
-  );
-  assert.ok(
-    src.includes('from "@/lib/projects"'),
-    "项目数据应来自 lib/projects.ts",
-  );
-  // 卡片本体抽取为共享组件（首页与 /projects 列表页共用，视觉一致）
-  assert.ok(
-    src.includes('from "@/components/projects/ProjectCard"'),
-    "应复用共享 ProjectCard 组件",
-  );
-  assert.ok(
-    src.includes("<ProjectCard project={project} index={index + 1} />"),
-    "卡片应通过 ProjectCard 渲染（首页不传 priority，封面懒加载）",
-  );
-  assert.match(
-    src,
-    /md:grid-cols-2 md:gap-8 xl:grid-cols-3/,
-    "网格应为 md 两列（1024 档防窄卡截断，间距 32px）+ xl 三等列",
-  );
-});
-
-test("ProjectCard：首页与列表页共用的唯一卡片实现，诚实标注与 slug 链接就位", () => {
+test("ProjectCard：共享卡片唯一实现，诚实标注与 slug 链接就位", () => {
   const src = readProjectFile("components/projects/ProjectCard.tsx");
 
   assert.match(src, /from "next\/image"/, "封面应使用 next/image");
@@ -170,7 +140,7 @@ test("ProjectCard：首页与列表页共用的唯一卡片实现，诚实标注
 test("AboutSection：通栏玻璃板四区结构、三句文案与概念插画标注就位", () => {
   const src = readProjectFile("components/home/AboutSection.tsx");
 
-  assert.match(src, /id="about"/, "应带 about 锚点");
+  assert.match(src, /id="about"/, "应带 about 锚点（/about 路由页消费）");
   assert.match(src, /About Me/i, "应有 ABOUT ME eyebrow");
   assert.ok(src.includes("关于我"), "应有版块标题");
   for (const sentence of [
