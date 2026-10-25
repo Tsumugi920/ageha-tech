@@ -129,7 +129,7 @@ test("LatestNotes：左头部块 + 三张写作计划卡（明确标注，不伪
 
 /* ------------------------------- 联系我 ------------------------------- */
 
-test("ContactSection：夜景深色带 + 渠道单源 site.contacts（GitHub 真实链接，其余「待配置」）", () => {
+test("ContactSection：暮光天幕版块 + 渠道单源 site.contacts（GitHub 真实链接，未配置入口隐藏）", () => {
   const section = readProjectFile("components/home/ContactSection.tsx");
 
   assert.match(section, /id="contact"/);
@@ -140,12 +140,15 @@ test("ContactSection：夜景深色带 + 渠道单源 site.contacts（GitHub 真
   assert.match(section, /联系我/);
   assert.match(section, /href="\/contact"/);
 
-  // 渠道数据单源 lib/site.ts：GitHub 真实链接（新窗口 + noreferrer），其余挂「待配置」虚线徽标
-  assert.match(section, /site\.contacts\.map/);
+  // 渠道数据单源 lib/site.ts：GitHub 真实链接（新窗口 + noreferrer）；
+  // 未配置渠道按 configured 开关直接隐藏，不以「待配置」占位展示
+  assert.match(section, /site\.contacts\s*\.?\s*\n?\s*\.filter\(\(contact\) => contact\.configured\)/);
   assert.match(section, /target="_blank"/);
   assert.match(section, /rel="noreferrer"/);
-  const badges = section.match(/待配置/g) ?? [];
-  assert.ok(badges.length >= 2, "未接入的渠道应有「待配置」徽标");
+  assert.ok(
+    !section.includes("待配置"),
+    "未配置入口应直接隐藏，而非以「待配置」当正式内容展示",
+  );
 
   // 诚实边界：组件源码不出现任何账号 / 邮箱 / 外链字面量（真实链接来自 site.ts）
   assert.doesNotMatch(
@@ -156,10 +159,11 @@ test("ContactSection：夜景深色带 + 渠道单源 site.contacts（GitHub 真
   assert.doesNotMatch(section, emojiPattern);
 });
 
-test("ContactSection：夜景视觉与蝴蝶点缀就位，按钮指向 /contact", () => {
+test("ContactSection：暮光视觉与蝴蝶点缀就位，按钮指向 /contact", () => {
   const section = readProjectFile("components/home/ContactSection.tsx");
 
-  // 深海军蓝夜景底 + 星光 + 山脊剪影
+  // 暮光天幕：冰蓝 → 蓝紫 → 深空暮光连续渐变（深海军蓝色标为品牌锚点）
+  // + 星尘 + 远山剪影，内容收进浅玻璃幕带（无突兀深色矩形）
   assert.match(section, /#1E3762|#152A50/);
   assert.match(section, /radial-gradient/);
   assert.match(section, /<svg[^>]*viewBox="0 0 1200 340"/);

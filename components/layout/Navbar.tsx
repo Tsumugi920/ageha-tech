@@ -67,11 +67,11 @@ export function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-50 px-4 pt-4 md:px-8">
+    <header className="sticky top-0 z-50 px-(--site-gutter) pt-4">
       <nav
         aria-label="站内主导航"
         className={cn(
-          "glass-panel mx-auto flex max-w-6xl items-center justify-between gap-4 rounded-full py-2.5 pl-5 pr-2.5 transition-[background-color,box-shadow] duration-300",
+          "glass-panel site-shell flex items-center justify-between gap-4 rounded-full py-2.5 pl-5 pr-2.5 transition-[background-color,box-shadow] duration-300",
           scrolled && "bg-white/70 shadow-[0_12px_36px_rgba(71,115,183,0.18)]",
         )}
       >
@@ -132,7 +132,7 @@ export function Navbar() {
         id="mobile-nav-menu"
         inert={!menuOpen}
         className={cn(
-          "glass-panel absolute inset-x-4 top-full mt-2 max-w-6xl overflow-hidden rounded-3xl transition-[max-height,opacity] duration-300 ease-out lg:hidden md:inset-x-8",
+          "glass-panel absolute inset-x-(--site-gutter) top-full mt-2 overflow-hidden rounded-3xl transition-[max-height,opacity] duration-300 ease-out lg:hidden",
           menuOpen
             ? "max-h-[28rem] bg-white/75 opacity-100"
             : "pointer-events-none max-h-0 opacity-0",

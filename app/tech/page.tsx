@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function TechPage() {
   return (
     <>
-      <div className="mx-auto w-full max-w-6xl px-4 pt-14 md:px-8">
+      <div className="site-container pt-14">
         <PageHeader
           eyebrow="Tech Stack"
           title="技术栈"
@@ -29,7 +29,7 @@ export default function TechPage() {
       <TechStackSection />
 
       {/* 诚实边界说明：与 lib/tech-stack.ts 的数据口径一致 */}
-      <div className="mx-auto w-full max-w-6xl px-4 pb-20 md:px-8">
+      <div className="site-container pb-20">
         <GlassPanel className="flex flex-col items-center gap-2.5 rounded-2xl px-5 py-4 text-center sm:flex-row sm:gap-3 sm:text-left">
           <NotebookPen
             className="size-4 shrink-0 text-blue"

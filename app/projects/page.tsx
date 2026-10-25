@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProjectCard } from "@/components/projects/ProjectCard";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 import { projects } from "@/lib/projects";
 
 export const metadata: Metadata = {
@@ -17,47 +16,42 @@ const PAGE_NOTE = [
 ] as const;
 
 /**
- * 全部项目列表页：页头 + 与首页「精选项目」同一套玻璃大板与 ProjectCard 网格。
+ * 全部项目列表页：页头 + 与首页「精选项目」同一套 ProjectCard 网格，
+ * 直接坐在统一 .site-container 全宽内容网格上（不再包整段玻璃大板）。
  * 数据来自 lib/projects.ts（三个探索中的项目，无上线状态 / 演示 / 源码链接）。
  */
 export default function ProjectsPage() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-14 md:px-8">
-      <GlassPanel className="relative overflow-hidden p-5 sm:p-7 lg:p-9">
-        {/* 面板顶部弧形高光：与首页精选项目大板同款 */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-10 top-0 h-px bg-linear-to-r from-transparent via-white/95 to-transparent"
+    <div className="site-container pb-20 pt-14">
+      <div className="mb-8 flex flex-col gap-5 lg:mb-10 lg:flex-row lg:items-start lg:justify-between">
+        <PageHeader
+          eyebrow="Projects"
+          title="全部项目"
+          back={{ href: "/", label: "返回首页" }}
         />
+        <p className="max-w-xs text-center text-xs leading-[1.9] text-text-secondary lg:max-w-none lg:pt-1 lg:text-right">
+          <span className="flex items-center justify-center gap-2.5 lg:justify-end">
+            <span
+              aria-hidden="true"
+              className="h-px w-9 shrink-0 bg-text-secondary/45"
+            />
+            {PAGE_NOTE[0]}
+          </span>
+          {PAGE_NOTE[1]}
+        </p>
+      </div>
 
-        <div className="relative mb-8 flex flex-col gap-5 lg:mb-10 lg:flex-row lg:items-start lg:justify-between">
-          <PageHeader
-            eyebrow="Projects"
-            title="全部项目"
-            back={{ href: "/", label: "返回首页" }}
-          />
-          <p className="max-w-xs text-center text-xs leading-[1.9] text-text-secondary lg:max-w-none lg:pt-1 lg:text-right">
-            <span className="flex items-center justify-center gap-2.5 lg:justify-end">
-              <span
-                aria-hidden="true"
-                className="h-px w-9 shrink-0 bg-text-secondary/45"
-              />
-              {PAGE_NOTE[0]}
-            </span>
-            {PAGE_NOTE[1]}
-          </p>
-        </div>
-
-        {/* 三等列卡片网格：与首页精选项目共用 ProjectCard，保证视觉一致；
-            页面 h1 下无中间层级，卡片标题升为 h2 避免标题跳级 */}
-        <ul className="relative grid list-none gap-6 md:grid-cols-3">
-          {projects.map((project, index) => (
-            <li key={project.slug}>
-              <ProjectCard project={project} index={index + 1} headingLevel="h2" />
-            </li>
-          ))}
-        </ul>
-      </GlassPanel>
+      {/* 项目卡网格：与首页精选项目共用 ProjectCard，保证视觉一致
+          （md 两列 / xl 三等列，1024 档两列防窄卡截断——同首页）；
+          页面 h1 下无中间层级，卡片标题升为 h2 避免标题跳级。
+          显式 grid-cols-1 与首页同款：防移动端隐式 auto 轨道被标签行撑宽 */}
+      <ul className="grid list-none grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 xl:grid-cols-3">
+        {projects.map((project, index) => (
+          <li key={project.slug}>
+            <ProjectCard project={project} index={index + 1} headingLevel="h2" />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -35,7 +35,11 @@ test("app/projects/page.tsx：全部项目网格复用 ProjectCard，metadata �
     /<ProjectCard project=\{project\} index=\{index \+ 1\} headingLevel="h2" \/>/,
     "应复用共享卡片（列表页 h1 下无中间层级，标题升 h2 避免跳级）",
   );
-  assert.match(page, /md:grid-cols-3/, "桌面应为三等列网格");
+  assert.match(
+    page,
+    /md:grid-cols-2 md:gap-8 xl:grid-cols-3/,
+    "网格应为 md 两列（1024 档防窄卡截断，间距 32px）+ xl 三等列",
+  );
   assert.match(page, /全部项目/);
   assert.match(page, /返回首页/);
   // 过程性注记与首页同源，不做成果宣言
@@ -139,12 +143,14 @@ test("app/articles/page.tsx：空状态 + 写作计划条目，无日期/阅读�
   assert.doesNotMatch(page, emojiPattern);
 });
 
-test("app/contact/page.tsx：复用夜景联系版块，渠道保持「待配置」口径", () => {
+test("app/contact/page.tsx：复用暮光联系版块，未配置渠道按开关隐藏", () => {
   const page = readProjectFile("app/contact/page.tsx");
 
   assert.match(page, /title: "联系我"/);
   assert.match(page, /<ContactSection \/>/);
-  assert.match(page, /待配置/);
+  // 未配置渠道已从联系区隐藏，页面文案如实说明「配置完成后自动出现」
+  assert.match(page, /GitHub 已接入/);
+  assert.ok(!page.includes("待配置"), "页面不应再以「待配置」当正式内容展示");
   // 诚实边界：不虚构任何邮箱或社交账号
   assert.doesNotMatch(
     page,

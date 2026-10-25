@@ -2,8 +2,9 @@
  * 站点全局配置：品牌、身份、导航与联系方式。
  *
  * 【诚实边界】GitHub 为站长真实账号（github.com/Ageha6912，与 CS 模拟器
- * 公开仓库同源）；其余渠道仍是「待配置」占位，在站长提供真实账号前，
- * 绝不虚构任何邮箱 / 社交链接。
+ * 公开仓库同源）；其余渠道在站长提供真实账号前保持 { value: "待配置" }
+ * 占位数据，绝不虚构任何邮箱 / 社交链接。数据层的 configured 开关决定
+ * 渲染：未配置的入口在联系区直接隐藏，不以「待配置」当正式内容展示。
  */
 
 export type NavItem = {
@@ -16,6 +17,8 @@ export type ContactItem = {
   /** 占位值统一为「待配置」，接入真实账号后逐项替换 */
   value: string;
   href?: string;
+  /** 配置开关：true 才会在联系区渲染；未配置的入口直接隐藏 */
+  configured: boolean;
 };
 
 export const site = {
@@ -39,13 +42,19 @@ export const site = {
     { label: "文章", href: "#notes" },
   ] satisfies NavItem[],
   /**
-   * 联系方式：GitHub 已接入真实账号（有据可查）；其余渠道保持
-   * { label, value: "待配置" } 占位，绝不虚构。
+   * 联系方式：GitHub 已接入真实账号（有据可查，configured: true）；
+   * 其余渠道保持 { value: "待配置", configured: false } 占位——
+   * 数据留档、渲染隐藏，绝不虚构。
    */
   contacts: [
-    { label: "GitHub", value: "Ageha6912", href: "https://github.com/Ageha6912" },
-    { label: "邮箱", value: "待配置" },
-    { label: "其他平台", value: "待配置" },
+    {
+      label: "GitHub",
+      value: "Ageha6912",
+      href: "https://github.com/Ageha6912",
+      configured: true,
+    },
+    { label: "邮箱", value: "待配置", configured: false },
+    { label: "其他平台", value: "待配置", configured: false },
   ] satisfies ContactItem[],
 } as const;
 

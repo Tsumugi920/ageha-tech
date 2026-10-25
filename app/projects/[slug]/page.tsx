@@ -51,7 +51,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
   const isLive = project.status === "已上线";
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-20 pt-14 md:px-8">
+    <div className="site-container pb-20 pt-14">
       <GlassPanel className="relative overflow-hidden p-5 sm:p-7 lg:p-9">
         {/* 面板顶部弧形高光：与项目列表大板同款 */}
         <div
@@ -146,7 +146,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
                 {project.tags.map((tag) => (
                   <li
                     key={tag}
-                    className="rounded-full border border-white/60 bg-[#C8D7EB]/40 px-3 py-1 text-xs font-medium text-text-primary"
+                    className="rounded-full border border-white/60 bg-[#C8D7EB]/40 px-3 py-1 text-[13px] font-medium text-text-primary"
                   >
                     {tag}
                   </li>

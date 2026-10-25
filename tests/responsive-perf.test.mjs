@@ -47,15 +47,42 @@ function extractRuleBlocks(css, selectorPattern) {
 
 /* ============================ 一、断点布局 ============================ */
 
-test("断点布局：项目卡片移动单列、md 起三列（首页精选与 /projects 列表一致）", () => {
+test("断点布局：项目卡片移动单列（显式 grid-cols-1 防隐式 auto 轨道被标签行撑宽）、md 两列防 1024 窄卡截断、xl 恢复三等列（首页精选与 /projects 列表一致）", () => {
   for (const file of [
     "components/home/FeaturedProjects.tsx",
     "app/projects/page.tsx",
   ]) {
     const src = readProjectFile(file);
-    assert.match(src, /grid list-none gap-6 md:grid-cols-3/,
-      `${file} 卡片网格应为移动单列 + md:grid-cols-3`);
+    assert.match(src, /grid list-none grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 xl:grid-cols-3/,
+      `${file} 卡片网格应为显式单列（minmax(0,1fr)）+ md:grid-cols-2 + xl:grid-cols-3（md 起间距 32px）`);
   }
+});
+
+test("宽屏排版：项目卡标题 24px / 描述 15px / 四行兜底 / xl 内边距 28px（1840 容器下卡宽 ≈565px）", () => {
+  const card = readProjectFile("components/projects/ProjectCard.tsx");
+  assert.match(
+    card,
+    /font-display text-xl font-bold tracking-tight text-text-primary md:text-2xl/,
+    "项目卡标题应为 20px → md 24px（宽屏作品展示级标题）",
+  );
+  assert.match(
+    card,
+    /line-clamp-4 text-sm leading-relaxed text-text-secondary md:text-\[15px\]/,
+    "项目卡描述应为 14px → md 15px，四行兜底",
+  );
+  // 封面仍是卡片最主要视觉区域：统一 3:2 比例不因容器放宽而改变
+  assert.match(card, /aspect-\[3\/2\]/);
+  // 卡片内边距随容器放宽加大（p-5 → sm:p-6 → xl:p-7），不无限拉伸
+  assert.match(card, /p-5 transition-\[transform,box-shadow,border-color\] duration-300 hover:border-\[#7FB2E6\] sm:p-6 xl:p-7/);
+});
+
+test("宽屏构图：Hero 右缘章节面板减重为幽灵玻璃（不抢蝴蝶主视觉）", () => {
+  const hero = readProjectFile("components/home/Hero.tsx");
+  assert.match(
+    hero,
+    /border-white\/45 bg-white\/30 px-4 py-6 shadow-\[0_3px_14px_rgba\(71,115,183,0\.10\)\] backdrop-blur-md/,
+    "章节面板应为 30% 白玻璃 + 细边 + 轻投影（幽灵级，退到场景之后）",
+  );
 });
 
 test("断点布局：时间线移动端独立纵排（lg 隐藏），桌面由 About 大板嵌套承接", () => {
@@ -79,12 +106,77 @@ test("断点布局：移动端 Hero 纵向布局（上半场景横幅 + 下方�
   const hero = readProjectFile("components/home/Hero.tsx");
   const scene = readProjectFile("components/home/HeroScene.tsx");
 
-  // 场景容器：移动端 46svh 顶部横幅，lg+ 右侧 64% 双栏
-  assert.match(scene, /h-\[46svh\] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-full lg:w-\[64%\]/);
-  // 文案在场景之下：顶部内边距 ≥ 场景高度（纵向堆叠不重叠）
-  assert.match(hero, /pt-\[46svh\] sm:px-10 lg:px-16 lg:pb-14 lg:pt-36/);
+  // 场景容器：移动端 46svh 顶部横幅（绝对定位），lg+ 转入两栏栅格右列（42fr_58fr）
+  assert.match(
+    scene,
+    /pointer-events-none absolute inset-x-0 top-0 z-0 h-\[46svh\] lg:relative lg:inset-auto lg:col-start-2 lg:row-start-1 lg:h-full/,
+  );
+  // 文案在场景之下：顶部内边距 ≥ 场景高度（纵向堆叠不重叠）；
+  // lg+ 去掉 pt-36 下坠，改为 clamp 适度上移（col/row 定位与 gutter 边距夹在中间）；
+  // 左缘 hero-inset-pl 对齐统一主容器内容缘（非视口 gutter，见下一条测试）
+  assert.match(
+    hero,
+    /pt-\[46svh\] sm:px-10 hero-inset-pl lg:col-start-1 lg:row-start-1 lg:pr-\(--site-gutter\) lg:pb-14 lg:pt-\[clamp\(4rem,8svh,7rem\)\]/,
+  );
   // 横向溢出保险丝：轨道环 / 光斑等装饰超出画布时被首屏裁切
   assert.match(hero, /hero-root relative isolate flex min-h-\[calc\(100svh-4\.5rem\)\] flex-col overflow-hidden/);
+  // 桌面高度随视口 clamp（720–960px，2560×1440 主设计目标下 ~960px 首屏），
+  // 并撤掉 min-h 与高度上限的冲突
+  assert.match(
+    hero,
+    /lg:grid lg:h-\[clamp\(720px,calc\(100svh-4\.5rem\),960px\)\] lg:min-h-0 lg:grid-cols-\[42fr_58fr\] lg:grid-rows-1/,
+  );
+});
+
+test("断点布局：Hero 内容缘对齐统一主容器（hero-inset-* 出血内缩，非视口 gutter）", () => {
+  const hero = readProjectFile("components/home/Hero.tsx");
+  const css = readProjectFile("app/globals.css");
+
+  // hero-root 为 inline-size 容器：cqw 度量 hero 真实布局宽（不含滚动条），
+  // 与 .site-container 的居中计算同源
+  const heroRootRule = css.match(/\.hero-root\s*\{([\s\S]*?)\}/);
+  assert.ok(heroRootRule, "globals.css 应有 .hero-root 规则");
+  assert.match(heroRootRule[1], /container-type:\s*inline-size/);
+
+  // 三个 hero-inset-* 工具类就位：inset = gutter + max(0, (宽−容器)/2)，
+  // 基准统一读 --container-max（四档阶梯在 :root 媒体查询里切换，
+  // 与 .site-container / .site-shell 同源），不再逐档写重复媒体查询
+  const insetFormula =
+    /max\(\s*var\(--site-gutter\),\s*calc\(50cqw - var\(--container-max\) \/ 2 \+ var\(--site-gutter\)\)\s*\)/;
+  for (const name of ["hero-inset-pl", "hero-inset-r", "hero-inset-l"]) {
+    const rules = [...css.matchAll(new RegExp(`\\.${name}\\s*\\{([\\s\\S]*?)\\}`, "g"))];
+    assert.ok(rules.length === 1, `globals.css 应有 .${name} 的单条阶梯基准规则`);
+    for (const rule of rules) {
+      assert.match(rule[1], insetFormula, `.${name} 应使用 --container-max 的 cqw 内缩公式`);
+    }
+  }
+
+  // Hero 三处消费：左文案列、右缘章节面板外缘、左缘 SCROLL 提示
+  assert.match(hero, /sm:px-10 hero-inset-pl/);
+  assert.match(hero, /hero-reveal hero-inset-r absolute/);
+  assert.match(hero, /hero-reveal hero-inset-l absolute/);
+});
+
+test("断点布局：lg+ 场景条右缘锚定容器内容缘（hero-scene-r，防超宽视口蝴蝶压面板）", () => {
+  const css = readProjectFile("app/globals.css");
+  const scene = readProjectFile("components/home/HeroScene.tsx");
+
+  // hero-scene-r 与 hero-inset-r 同构：单一规则读 --container-max 阶梯基准
+  assert.match(
+    css,
+    /\.hero-scene-r\s*\{[\s\S]*?calc\(50cqw - var\(--container-max\) \/ 2 \+ var\(--site-gutter\)\)/,
+    "hero-scene-r 应使用 --container-max 阶梯基准",
+  );
+
+  // HeroScene 消费：场景条挂 hero-scene-r，且高度 / 宽度上限就位
+  // （2560×1440 主设计目标：容器 1840 → 右列 ≈1067px，场景上限 64rem/40rem
+  //   让蝴蝶成为明确视觉主体；翅尖最外渐隐段对称出血）
+  assert.match(scene, /hero-scene-r/);
+  assert.match(
+    scene,
+    /lg:h-\[clamp\(28rem,66svh,40rem\)\] lg:w-\[min\(64rem,100%\)\]/,
+    "场景条应有 40rem 高度上限与 64rem 宽度上限",
+  );
 });
 
 test("断点布局：Hero 装饰层随断点收缩（移动端轨道 / 光晕更小），lg+ 恢复设计稿尺寸", () => {
@@ -104,12 +196,22 @@ test("断点布局：Hero 装饰层随断点收缩（移动端轨道 / 光晕更
   assert.match(lgBlock[1], /--orbit-a:\s*clamp\(24rem,\s*46vw,\s*46rem\)/);
   assert.match(lgBlock[1], /--orbit-b:\s*clamp\(30rem,\s*60vw,\s*56rem\)/);
 
-  // 光晕：移动端 14rem 起步，lg+ 恢复 22rem
+  // ≥1920 宽屏：场景条放宽到 64rem 后轨道环同步放大（比例不失调）
+  const xlBlock = css.match(/@media \(min-width: 1920px\)\s*\{\s*\.hero-orbit-layer\s*\{([\s\S]*?)\}/);
+  assert.ok(xlBlock, "应有 ≥1920 断点的轨道放大规则");
+  assert.match(xlBlock[1], /--orbit-a:\s*clamp\(24rem,\s*46vw,\s*52rem\)/);
+  assert.match(xlBlock[1], /--orbit-b:\s*clamp\(30rem,\s*60vw,\s*62rem\)/);
+
+  // 光晕：移动端 14rem 起步，lg+ 恢复 22rem；上限 34rem（场景放大后同步），
+  // lg+ 中心随右下锚定的场景盒下移（left/top 定位类夹在 rounded-full 与 lg 尺寸之间）
   const scene = readProjectFile("components/home/HeroScene.tsx");
-  assert.match(scene, /w-\[clamp\(14rem,44vw,40rem\)\] -translate-x-1\/2 -translate-y-1\/2 rounded-full lg:w-\[clamp\(22rem,44vw,40rem\)\]/);
+  assert.match(
+    scene,
+    /w-\[clamp\(14rem,44vw,30rem\)\] -translate-x-1\/2 -translate-y-1\/2 rounded-full lg:left-\[48%\] lg:top-\[54%\] lg:w-\[clamp\(22rem,44vw,34rem\)\]/,
+  );
 });
 
-test("断点布局：全站内容容器统一 max-w-6xl + 响应式水平内边距（无固定宽度横溢源）", () => {
+test("断点布局：全站统一主容器四档宽度阶梯（1360 → 1440 → 1600 → 1840px，主设计目标 2560×1440）", () => {
   const pages = [
     "app/page.tsx",
     "app/projects/page.tsx",
@@ -123,9 +225,132 @@ test("断点布局：全站内容容器统一 max-w-6xl + 响应式水平内边�
     assert.doesNotMatch(src, /w-\[\d{3,}px\]|min-w-\[\d{3,}px\]/,
       `${file} 不应出现固定像素宽度`);
   }
-  // 首页版块统一 max-w-6xl + px-4/md:px-8
+  // globals.css 定义四档容器令牌（85/90/100/115rem）
+  const css = readProjectFile("app/globals.css");
+  assert.match(css, /--container-site:\s*85rem/);
+  assert.match(css, /--container-site-wide:\s*90rem/);
+  assert.match(css, /--container-site-lg:\s*100rem/);
+  assert.match(css, /--container-site-max:\s*115rem/);
+
+  // --container-max 阶梯：默认 site，≥1600 wide、≥1920 lg、≥2560 max
+  const rootRule = css.match(/:root\s*\{([\s\S]*?)\}/);
+  assert.ok(rootRule, "应有 :root 规则");
+  assert.match(rootRule[1], /--container-max:\s*var\(--container-site\)/);
+  const tier = (mq, token) =>
+    new RegExp(
+      `@media \\(min-width: ${mq}\\)\\s*\\{\\s*:root\\s*\\{[\\s\\S]*?--container-max:\\s*var\\(--container-${token}\\)`,
+    );
+  assert.match(css, tier("1600px", "site-wide"), "≥1600px 档应切到 90rem（1440px）");
+  assert.match(css, tier("1920px", "site-lg"), "≥1920px 档应切到 100rem（1600px）");
+  assert.match(css, tier("2560px", "site-max"), "≥2560px 档应切到 115rem（1840px）");
+
+  // .site-container 与 .site-shell 都读阶梯变量：任何视口下同宽同缘
+  const container = css.match(/\.site-container\s*\{([\s\S]*?)\}/);
+  assert.ok(container, "globals.css 应有 .site-container 组件类");
+  assert.match(container[1], /max-width:\s*var\(--container-max\)/);
+  assert.match(container[1], /padding-inline:\s*var\(--site-gutter\)/);
+  const shell = css.match(/\.site-shell\s*\{([\s\S]*?)\}/);
+  assert.ok(shell, "globals.css 应有 .site-shell 无内边距外壳类");
+  assert.match(shell[1], /max-width:\s*var\(--container-max\)/);
+  assert.match(shell[1], /margin-inline:\s*auto/);
+
+  // 导航栏用 site-shell（修复旧静态 max-w-site 在 ≥1600px 视口
+  // 恒 1360px、与正文容器相差 80px 且永不放宽的错位）
+  const navbar = readProjectFile("components/layout/Navbar.tsx");
+  assert.match(navbar, /glass-panel site-shell flex items-center justify-between/,
+    "导航栏应使用 site-shell 随阶梯放宽并与正文容器同缘");
+
+  // 首页版块直接坐在统一容器上（保留纵向节奏类）
   const featured = readProjectFile("components/home/FeaturedProjects.tsx");
-  assert.match(featured, /max-w-6xl scroll-mt-24 px-4 py-20 md:px-8/);
+  assert.match(featured, /site-container scroll-mt-24 py-20/);
+});
+
+test("全站节奏：版块纵向间距以 64–88px 为基线按密度微调（py-16 / py-20 / lg:py-22）", () => {
+  // 首页七个版块 + 内页容器的纵向节奏类逐一落在 64–88px 基线内：
+  // py-16=64（紧凑型：时间线 / 文章）、py-20=80（标准）、Contact lg:py-22=88（收尾加重）
+  const sectionRhythms = [
+    ["components/home/FeaturedProjects.tsx", /site-container scroll-mt-24 py-20/],
+    ["components/home/AboutSection.tsx", /site-container scroll-mt-24 py-20/],
+    ["components/home/TechStackSection.tsx", /site-container scroll-mt-24 py-20/],
+    ["components/home/LatestNotes.tsx", /site-container scroll-mt-24 py-16/],
+    ["components/home/JourneySection.tsx", /site-container scroll-mt-24 py-16 lg:hidden/],
+    ["components/home/ContactSection.tsx", /site-container py-20 lg:py-22/],
+  ];
+  for (const [file, pattern] of sectionRhythms) {
+    assert.match(
+      readProjectFile(file),
+      pattern,
+      `${file} 版块纵向节奏应落在 64–88px 基线`,
+    );
+  }
+  // 内页统一页头下沿 56px（pt-14，导航让位非版块间距）+ 尾部 80px（pb-20）
+  for (const file of [
+    "app/projects/page.tsx",
+    "app/articles/page.tsx",
+    "app/projects/[slug]/page.tsx",
+  ]) {
+    assert.match(readProjectFile(file), /site-container pb-20 pt-14/);
+  }
+  assert.match(readProjectFile("app/tech/page.tsx"), /site-container pt-14/);
+  assert.match(readProjectFile("app/tech/page.tsx"), /site-container pb-20/);
+});
+
+test("全站节奏：卡片内边距统一 20–28px（p-5 / p-6 / sm:p-6），无 p-3 / p-4 收紧卡", () => {
+  // 内容卡（glass-card / GlassCard / 玻璃方向小卡）内边距统一收进 20–28px：
+  for (const [file, pattern] of [
+    ["components/projects/ProjectCard.tsx", /flex h-full flex-col border-\[#9EC4EC\] p-5 transition[\s\S]*?sm:p-6/],
+    ["components/home/LatestNotes.tsx", /glass-card relative flex h-full flex-col rounded-2xl p-5/],
+    ["app/articles/page.tsx", /glass-card relative flex h-full flex-col rounded-2xl p-5/],
+    ["components/home/TechStackSection.tsx", /glass-card rounded-2xl p-6/],
+    ["components/home/JourneySection.tsx", /rounded-2xl border border-glass-border bg-glass-strong p-5 shadow-card backdrop-blur-md sm:p-6/],
+    ["components/home/AboutSection.tsx", /rounded-2xl border border-glass-border bg-glass p-5 backdrop-blur-sm/],
+  ]) {
+    assert.match(
+      readProjectFile(file),
+      pattern,
+      `${file} 卡片内边距应为 20–28px（p-5 / p-6）`,
+    );
+  }
+  // 全站内容卡不再出现 p-3 / p-4 紧凑内边距（横幅条 / 徽标不受此约束）
+  const cardFiles = [
+    "components/projects/ProjectCard.tsx",
+    "components/home/LatestNotes.tsx",
+    "app/articles/page.tsx",
+  ];
+  for (const file of cardFiles) {
+    const src = readProjectFile(file);
+    assert.doesNotMatch(src, /glass-card[^\n]*\bp-[34]\b/, `${file} 玻璃卡不应再用 p-3 / p-4`);
+    assert.doesNotMatch(src, /GlassCard[^\n]*\bp-[34]\b/, `${file} GlassCard 不应再用 p-3 / p-4`);
+  }
+});
+
+test("可读性：卡片正文 ≥14px（text-sm 起），技术标签 13px 可辨认，无 12px 及以下正文", () => {
+  // 卡片标题与摘要正文统一 14px（text-sm），文章页与首页文章卡同语言
+  for (const file of ["components/home/LatestNotes.tsx", "app/articles/page.tsx"]) {
+    const src = readProjectFile(file);
+    assert.match(src, /mt-2 text-sm font-semibold leading-snug text-text-primary/, `${file} 卡片标题应为 14px`);
+    assert.match(src, /mt-1\.5 line-clamp-2 text-sm leading-relaxed text-text-secondary/, `${file} 卡片摘要应为 14px`);
+    assert.doesNotMatch(src, /text-\[13\.5px\]/, `${file} 不应残留 13.5px 正文`);
+    assert.doesNotMatch(src, /line-clamp-2 text-xs/, `${file} 卡片摘要不应为 12px`);
+  }
+  // 技术标签：项目卡与详情页标签胶囊 13px 深墨（可辨认）
+  for (const file of ["components/projects/ProjectCard.tsx", "app/projects/[slug]/page.tsx"]) {
+    assert.match(
+      readProjectFile(file),
+      /bg-\[#C8D7EB\]\/40 px-3 py-1 text-\[13px\] font-medium text-text-primary/,
+      `${file} 技术标签应为 13px 深墨`,
+    );
+  }
+  // 技术栈矩阵条目名 14px 正文色 + 44px 图标底板（第三轮精修：放大技术图标与名称）
+  assert.match(
+    readProjectFile("components/home/TechStackSection.tsx"),
+    /text-sm leading-tight text-text-primary/,
+  );
+  assert.match(
+    readProjectFile("components/home/TechStackSection.tsx"),
+    /size-11 shrink-0 items-center justify-center rounded-xl/,
+    "技术图标底板应为 44px",
+  );
 });
 
 /* ============================ 二、触控面积 ≥44px ============================ */
@@ -141,14 +366,33 @@ test("触控面积：汉堡按钮 44px、移动菜单条目与联系按钮 ≥44
   assert.match(navbar, /className="w-full py-3"/);
 });
 
-test("触控面积：玻璃按钮基类 min-h-11，项目卡箭头 size-11", () => {
+test("触控面积：玻璃按钮基类 min-h-11，项目卡「查看详情」入口胶囊 ≥44px 高", () => {
   const button = readProjectFile("components/ui/GlassButton.tsx");
   assert.match(button, /inline-flex min-h-11 cursor-pointer/,
     "GlassButton 基类应保证 ≥44px 高度");
 
+  // 项目卡入口：胶囊 py-1×2 + size-9 圆钮 = 44px 触控高度
   const card = readProjectFile("components/projects/ProjectCard.tsx");
-  assert.match(card, /group\/arrow inline-grid size-11 shrink-0 place-items-center/,
-    "项目卡圆形箭头应 ≥44px");
+  assert.match(
+    card,
+    /group\/arrow inline-flex shrink-0 items-center gap-2 rounded-full border border-white\/70 bg-white\/60 py-1 pl-3\.5 pr-1/,
+    "项目卡入口胶囊类串应就位",
+  );
+  assert.match(
+    card,
+    /查看详情/,
+    "入口应有可见的「查看详情」文案",
+  );
+  assert.match(
+    card,
+    /grid size-9 place-items-center rounded-full bg-linear-to-br from-cyan to-blue/,
+    "入口圆钮应 36px（加胶囊内边距合计 ≥44px）",
+  );
+  assert.match(
+    card,
+    /focus-visible:outline-focus-ring/,
+    "入口焦点环应使用加深档",
+  );
 });
 
 test("触控面积：Hero 按钮 / 联系按钮 / 章节速览行 ≥44px 高", () => {
@@ -275,10 +519,28 @@ test("对比度：玻璃面板上的正文一律使用深蓝令牌（text-primar
   }
 });
 
-test("对比度：深色夜景版块使用浅色文字，与玻璃版块互不混用", () => {
+test("对比度：联系区暮光天幕 + 浅玻璃幕带使用深墨正文，text-white 仅限青色 CTA", () => {
   const contact = readProjectFile("components/home/ContactSection.tsx");
-  assert.match(contact, /text-white/, "夜景深色底上标题应为白色");
-  assert.match(contact, /text-\[#C6DAF6\]/, "夜景正文应为浅冰蓝");
+  // 幕带为实底浅玻璃（bg-glass-strong），正文一律深墨，暮光任一区段可读
+  assert.match(contact, /bg-glass-strong/, "联系区内容应收进实底浅玻璃幕带");
+  assert.match(
+    contact,
+    /text-text-primary/,
+    "暮光天幕上的浅玻璃幕带正文应为深墨",
+  );
+  assert.doesNotMatch(
+    contact,
+    /text-\[#C6DAF6\]/,
+    "夜景浅蓝正文随深色大板一并移除",
+  );
+  // text-white 仅允许出现在青色渐变 CTA 胶囊上（白字在青底 ≥3:1 大字按钮）
+  const whiteText = contact.match(/(?<![\w/-])text-white(?![\w/-])/g) ?? [];
+  assert.equal(
+    whiteText.length,
+    1,
+    "text-white 只应出现在 CTA 胶囊一处",
+  );
+  assert.match(contact, /px-6 py-3 text-sm font-semibold text-white/);
   // 玻璃版块正文不使用夜景浅色
   const about = readProjectFile("components/home/AboutSection.tsx");
   assert.ok(!about.includes("text-[#C6DAF6]"), "玻璃版块不得借用夜景浅色正文");
@@ -291,8 +553,11 @@ test("性能：Hero 场景图 priority + fill 预留空间（46svh 横幅 / lg �
   assert.match(scene, /<Image\s*\n\s*src="\/images\/hero-clean\.png"/);
   assert.match(scene, /fill/);
   assert.match(scene, /priority/);
-  assert.match(scene, /sizes="\(min-width: 1024px\) 64vw, 100vw"/);
-  // 预留空间：场景容器为绝对定位的固定视口高度（图片加载不改变文档流）
+  // sizes 与场景盒宽同步：≥2560 场景有 64rem 硬上限（1024px），
+  // lg+ 场景占两栏栅格右列（58%），移动端全宽
+  assert.match(scene, /sizes="\(min-width: 2560px\) 1024px, \(min-width: 1024px\) 58vw, 100vw"/);
+  // 预留空间：场景容器为固定视口高度的绝对定位横幅（图片加载不改变文档流）；
+  // lg+ 转为栅格右列（relative），高度由 42fr_58fr 行高承接，同样无布局跳动
   assert.match(scene, /pointer-events-none absolute inset-x-0 top-0 z-0 h-\[46svh\]/);
 });
 

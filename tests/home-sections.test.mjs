@@ -108,7 +108,7 @@ test("三个版块源文件与共享数据一律不出现年份或时间区间",
   }
 });
 
-test("FeaturedProjects：玻璃大板 + 头部行 + 三等列网格复用共享 ProjectCard", () => {
+test("FeaturedProjects：统一容器上的头部行 + 卡片网格复用共享 ProjectCard", () => {
   const src = readProjectFile("components/home/FeaturedProjects.tsx");
 
   assert.match(src, /id="projects"/, "应带 projects 锚点");
@@ -134,7 +134,11 @@ test("FeaturedProjects：玻璃大板 + 头部行 + 三等列网格复用共享 
     src.includes("<ProjectCard project={project} index={index + 1} />"),
     "卡片应通过 ProjectCard 渲染（首页不传 priority，封面懒加载）",
   );
-  assert.match(src, /md:grid-cols-3/, "桌面应为三等列网格");
+  assert.match(
+    src,
+    /md:grid-cols-2 md:gap-8 xl:grid-cols-3/,
+    "网格应为 md 两列（1024 档防窄卡截断，间距 32px）+ xl 三等列",
+  );
 });
 
 test("ProjectCard：首页与列表页共用的唯一卡片实现，诚实标注与 slug 链接就位", () => {
@@ -154,7 +158,7 @@ test("ProjectCard：首页与列表页共用的唯一卡片实现，诚实标注
     src.includes("href={`/projects/${project.slug}`}"),
     "卡片箭头应链接 /projects/<slug>",
   );
-  assert.ok(src.includes("line-clamp-2"), "描述应为两行截断");
+  assert.ok(src.includes("line-clamp-4"), "描述应为四行兜底（15px 字号下完整容纳现有文案）");
   assert.ok(
     src.includes("project.tags.map"),
     "应渲染技术标签",
@@ -183,7 +187,8 @@ test("AboutSection：通栏玻璃板四区结构、三句文案与概念插画�
   for (const fact of ["开发者", "兴趣方向", "个人理念"]) {
     assert.ok(src.includes(`"${fact}"`), `应包含条目 ${fact}`);
   }
-  assert.match(src, /lg:grid-cols-\[26fr_30fr_26fr_18fr\]/, "桌面应为四区横排");
+  assert.match(src, /lg:grid-cols-\[0\.9fr_1\.2fr_1fr\]/, "桌面应为三栏横排（文字 / 视觉图 / 方向+时间线）");
+  assert.ok(!src.includes("GlassPanel"), "关于我不应再把整段包进巨型玻璃板");
 });
 
 test("JourneySection：三阶段时间线就位，桌面嵌套 About、移动端独立成块", () => {

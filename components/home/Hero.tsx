@@ -103,7 +103,7 @@ export function Hero() {
       id="home"
       data-hero-active="true"
       aria-label="首屏"
-      className="hero-root relative isolate flex min-h-[calc(100svh-4.5rem)] flex-col overflow-hidden"
+      className="hero-root relative isolate flex min-h-[calc(100svh-4.5rem)] flex-col overflow-hidden lg:grid lg:h-[clamp(720px,calc(100svh-4.5rem),960px)] lg:min-h-0 lg:grid-cols-[42fr_58fr] lg:grid-rows-1"
     >
       {/* 首屏局部氛围：左上加深的天空蓝（压暗首屏左上、衬托深藏青品牌字） */}
       <div
@@ -111,14 +111,17 @@ export function Hero() {
         className="hero-atmosphere pointer-events-none absolute inset-0 z-0"
       />
 
-      {/* 右侧主视觉场景（移动端收为上半区横幅） */}
+      {/* 右侧主视觉场景（移动端收为上半区横幅，lg+ 落到两栏栅格右列） */}
       <HeroScene />
 
-      {/* 左侧文案栏 */}
-      <div className="relative z-10 mx-auto flex w-full flex-1 flex-col justify-center px-6 pb-16 pt-[46svh] sm:px-10 lg:px-16 lg:pb-14 lg:pt-36 xl:px-24">
-        <div className="max-w-xl lg:max-w-2xl">
+      {/* 左侧文案栏：移动端在 46svh 场景横幅之下堆叠；lg+ 为 42% 左栏，
+          顶部 clamp 上移（无下坠），eyebrow 落到首屏 ~20-25% 高。
+          左缘 hero-inset-pl 对齐全站主容器内容缘（非视口 gutter；
+          类内自带 ≥1600px 宽容器分层，见 globals.css） */}
+      <div className="relative z-10 mx-auto flex w-full flex-1 flex-col justify-center px-6 pb-16 pt-[46svh] sm:px-10 hero-inset-pl lg:col-start-1 lg:row-start-1 lg:pr-(--site-gutter) lg:pb-14 lg:pt-[clamp(4rem,8svh,7rem)]">
+        <div className="max-w-[34rem]">
           <p
-            className="hero-reveal font-mono text-[11px] font-medium uppercase tracking-[0.32em] text-[#16325E]/85 sm:text-xs"
+            className="hero-reveal font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-[#16325E]/85 sm:text-xs"
             style={reveal("0ms")}
           >
             {site.identity}
@@ -130,7 +133,7 @@ export function Hero() {
             style={reveal("90ms")}
             lang="zh-CN"
           >
-            <span className="block font-display text-[clamp(3.1rem,7vw,5.5rem)] font-bold leading-[0.95] tracking-tight">
+            <span className="block font-display text-[clamp(3.1rem,5.5vw,5.5rem)] font-bold leading-[0.95] tracking-tight">
               {/* 深藏青与第二行中文同墨：白字在浅蓝天空上实测仅 1.27~1.76:1，
                   加深氛围层最多也只能到 2.55:1，改用深色文字后 ≥11.4:1 */}
               <span className="text-[#193154]">Ageha.</span>
@@ -193,13 +196,16 @@ export function Hero() {
         </div>
       </div>
 
-      {/* 右缘窄竖排信息面板：玻璃底座保证任意背景上可读 */}
+      {/* 右缘窄竖排信息面板：幽灵级轻玻璃（低不透明度 + 细边 + 极轻投影），
+          刻意退到场景之后——主视觉主角是蝴蝶与城市，面板只提供章节速览锚点。
+          文字用深藏青系，在 30% 白玻璃底上对比度 ≥6:1。
+          外缘用 hero-inset-r 对齐全站主容器内容缘（非视口 gutter） */}
       <aside
         aria-label="章节速览"
-        className="hero-reveal absolute right-6 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center gap-5 rounded-[1.9rem] border border-white/70 bg-white/45 px-4 py-6 shadow-[0_8px_30px_rgba(71,115,183,0.18)] backdrop-blur-xl lg:flex xl:right-8"
+        className="hero-reveal hero-inset-r absolute top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center gap-5 rounded-[1.9rem] border border-white/45 bg-white/30 px-4 py-6 shadow-[0_3px_14px_rgba(71,115,183,0.10)] backdrop-blur-md lg:flex"
         style={reveal("640ms")}
       >
-        <span className="hero-vtext max-h-40 font-mono text-[10px] font-medium uppercase leading-[2.1] tracking-[0.34em] text-[#24457A]">
+        <span className="hero-vtext max-h-40 font-mono text-[10px] font-medium uppercase leading-[2.1] tracking-[0.26em] text-[#24457A]">
           BUILDING DIGITAL THINGS WITH CURIOSITY.
         </span>
 
@@ -263,13 +269,13 @@ export function Hero() {
         </nav>
       </aside>
 
-      {/* 左缘 SCROLL 竖排滚动提示 */}
+      {/* 左缘 SCROLL 竖排滚动提示（与文案列同一容器内容缘起点，仅 lg+ 可见） */}
       <div
         aria-hidden="true"
-        className="hero-reveal absolute bottom-10 left-6 z-20 hidden flex-col items-center gap-3 lg:flex xl:left-9"
+        className="hero-reveal hero-inset-l absolute bottom-10 z-20 hidden flex-col items-center gap-3 lg:flex"
         style={reveal("760ms")}
       >
-        <span className="hero-vtext font-mono text-[10px] font-medium tracking-[0.5em] text-[#24457A]">
+        <span className="hero-vtext font-mono text-[10px] font-medium tracking-[0.32em] text-[#24457A]">
           SCROLL
         </span>
         <ChevronUp className="size-3 text-[#3E6EA8]/80" aria-hidden="true" />

@@ -11,8 +11,8 @@ import { site } from "@/lib/site";
  */
 export function Footer() {
   return (
-    <footer className="px-4 pb-10 pt-24 md:px-8">
-      <GlassPanel className="mx-auto max-w-6xl px-6 py-10 md:px-10">
+    <footer className="pb-10 pt-16 md:px-(--site-gutter)">
+      <GlassPanel className="site-container px-6 py-10 md:px-7">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm space-y-4">
             <div className="flex items-center gap-2.5">
@@ -32,7 +32,9 @@ export function Footer() {
             <Badge>{site.identity}</Badge>
           </div>
 
-          <nav aria-label="页脚导航" className="grid grid-cols-2 gap-x-14 gap-y-2.5 sm:grid-cols-1">
+          {/* 页脚导航：两列三行（与左列品牌栏高度 ≈对齐，避免单列 6 行
+              在左列下方留出大段空白玻璃底；链接行本身仍为 44px 触控行） */}
+          <nav aria-label="页脚导航" className="grid grid-cols-2 gap-x-10 gap-y-2.5 self-center sm:gap-x-14 md:self-start">
             <FooterNavLinks />
           </nav>
         </div>

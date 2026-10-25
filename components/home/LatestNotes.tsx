@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, NotebookPen } from "lucide-react";
+import { ArrowRight, NotebookPen } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import {
   plannedNoteLabel,
@@ -7,14 +7,15 @@ import {
 } from "@/lib/notes";
 
 /**
- * 概念视觉占位缩略图：与整页插画同源的冷蓝紫 SVG 小景（雪山湖光 / 悬浮城 / 极光山景）。
- * 纯装饰（aria-hidden），右下角带「概念视觉」小注，文章发布后替换为真实封面。
+ * 概念视觉占位缩略图：与整页插画同源的冷蓝紫 SVG 小景（雪山湖光 / 悬浮城 / 极光山景），
+ * 以 5:2 横幅铺在卡顶（slice 裁切保留场景主体带）。纯装饰（aria-hidden），
+ * 右下角带「概念视觉」小注，文章发布后替换为真实封面。
  */
 function ConceptThumb({ motif }: { motif: NoteMotif }) {
   return (
     <figure
       aria-hidden="true"
-      className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-white/70 shadow-[0_6px_18px_rgba(71,115,183,0.18)] sm:size-24"
+      className="relative aspect-[5/2] w-full overflow-hidden rounded-xl border border-glass-border shadow-[0_6px_18px_rgba(71,115,183,0.18)]"
     >
       <svg
         viewBox="0 0 96 96"
@@ -23,7 +24,7 @@ function ConceptThumb({ motif }: { motif: NoteMotif }) {
       >
         {motif === "lake" ? <LakeScene /> : motif === "city" ? <CityScene /> : <AuroraScene />}
       </svg>
-      <figcaption className="absolute bottom-1 right-1 rounded-md bg-[#0B1B38]/55 px-1.5 py-px font-mono text-[8px] tracking-wider text-white/85">
+      <figcaption className="absolute bottom-1.5 right-1.5 rounded-md bg-[#0B1B38]/55 px-1.5 py-px font-mono text-[8px] tracking-wider text-white/85">
         概念视觉
       </figcaption>
     </figure>
@@ -185,7 +186,8 @@ function AuroraScene() {
 
 /**
  * 文章与实验：左侧独立头部块（eyebrow + 标题 + 副题 + View All）
- * + 右侧三张横排写作计划卡。
+ * + 右侧三条竖向写作计划卡（缩略图 → 分类 → 标题 → 摘要 → 状态），
+ * 视觉与项目卡片同语言但密度更轻。
  *
  * 【诚实说明】当前没有已发布文章：三张卡均为「写作计划」条目
  * —— 带虚线「写作计划中」徽标，无日期、无阅读量、无链接，
@@ -196,9 +198,9 @@ export function LatestNotes() {
     <section
       id="notes"
       aria-label="文章与实验"
-      className="mx-auto w-full max-w-6xl scroll-mt-24 px-4 py-20 md:px-8"
+      className="site-container scroll-mt-24 py-16"
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
         {/* 左侧独立头部块 */}
         <header className="space-y-3">
           <Badge>Latest Notes</Badge>
@@ -237,45 +239,39 @@ export function LatestNotes() {
             </span>
           </p>
 
-          {/* 三条写作计划横条卡（非链接） */}
+          {/* 三条写作计划卡：竖向三列（与项目卡片同视觉语言、密度更轻）——
+              缩略图 → 分类 → 标题 → 摘要 → 状态（不可点击，无日期 / 无阅读量） */}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {plannedNotes.map((note) => (
               <article
                 key={note.title}
-                className="glass-card relative rounded-2xl p-4 pr-5"
+                className="glass-card relative flex h-full flex-col rounded-2xl p-5"
               >
-                <div className="flex gap-3.5">
-                  <ConceptThumb motif={note.motif} />
-                  <div className="min-w-0 flex-1">
-                    {/* 青色括号胶囊徽标（本区特色部件） */}
-                    <span className="inline-flex items-center gap-0.5 rounded-full border border-[#35C8E8]/45 bg-white/55 px-2 py-0.5 text-[10px] font-medium leading-4 text-text-secondary">
-                      <span
-                        aria-hidden="true"
-                        className="-ml-0.5 font-mono text-[11px] font-bold leading-none text-[#0E9FC6]"
-                      >
-                        (
-                      </span>
-                      {note.category}
-                    </span>
-                    <h3 className="mt-2 text-[13.5px] font-semibold leading-snug text-text-primary">
-                      {note.title}
-                    </h3>
-                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-text-secondary">
-                      {note.summary}
-                    </p>
-                    {/* 元信息行位置：以「写作计划中」替代日期与阅读量
-                        （10px 小字用 text-secondary：text-muted 在玻璃底不达 4.5:1） */}
-                    <span className="mt-2.5 inline-flex items-center gap-1 rounded-full border border-dashed border-line bg-white/45 px-2 py-0.5 text-[10px] leading-4 text-text-secondary">
-                      <NotebookPen className="size-3" aria-hidden="true" />
-                      {plannedNoteLabel}
-                    </span>
-                  </div>
+                <ConceptThumb motif={note.motif} />
+                {/* 青色括号胶囊徽标（本区特色部件） */}
+                <span className="mt-3 inline-flex w-fit items-center gap-0.5 rounded-full border border-[#35C8E8]/45 bg-white/55 px-2 py-0.5 text-[10px] font-medium leading-4 text-text-secondary">
+                  <span
+                    aria-hidden="true"
+                    className="-ml-0.5 font-mono text-[11px] font-bold leading-none text-[#0E9FC6]"
+                  >
+                    (
+                  </span>
+                  {note.category}
+                </span>
+                <h3 className="mt-2 text-sm font-semibold leading-snug text-text-primary">
+                  {note.title}
+                </h3>
+                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-text-secondary">
+                  {note.summary}
+                </p>
+                {/* 状态行置底：以「写作计划中」替代日期与阅读量
+                    （10px 小字用 text-secondary：text-muted 在玻璃底不达 4.5:1） */}
+                <div className="mt-auto pt-3">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line bg-white/45 px-2 py-0.5 text-[10px] leading-4 text-text-secondary">
+                    <NotebookPen className="size-3" aria-hidden="true" />
+                    {plannedNoteLabel}
+                  </span>
                 </div>
-                {/* 右缘浅色小箭头：暗示未来文章入口，当前条目不可点击 */}
-                <ChevronRight
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-[#8FB4DC]/70"
-                />
               </article>
             ))}
           </div>

@@ -37,7 +37,13 @@ const cssVars = (vars: Record<string, string>): CSSProperties =>
  * Hero 主视觉场景：hero-clean.png 场景插画（水晶蝴蝶 + 悬浮尖塔城市 + 光环）
  * 叠加 CSS 绘制的柔和光晕、双轨道环与漂浮光点形成纵深。
  *
- * - 场景图边缘通过径向遮罩渐隐，自然过渡到页面冰蓝底色；
+ * - 场景盒贴合素材原始比例（634×350，AR 1.81）：移动端铺满 46svh 横幅，
+ *   lg+ 锚定右栏底部、高度随视口 clamp——放大倍率从全高 object-cover 的 ≈2.3×
+ *   降到 ≈1.6×，蝴蝶翼展从视口 ~72% 缩到 ~50%，顶部自然余出天空；
+ *   lg+ 场景条右缘以 hero-scene-r 锚定站点容器内容缘（与右缘章节面板同基准）：
+ *   超宽视口下蝴蝶不再随列宽放大伸进内收的面板下方（翅尖与面板间隙恒为正）；
+ * - 场景图边缘通过径向遮罩窄幅渐隐，自然过渡到页面冰蓝底色，
+ *   底部另有 18% 高的冰蓝渐变带轻柔衔接下一模块；
  * - 动画全部为 CSS 关键帧（悬浮 / 呼吸 / 旋转 / 漂浮），
  *   视差偏移量由 Hero 写入的 --hero-px / --hero-py 变量驱动；
  * - 移动端动效减量：第二条轨道环与半数光点仅在 ≥sm / lg 渲染，
@@ -48,24 +54,33 @@ export function HeroScene() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[46svh] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-full lg:w-[64%]"
+      className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[46svh] lg:relative lg:inset-auto lg:col-start-2 lg:row-start-1 lg:h-full"
     >
-      {/* 最深一层：蝴蝶后方柔和光晕（呼吸）；移动端光晕随断点缩小 */}
+      {/* 最深一层：蝴蝶后方柔和光晕（呼吸）；移动端光晕随断点缩小，lg+ 随场景盒下移 */}
       <div className="hero-parallax hero-px-deep absolute inset-0">
-        <div className="hero-glow absolute left-1/2 top-[44%] aspect-square w-[clamp(14rem,44vw,40rem)] -translate-x-1/2 -translate-y-1/2 rounded-full lg:w-[clamp(22rem,44vw,40rem)]" />
+        <div className="hero-glow absolute left-1/2 top-[44%] aspect-square w-[clamp(14rem,44vw,30rem)] -translate-x-1/2 -translate-y-1/2 rounded-full lg:left-[48%] lg:top-[54%] lg:w-[clamp(22rem,44vw,34rem)]" />
       </div>
 
-      {/* 场景主视觉：缓慢悬浮 + 边缘遮罩渐隐（径向 + 横向双层嵌套渐隐） */}
+      {/* 场景主视觉：缓慢悬浮 + 边缘遮罩渐隐（径向 + 横向双层嵌套渐隐）。
+          lg+ 场景盒锚定底部、贴合素材比例；高度上限 40rem + 宽度上限 64rem
+          （主设计目标 2560×1440：容器 1840 → 右列 ≈1067px，场景 1024px
+          让蝴蝶成为明确视觉主体，放大倍率 ≈1.7×，翅尖最外渐隐段
+          对称出血、从减重后的幽灵面板下穿过的只是最外半透明翅梢）。
+          右缘 hero-scene-r 锚定容器内容缘（与面板同基准），
+          object-position 50% 对称裁切，翅尖两侧出血对称 */}
       <div className="hero-parallax hero-px-scene absolute inset-0">
-        <div className="hero-float absolute inset-0 hero-fade-x">
+        <div className="hero-float absolute inset-0 hero-fade-x lg:bottom-0 lg:left-auto lg:top-auto lg:h-[clamp(28rem,66svh,40rem)] lg:w-[min(64rem,100%)] hero-scene-r">
           <Image
             src="/images/hero-clean.png"
             alt=""
             fill
             priority
-            sizes="(min-width: 1024px) 64vw, 100vw"
-            className="hero-scene-mask object-cover object-[56%_46%]"
+            sizes="(min-width: 2560px) 1024px, (min-width: 1024px) 58vw, 100vw"
+            className="hero-scene-mask hero-scene-grade object-cover object-[56%_46%] lg:object-[60%_100%]"
           />
+          {/* 底部轻柔冰蓝渐变：衔接下一模块（18% 高的渐隐带，
+              弱化出血场景在版块底界的硬切观感，非大面积泛白） */}
+          <div className="absolute inset-x-0 bottom-0 h-[18%] bg-linear-to-t from-ice to-transparent" />
         </div>
       </div>
 

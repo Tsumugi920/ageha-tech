@@ -19,7 +19,7 @@ export const projects: readonly Project[] = [
     name: "AgehaOS",
     category: "Web OS · Desktop Experience",
     description:
-      "运行在浏览器里的操作系统式 Web OS：桌面与移动端共享同一套 OS Core——窗口管理器、虚拟文件系统、App Store 沙箱运行时与全局搜索，并带有 AI 动态桌面与「羽化」实时生成应用能力。",
+      "运行在浏览器里的操作系统式 Web OS：桌面与移动端共享同一套 OS Core——窗口管理器、虚拟文件系统、App Store 沙箱运行时，并带有 AI 动态桌面与羽化生成应用。",
     tags: ["React 19", "TypeScript", "Vite", "Zustand", "Tailwind CSS 4"],
     cover: "/images/agehaos-desktop.jpg",
     coverAlt:
@@ -33,7 +33,7 @@ export const projects: readonly Project[] = [
     name: "CS 饰品虚拟投资模拟器",
     category: "Market Data · Virtual Trading",
     description:
-      "真实市场行情 + 虚拟资金的投资练习终端：悠悠有品与 Skinport 行情定时采集入库，多平台比价、价格预警，用虚拟资金模拟买卖并沉淀资产曲线、收益复盘与历史行情回放，交易由服务端事务保障。",
+      "真实行情 + 虚拟资金的投资练习终端：悠悠有品与 Skinport 行情定时采集入库，多平台比价、价格预警，模拟买卖沉淀资产曲线与历史行情回放。",
     tags: ["Next.js 15", "FastAPI", "ECharts", "SQLAlchemy"],
     cover: "/images/cs-market-portfolio.png",
     coverAlt:
@@ -55,7 +55,7 @@ export const projects: readonly Project[] = [
     name: "Moss World",
     category: "Interactive Web · Digital Ecosystem",
     description:
-      "跑在浏览器里的 3D 数字生态缸：玻璃缸、苔藓地形与植物全部由程序化几何生成（无模型、无贴图），支持光照湿度调节、喷洒水雾、快进成长与氛围预设，进度只保存在本地设备。",
+      "跑在浏览器里的 3D 数字生态缸：玻璃缸、苔藓与植物全部由程序化几何生成（无模型、无贴图），支持光照湿度调节、喷洒水雾、快进成长与氛围预设，进度只保存在本地。",
     tags: ["Next.js 15", "Three.js", "React Three Fiber", "Zustand"],
     cover: "/images/moss-world-terrarium.png",
     coverAlt:

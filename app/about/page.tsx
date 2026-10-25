@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <>
-      <div className="mx-auto w-full max-w-6xl px-4 pt-14 md:px-8">
+      <div className="site-container pt-14">
         <PageHeader
           eyebrow="About"
           title="关于我"

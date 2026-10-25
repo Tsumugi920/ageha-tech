@@ -35,7 +35,7 @@ function JourneyCard({ heading = false, gradientId, className }: JourneyCardProp
   return (
     <div
       className={cn(
-        "flex flex-col rounded-2xl border border-white/75 bg-white/70 p-5 shadow-[0_12px_40px_rgba(71,115,183,0.12)] backdrop-blur-md sm:p-6",
+        "flex flex-col rounded-2xl border border-glass-border bg-glass-strong p-5 shadow-card backdrop-blur-md sm:p-6",
         className,
       )}
     >
@@ -69,7 +69,7 @@ function JourneyCard({ heading = false, gradientId, className }: JourneyCardProp
               <StageTag className="text-[15px] font-bold leading-snug text-text-primary">
                 {stage.title}
               </StageTag>
-              <p className="mt-1 text-xs leading-relaxed text-text-secondary">
+              <p className="mt-1 text-sm leading-relaxed text-text-secondary">
                 {stage.description}
               </p>
             </div>
@@ -139,7 +139,7 @@ export function JourneySection({ nested = false }: JourneySectionProps) {
     <section
       id="journey"
       aria-label="探索与成长"
-      className="mx-auto w-full max-w-6xl scroll-mt-24 px-4 py-20 md:px-8 lg:hidden"
+      className="site-container scroll-mt-24 py-16 lg:hidden"
     >
       <SectionHeading eyebrow="My Journey" title="探索与成长" />
       <JourneyCard gradientId="journey-ridge-standalone" />

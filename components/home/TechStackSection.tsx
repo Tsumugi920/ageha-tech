@@ -43,15 +43,18 @@ const TECH_ICONS: Record<TechIconKey, LucideIcon> = {
 
 /**
  * 技术栈：头部行（eyebrow + 标题 + 行内副题 + 右侧「查看更多」）
- * + 一行四个等宽玻璃子卡，每卡分组名 + 2×2/1×4 彩色图标矩阵。
- * 数据见 lib/tech-stack.ts（不含任何熟练度声明）。
+ * + 一行四张分类玻璃卡（前端开发 / 后端与数据 / 开发工具 / AI 工具链），
+ * 每卡为分类标题 + 「图标底板 + 技术名称」纵向列表——
+ * 图标底板尺寸、圆角、着色方式（item.color 14% 底 + 同色图标）全列表统一，
+ * 技术名称用 14px 正文色，可读不似脚注。
+ * 数据见 lib/tech-stack.ts（只含真实在用 / 在学的 4 组 × 4 项，不凑版面）。
  */
 export function TechStackSection() {
   return (
     <section
       id="tech"
       aria-label="技术栈"
-      className="mx-auto w-full max-w-6xl scroll-mt-24 px-4 py-20 md:px-8"
+      className="site-container scroll-mt-24 py-20"
     >
       {/* 头部行：左 eyebrow + 标题 + 行内副题，右「查看更多 →」 */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
@@ -78,31 +81,30 @@ export function TechStackSection() {
         </a>
       </div>
 
-      {/* 四个等宽玻璃子卡（移动 2×2，桌面 1×4） */}
+      {/* 四张分类玻璃卡（移动 1 列，sm 2 列，xl 4 列） */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {techGroups.map((group) => (
-          <div key={group.name} className="glass-card rounded-2xl p-5">
+          <div key={group.name} className="glass-card rounded-2xl p-6">
             <h3 className="text-sm font-bold text-text-primary">
               {group.name}
             </h3>
-            <ul className="mt-4 grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-4">
+            {/* 图标 + 名称纵向列表：底板尺寸 / 圆角 / 着色方式全卡统一
+                （底板 44px / 图标 24px / 名称 14px：作品展示级可辨识度） */}
+            <ul className="mt-5 flex list-none flex-col gap-3">
               {group.items.map((item) => {
                 const Icon = TECH_ICONS[item.icon];
                 return (
-                  <li
-                    key={item.name}
-                    className="flex flex-col items-center gap-1.5 text-center"
-                  >
+                  <li key={item.name} className="flex items-center gap-3.5">
                     <span
-                      className="flex size-10 items-center justify-center rounded-xl"
+                      className="flex size-11 shrink-0 items-center justify-center rounded-xl"
                       style={{
                         backgroundColor: `${item.color}14`,
                         color: item.color,
                       }}
                     >
-                      <Icon className="size-[22px]" aria-hidden="true" />
+                      <Icon className="size-6" aria-hidden="true" />
                     </span>
-                    <span className="text-[11px] leading-tight text-text-secondary">
+                    <span className="text-sm leading-tight text-text-primary">
                       {item.name}
                     </span>
                   </li>

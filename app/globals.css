@@ -44,6 +44,15 @@
   --shadow-glow: 0 0 32px rgba(80,175,255,0.16);
   --shadow-card: 0 12px 40px rgba(71,115,183,0.12);
 
+  /* 全站统一主容器宽度令牌（Tailwind v4 自动生成 max-w-site* 工具类）。
+     四档阶梯以 2560×1440 为主要设计目标（内容 1840px），向下兼容：
+     基准 1360px → ≥1600px 1440 → ≥1920px 1600 → ≥2560px 1840。
+     运行时由 --container-max（见 @layer components 的 :root 阶梯）逐档切换 */
+  --container-site: 85rem;
+  --container-site-wide: 90rem;
+  --container-site-lg: 100rem;
+  --container-site-max: 115rem;
+
   /* 系统字体栈（构建机无法访问 Google Fonts，禁止 next/font/google） */
   --font-display: "Space Grotesk", "Segoe UI", system-ui, "PingFang SC",
     "Microsoft YaHei", "Noto Sans SC", sans-serif;
@@ -125,6 +134,62 @@
 }
 
 @layer components {
+  /* ---- 全站统一主容器（四档宽度阶梯） ----
+     左右边距统一由 --site-gutter（clamp：18px → 40px，随视口连续变化）承担；
+     容器上限由 --container-max 阶梯给出（1360 / 1440 / 1600 / 1840px），
+     阶梯在 :root 媒体查询里逐档切换——.site-container / .site-shell /
+     hero-inset-* / hero-scene-r 全部读同一个变量，任何视口下天然同缘。
+     <768px 视口改为 calc(100% - 36px) 定宽（36px = 18px×2，与 clamp 下限视觉连续），
+     内边距归零、由宽度收缩承担留白——带底色的玻璃面板不会把留白也铺上玻璃。
+     各版块保留自身纵向节奏类（py-20 / pt-14 / scroll-mt-24 等）。 */
+  :root {
+    --site-gutter: clamp(1.125rem, 0.5rem + 1.6vw, 2.5rem);
+    --container-max: var(--container-site);
+  }
+
+  @media (min-width: 1600px) {
+    :root {
+      --container-max: var(--container-site-wide);
+    }
+  }
+
+  @media (min-width: 1920px) {
+    :root {
+      --container-max: var(--container-site-lg);
+    }
+  }
+
+  @media (min-width: 2560px) {
+    :root {
+      --container-max: var(--container-site-max);
+    }
+  }
+
+  /* 带内边距的主容器：正文版块（Featured / About / Tech / 页脚大板等） */
+  .site-container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin-inline: auto;
+    padding-inline: var(--site-gutter);
+  }
+
+  /* 无内边距的外壳：导航栏等自有内边距的条状容器，
+     与 .site-container 同宽同缘（此前 nav 用静态 max-w-site，
+     ≥1600px 视口下与正文容器相差 80px 且永不放宽——已修） */
+  .site-shell {
+    width: 100%;
+    max-width: var(--container-max);
+    margin-inline: auto;
+  }
+
+  @media (max-width: 767.98px) {
+    .site-container {
+      width: calc(100% - 36px);
+      max-width: none;
+      padding-inline: 0;
+    }
+  }
+
   /* 玻璃拟态基础面板：半透明白底 + 白/淡蓝细边 + 毛玻璃模糊 + 蓝紫边缘高光 */
   .glass-panel {
     background: var(--color-glass);
@@ -174,6 +239,13 @@
    （原 #00B2FF / #009FFF / #0093D8 起始端仅 2.08 / 2.48 / 2.97:1）
    ============================================================= */
 @layer components {
+  /* ---- Hero 为 inline-size 容器：下方 hero-inset-* 工具类用 cqw
+     度量 hero 真实布局宽（不含滚动条，与 .site-container 的居中
+     计算同源），保证首屏内容缘与全站主容器内容缘逐像素对齐 ---- */
+  .hero-root {
+    container-type: inline-size;
+  }
+
   /* ---- 首屏局部氛围：左上角加深的天空蓝，保证白色品牌字对比度 ---- */
   .hero-atmosphere {
     background:
@@ -273,48 +345,58 @@
     outline-offset: 3px;
   }
 
-  /* ---- 场景图边缘遮罩：径向渐隐过渡到页面冰蓝底色 ---- */
+  /* ---- 场景图边缘遮罩：径向渐隐过渡到页面冰蓝底色 ----
+     中心下移（52% 58%）+ 纵向半径 65%（原 62%）：顶部天空保留到 ~0.65 不通明，
+     只在四角与翅尖最外缘渐隐——避免大面积顶部泛白，底部城市带全程饱和 */
   .hero-scene-mask {
     -webkit-mask-image: radial-gradient(
-      76% 74% at 51% 46%,
-      #000 42%,
-      rgba(0, 0, 0, 0.6) 60%,
-      transparent 79%
+      72% 65% at 52% 58%,
+      #000 68%,
+      rgba(0, 0, 0, 0.7) 86%,
+      transparent 97%
     );
     mask-image: radial-gradient(
-      76% 74% at 51% 46%,
-      #000 42%,
-      rgba(0, 0, 0, 0.6) 60%,
-      transparent 79%
+      72% 65% at 52% 58%,
+      #000 68%,
+      rgba(0, 0, 0, 0.7) 86%,
+      transparent 97%
     );
   }
 
+  /* ---- 场景调色：适度提饱和与对比，蝴蝶 / 城市轮廓更清晰，
+     天空区保持蓝紫而不发白（只做色彩分级，不降低图片透明度） ---- */
+  .hero-scene-grade {
+    filter: saturate(1.16) contrast(1.06);
+  }
+
   /* ---- 横向二次渐隐（嵌套层，与径向遮罩相乘）：
-         彻底消除场景图左右边缘的贴图接缝 ---- */
+         左缘收窄到 10%（文字列一侧更快过渡到冰蓝底），
+         右端实心延到 96%，尽量保留原图细节与色彩 ---- */
   .hero-fade-x {
     -webkit-mask-image: linear-gradient(
       to right,
       transparent 0%,
-      #000 20%,
-      #000 86%,
+      #000 10%,
+      #000 96%,
       transparent 99%
     );
     mask-image: linear-gradient(
       to right,
       transparent 0%,
-      #000 20%,
-      #000 86%,
+      #000 10%,
+      #000 96%,
       transparent 99%
     );
   }
 
-  /* ---- 蝴蝶后方柔和光晕（呼吸） ---- */
+  /* ---- 蝴蝶后方柔和光晕（呼吸）：上限 40rem→30rem、透明度 0.34→0.22，
+         避免白青光晕把场景边缘洗成近白 ---- */
   .hero-glow {
     background: radial-gradient(
       closest-side,
-      rgba(84, 227, 255, 0.34),
-      rgba(84, 190, 255, 0.18) 42%,
-      rgba(156, 131, 255, 0.1) 62%,
+      rgba(84, 227, 255, 0.22),
+      rgba(84, 190, 255, 0.13) 42%,
+      rgba(156, 131, 255, 0.08) 62%,
       transparent 78%
     );
     animation: hero-breathe 8s ease-in-out infinite;
@@ -430,6 +512,25 @@
       --orbit-a: clamp(24rem, 46vw, 46rem);
       --orbit-b: clamp(30rem, 60vw, 56rem);
     }
+
+    /* lg+ 场景盒锚定右下后，蝴蝶主视觉中心随之下移（≈视口高 54%），
+       轨道环中心同步下移环住蝴蝶 */
+    .hero-orbit-tilt {
+      top: 54%;
+    }
+
+    .hero-orbit-tilt-b {
+      top: 57%;
+    }
+  }
+
+  /* ≥1920 宽屏：场景条上限放宽到 64rem 后轨道环同步放大，
+     保持环径与蝴蝶翼展的比例关系 */
+  @media (min-width: 1920px) {
+    .hero-orbit-layer {
+      --orbit-a: clamp(24rem, 46vw, 52rem);
+      --orbit-b: clamp(30rem, 60vw, 62rem);
+    }
   }
 
   /* ---- 入场分层渐显：--reveal-delay 控制节奏 ---- */
@@ -467,6 +568,49 @@
   /* ---- Hero 滚出视口时暂停全部装饰动画（IntersectionObserver 切换） ---- */
   .hero-root[data-hero-active="false"] * {
     animation-play-state: paused;
+  }
+}
+
+/* ---- Hero 出血内缩：与 .site-container 内容缘精确对齐 ----
+   hero 是全幅区（场景 / 轨道等装饰出血到视口缘），但文字列、右缘章节
+   面板、SCROLL 提示的水平起点必须与统一主容器的内容缘对齐：
+   inset = gutter + max(0, (hero宽 − 容器宽) / 2)。用 cqw（.hero-root 已设
+   inline-size 容器）而非 100vw，避免滚动条宽度引入 8~9px 偏差。
+   基准统一读 --container-max（四档阶梯，见 @layer components）：
+   任何视口下与 .site-container / .site-shell 同缘，无需逐档写媒体查询。
+   放在 @layer utilities 且晚于 Tailwind 注入点：lg 覆盖 px-6 / sm:px-10。 */
+@layer utilities {
+  @media (min-width: 1024px) {
+    .hero-inset-pl {
+      padding-left: max(
+        var(--site-gutter),
+        calc(50cqw - var(--container-max) / 2 + var(--site-gutter))
+      );
+    }
+
+    .hero-inset-r {
+      right: max(
+        var(--site-gutter),
+        calc(50cqw - var(--container-max) / 2 + var(--site-gutter))
+      );
+    }
+
+    .hero-inset-l {
+      left: max(
+        var(--site-gutter),
+        calc(50cqw - var(--container-max) / 2 + var(--site-gutter))
+      );
+    }
+
+    /* lg+ 场景条右缘锚定容器内容缘（与右缘章节面板同一基准）：
+       超宽视口下蝴蝶不随视口放大伸进内收的面板下方，
+       出血到视口缘的任务交还轨道环等装饰。 */
+    .hero-scene-r {
+      right: max(
+        var(--site-gutter),
+        calc(50cqw - var(--container-max) / 2 + var(--site-gutter))
+      );
+    }
   }
 }
 

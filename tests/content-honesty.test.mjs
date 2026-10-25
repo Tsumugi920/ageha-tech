@@ -170,6 +170,17 @@ test("lib/site.ts：GitHub 为白名单内真实账号，其余渠道保持「�
     }
   }
 
+  // 配置开关就位：只有 configured: true 的入口才会被联系区渲染
+  assert.ok(
+    site.contacts.every((contact) => typeof contact.configured === "boolean"),
+    "每条联系方式都应带 configured 配置开关",
+  );
+  assert.equal(
+    site.contacts.filter((contact) => contact.configured).length,
+    1,
+    "当前只有 GitHub 一个已配置入口（其余渠道配置后才会展示）",
+  );
+
   // 除白名单域外，全站配置不得出现任何邮箱 / 社交账号 / 外链
   const serialized = JSON.stringify(site);
   const urls = serialized.match(/https?:\/\/[^"]+/g) ?? [];
@@ -184,14 +195,15 @@ test("lib/site.ts：GitHub 为白名单内真实账号，其余渠道保持「�
   assert.doesNotMatch(serialized, accountPattern, "全站配置不应出现任何邮箱或 @ 账号");
 });
 
-test("ContactSection：渠道单源 site.contacts 渲染，GitHub 为真实链接，其余「待配置」非链接", () => {
+test("ContactSection：渠道单源 site.contacts 按 configured 开关渲染，未配置入口直接隐藏", () => {
   const section = readProjectFile("components/home/ContactSection.tsx");
 
-  // 渠道数据单源 lib/site.ts（不再在本组件内重复声明渠道清单）
+  // 渠道数据单源 lib/site.ts（不在本组件内重复声明渠道清单），
+  // 且渲染前按 configured 配置开关过滤——未配置的入口不出现
   assert.match(
     section,
-    /site\.contacts\.map/,
-    "渠道应经 site.contacts 统一映射渲染",
+    /site\.contacts\s*\.?\s*\n?\s*\.filter\(\(contact\) => contact\.configured\)/,
+    "渠道应经 site.contacts 的 configured 开关统一过滤渲染",
   );
   assert.ok(
     !section.includes('label: "GitHub"'),
@@ -200,10 +212,15 @@ test("ContactSection：渠道单源 site.contacts 渲染，GitHub 为真实链�
   // 真实链接：新窗口打开 + noreferrer
   assert.match(section, /target="_blank"/);
   assert.match(section, /rel="noreferrer"/);
-  // 占位渠道：虚线徽标（区别于正式链接按钮）
-  assert.match(section, /border-dashed/, "占位徽标应为虚线样式（区别于正式链接按钮）");
 
-  // 诚实边界：整个版块源码不出现任何邮箱 / 社交账号 / http(s) 外链（链接来自 site.ts）
+  // 诚实边界：未配置入口不渲染——组件不再出现「待配置」占位徽标或虚线样式
+  assert.ok(
+    !section.includes("待配置"),
+    "未配置入口应直接隐藏，而非以「待配置」当正式内容展示",
+  );
+  assert.doesNotMatch(section, /border-dashed/, "占位虚线徽标应随隐藏一并移除");
+
+  // 组件源码不出现任何邮箱 / 社交账号 / http(s) 外链（链接来自 site.ts）
   assert.doesNotMatch(section, accountPattern);
   assert.doesNotMatch(section, /https?:\/\//);
 });
