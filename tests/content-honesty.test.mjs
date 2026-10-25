@@ -231,7 +231,7 @@ test("ContactSection：渠道单源 site.contacts 按 configured 开关渲染，
 test("3D 世界层诚实边界：世界源码不出现白名单外链接与编造宣称", () => {
   // 世界组件与数据层源码不出现任何 http(s) 字面量——真实链接只能来自
   // lib/projects.ts / lib/site.ts 在运行时注入（Moss World 无链接铁律的
-  // 世界侧延伸：阶段 2 详情面板 / 彩蛋文案同样受此扫描约束）
+  // 世界侧延伸：阶段 2 详情面板 / 导航面板 / 彩蛋文案同样受此扫描约束）
   const worldDirs = ["components/world", "lib/world"];
   const offenders = [];
   const scan = (dir) => {
@@ -255,6 +255,49 @@ test("3D 世界层诚实边界：世界源码不出现白名单外链接与编�
     [],
     `3D 世界层源码不应出现外链或编造状态词：${offenders.join(", ")}`,
   );
+});
+
+test("世界详情面板诚实空链：Moss World 渲染如实说明文案，链接只来自数据层", () => {
+  const panel = readProjectFile("components/world/ui/ProjectDetailPanel.tsx");
+  // 数据级：links 长度分支（空 → 诚实文案；非空 → 渲染数据内链接）
+  assert.match(
+    panel,
+    /projectLinks\.length > 0/,
+    "链接区应按数据非空分支渲染",
+  );
+  assert.match(
+    panel,
+    /本地项目 · 未公开上线，暂无公开链接/,
+    "空链接项目应显示诚实说明（不编造入口）",
+  );
+  // 渲染的链接值只能来自 link.href（lib/projects.ts 运行时注入）
+  assert.match(panel, /href=\{link\.href\}/, "链接地址应来自数据字段");
+  // 外链安全属性（与站内 ContactSection 同口径）
+  assert.match(panel, /target="_blank"/);
+  assert.match(panel, /rel="noreferrer"/);
+
+  // 场景内监测屏/主屏文案不得对 Moss 做上线宣称（源码级扫描）
+  const isle = readProjectFile("components/world/objects/ProjectIsle.tsx");
+  assert.doesNotMatch(
+    isle,
+    /在线体验|访问项目|查看源码/,
+    "场景内文案不得出现仅适用于已上线项目的入口词（链接只在详情面板数据渲染）",
+  );
+});
+
+test("世界导航面板联系区：渠道单源 site.contacts，未配置入口不出现", () => {
+  const nav = readProjectFile("components/world/ui/WorldNavPanel.tsx");
+  assert.match(
+    nav,
+    /site\.contacts\s*\n?\s*\.filter\(\(contact\) => contact\.configured && contact\.href\)/,
+    "联系渠道应经 configured 开关过滤（与站内联系区同口径）",
+  );
+  assert.ok(
+    !nav.includes("待配置"),
+    "未配置渠道应直接隐藏，不以「待配置」当正式内容展示",
+  );
+  assert.doesNotMatch(nav, accountPattern, "导航面板不应出现邮箱 / 社交账号字面量");
+  assert.doesNotMatch(nav, /https?:\/\//, "链接只能来自 site.contacts 运行时注入");
 });
 
 /* ------------------------------ 探索时间线 ------------------------------ */

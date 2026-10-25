@@ -1,9 +1,9 @@
 /**
  * 项目数据与版块消费冒烟测试（node:test）：
  * 校验项目数据集中管理与诚实边界、共享卡片实现、保留版块（/about 等）
- * 与共享数据不出现年份。首页消费侧契约已迁移：三项目的场景内数据渲染
- * 由 world-layout.test.mjs 守护；HTML 面板（ProjectDetailPanel /
- * WorldNavPanel 渲染 lib/projects.ts 同源数据）的断言在阶段 2 落地。
+ * 与共享数据不出现年份。首页消费侧契约（阶段 2 完成态）：项目详情面板 /
+ * 世界导航面板渲染 lib/projects.ts + lib/site.ts 同源数据（零复制），
+ * Moss World 诚实空链；场景内数据由 world-layout.test.mjs 守护。
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
 import assert from "node:assert/strict";
@@ -11,6 +11,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { projects } from "../lib/projects.ts";
+import { site } from "../lib/site.ts";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -218,4 +220,116 @@ test("lib/content-types.ts 提供共享类型且数据层按类型声明", () =>
     readProjectFile("lib/projects.ts").includes('from "./content-types"'),
     "projects.ts 应复用共享类型",
   );
+});
+
+/* ---------------- 世界信息层（阶段 2）：详情面板 / 导航面板数据单源 ---------------- */
+
+test("ProjectDetailPanel：lib/projects.ts 原对象直渲染，封面 next/image 懒加载", () => {
+  const panel = readProjectFile("components/world/ui/ProjectDetailPanel.tsx");
+
+  // 数据单源：组件不重复声明项目数据，从 projects 检索后逐字段渲染
+  assert.match(panel, /from "@\/lib\/projects"/, "应导入 lib/projects.ts");
+  assert.match(panel, /projects\.find/, "应从数据源检索当前项目");
+  for (const field of [
+    "project.name",
+    "project.category",
+    "project.description",
+    "project.coverAlt",
+    "project.status",
+  ]) {
+    assert.ok(panel.includes(`{${field}}`), `应渲染 ${field}`);
+  }
+  assert.match(panel, /project\.tags\.map/, "应遍历渲染技术栈标签");
+  assert.match(panel, /src=\{project\.cover\}/, "封面应来自 project.cover");
+
+  // 封面 next/image（routes 口径）：fill + 懒加载，不出现 priority
+  assert.match(panel, /from "next\/image"/, "封面应使用 next/image");
+  assert.match(panel, /fill/, "封面应 fill 适配面板容器");
+  assert.ok(!panel.includes("priority"), "面板封面应懒加载（非首屏大图）");
+  assert.match(
+    panel,
+    /project\.coverPosition \?\? "center"/,
+    "竖版封面应沿用 coverPosition 裁切口径",
+  );
+
+  // 链接只来自 project.links（运行时注入，组件内零链接字面量）
+  assert.match(panel, /projectLinks\.map/, "链接应遍历 project.links 渲染");
+  assert.doesNotMatch(panel, /https?:\/\//, "组件源码不得出现链接字面量");
+
+  // 路由双保险：「在详情页打开」→ /projects/[slug]
+  assert.match(panel, /href=\{`\/projects\/\$\{project\.slug\}`\}/, "应链接详情页路由");
+
+  // 关闭语义：Esc / × / 返回探索（世界状态保持）
+  assert.match(panel, /返回探索/, "应有「返回探索」关闭按钮");
+  assert.match(panel, /aria-label="关闭详情，返回探索"/, "关闭按钮应有可访问名称");
+});
+
+test("ProjectDetailPanel 诚实边界：Moss World 无链接时如实说明，不渲染入口按钮", () => {
+  const panel = readProjectFile("components/world/ui/ProjectDetailPanel.tsx");
+  // 空链接 → 诚实文案（不编造入口；Moss World links 为空数组）
+  assert.match(
+    panel,
+    /本地项目 · 未公开上线，暂无公开链接/,
+    "无链接项目应显示诚实说明",
+  );
+  // 渲染分支：links 非空才渲染链接按钮（空数组走说明文案）
+  assert.match(
+    panel,
+    /projectLinks\.length > 0/,
+    "链接按钮应按 projectLinks 非空条件渲染",
+  );
+  // 数据级复核：lib/projects.ts 中 Moss World 确无 links 字段值
+  const moss = projects.find((project) => project.slug === "moss-world");
+  assert.equal((moss?.links ?? []).length, 0, "Moss World 数据层应无任何链接");
+});
+
+test("WorldNavPanel：传送卡 + 站点路由单源 site.navItems + 联系入口按 configured 过滤", () => {
+  const nav = readProjectFile("components/world/ui/WorldNavPanel.tsx");
+
+  // 三项目传送卡：数据单源 lib/projects.ts + PROJECT_ISLES（slug 关联）
+  assert.match(nav, /from "@\/lib\/projects"/, "应导入 lib/projects.ts");
+  assert.match(nav, /PROJECT_ISLES\.map/, "传送卡应遍历 PROJECT_ISLES");
+  assert.match(nav, /projects\.find/, "卡片文案应从项目数据检索（名称/状态）");
+  assert.match(nav, /requestTeleport/, "传送动作应走 TeleportSystem 请求");
+  assert.match(nav, /openDetail/, "应提供「详情」直达入口");
+  assert.match(nav, /快捷键/, "传送卡应标注 1/2/3 快捷键提示");
+
+  // 回航与茧居所（发现后出现——隐藏彩蛋纪律）
+  assert.match(nav, /teleportAndClose\("spawn"\)/, "应有主岛回航传送");
+  assert.match(nav, /nookDiscovered/, "茧居所入口应按发现状态条件渲染");
+
+  // 站点路由：数据单源 site.navItems + contactRoute（不在组件内另立清单）
+  assert.match(nav, /from "@\/lib\/site"/, "应导入 lib/site.ts");
+  assert.match(nav, /site\.navItems/, "路由链接应遍历 site.navItems");
+  assert.match(nav, /site\.contactRoute/, "联系页应来自 site.contactRoute（与 Navbar 同源）");
+  assert.doesNotMatch(nav, /href="\/(about|tech|contact|articles)"/, "不得硬编码路由清单");
+
+  // 联系入口：configured 过滤 + 外链新窗口（链接运行时来自 site.contacts）
+  assert.match(
+    nav,
+    /site\.contacts\s*\n?\s*\.filter\(\(contact\) => contact\.configured && contact\.href\)/,
+    "联系入口应按 configured 开关过滤",
+  );
+  assert.match(nav, /target="_blank"/);
+  assert.match(nav, /rel="noreferrer"/);
+  assert.doesNotMatch(nav, /https?:\/\//, "组件源码不得出现链接字面量");
+
+  // 数据级复核：导航面板过滤后应恰好渲染 GitHub 一个联系入口
+  assert.equal(
+    site.contacts.filter((contact) => contact.configured && contact.href).length,
+    1,
+  );
+});
+
+test("HelpPanel：键位说明随时可查，触屏与桌面双形态，提供跳过探索入口", () => {
+  const help = readProjectFile("components/world/ui/HelpPanel.tsx");
+  assert.match(help, /键位/, "应有键位说明区");
+  assert.match(help, /<kbd>/, "键位应用 kbd 语义标注");
+  for (const key of ["E", "M", "H", "Esc", "查看"]) {
+    assert.ok(help.includes(key), `说明应覆盖 ${key}`);
+  }
+  assert.match(help, /isMobileLike/, "应按设备形态切换触屏手势 / 桌面键位");
+  assert.match(help, /跳过探索，直接看项目列表/, "应有跳过探索入口（3D 不是门槛）");
+  assert.match(help, /href="\/projects"/, "跳过探索应链接项目列表页");
+  assert.match(help, /aria-label="关闭操作说明"/, "关闭按钮应有可访问名称");
 });

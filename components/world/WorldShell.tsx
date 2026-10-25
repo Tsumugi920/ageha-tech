@@ -8,12 +8,20 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
-import { WorldUIProvider, useWorldUI } from "./WorldUIContext";
+import {
+  WorldUIProvider,
+  useWorldUI,
+} from "./WorldUIContext";
 import { LoadingScreen, WorldBrand } from "./loading/LoadingScreen";
 import { HudOverlay } from "./ui/HudOverlay";
 import { IntroToast } from "./ui/IntroToast";
 import { FallbackProjects } from "./ui/FallbackProjects";
+import { ProjectDetailPanel } from "./ui/ProjectDetailPanel";
+import { WorldNavPanel } from "./ui/WorldNavPanel";
+import { HelpPanel } from "./ui/HelpPanel";
+import { useWorldShortcuts } from "./systems/useWorldShortcuts";
 import {
   FallbackResizeObserver,
   probeResizeObserverBroken,
@@ -91,7 +99,9 @@ const getMobileLikeSnapshot = () => {
 const getMobileLikeServerSnapshot = () => false;
 
 function WorldShellInner() {
-  const { phase, setPhase, isMobileLike } = useWorldUI();
+  const { phase, setPhase, isMobileLike, contextLost } = useWorldUI();
+  // 世界快捷键（M 导航 / H 说明 / Esc 关闭 / 1·2·3 传送）——就绪后启用
+  useWorldShortcuts(phase === "ready");
   const webgl = useSyncExternalStore(
     noopSubscribe,
     getWebglSnapshot,
@@ -152,7 +162,32 @@ function WorldShellInner() {
         <>
           <HudOverlay />
           <IntroToast />
+          {/* 三面板互斥（详情 / 导航 / 说明），世界与运动全程保持不重置 */}
+          <ProjectDetailPanel />
+          <WorldNavPanel />
+          <HelpPanel />
         </>
+      ) : null}
+
+      {/* WebGL 上下文丢失恢复遮罩（ContextGuard 上报；§12.3 不白屏不静默） */}
+      {contextLost ? (
+        <div className="world-context-mask" role="alertdialog" aria-modal="true" aria-label="图形上下文丢失">
+          <p className="world-context-mask__text">
+            图形上下文已丢失，正在尝试恢复…
+          </p>
+          <div className="world-context-mask__actions">
+            <button
+              type="button"
+              className="world-context-mask__reload"
+              onClick={() => window.location.reload()}
+            >
+              刷新页面
+            </button>
+            <Link href="/projects" className="world-context-mask__browse">
+              直接浏览项目列表
+            </Link>
+          </div>
+        </div>
       ) : null}
     </div>
   );

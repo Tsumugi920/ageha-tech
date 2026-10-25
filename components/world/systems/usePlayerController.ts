@@ -29,6 +29,8 @@ export type PlayerApi = {
   heading: React.RefObject<number>;
   /** 水平速度模长 */
   speed: React.RefObject<number>;
+  /** 贴地弹簧高度（传送落地时由 TeleportSystem 对齐，防跨层吸附） */
+  springY: React.RefObject<number>;
 };
 
 const HOLD_KEYS = new Set([
@@ -51,7 +53,7 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
   const springY = useRef<number>(SPAWN_POINT.y);
 
   const api = useMemo<PlayerApi>(
-    () => ({ pos, vel, heading, speed }),
+    () => ({ pos, vel, heading, speed, springY }),
     [],
   );
 
@@ -115,6 +117,13 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
     const p = pos.current;
     const v = vel.current;
 
+    // ---- 传送飞行中：让位给 TeleportSystem（位置/朝向由运镜接管） ----
+    if (inputState.teleportActive) {
+      v.set(0, 0, 0);
+      speed.current = 0;
+      return;
+    }
+
     // HUD「返回起点」：软重置（位置 / 速度 / 弹簧高度复位，相机自然跟随）
     if (inputState.wantRespawn) {
       inputState.wantRespawn = false;
@@ -154,10 +163,12 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
       v.z = (v.z / sp) * maxSpeed;
     }
 
-    // ---- 软边界（§2.3）：候选位置离开可行走面 → 气流推回 + 二分贴边 ----
+    // ---- 软边界（§2.3）：候选位置离开可行走面 → 气流推回 + 二分贴边
+    // 查询带参考高度（多层地形：茧居所在蝶径 A 正下方，见 layout.ts）
+    const refY = springY.current;
     const candX = p.x + v.x * delta;
     const candZ = p.z + v.z * delta;
-    if (getGroundHeight(candX, candZ) === null) {
+    if (getGroundHeight(candX, candZ, refY) === null) {
       const push = softBoundaryPush(candX, candZ);
       v.x += push.x * PLAYER_PHYSICS.boundaryPush * delta;
       v.z += push.z * PLAYER_PHYSICS.boundaryPush * delta;
@@ -167,7 +178,7 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
       for (let i = 0; i < 3; i += 1) {
         const tx = p.x + v.x * delta * step;
         const tz = p.z + v.z * delta * step;
-        if (getGroundHeight(tx, tz) !== null) {
+        if (getGroundHeight(tx, tz, refY) !== null) {
           p.x = tx;
           p.z = tz;
           moved = true;
@@ -202,8 +213,8 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
       p.z = pushed.z;
     }
 
-    // ---- 贴地：解析面高度 + critically-damped spring（λ=10） ----
-    const ground = getGroundHeight(p.x, p.z);
+    // ---- 贴地：解析面高度 + critically-damped spring（λ=10）----
+    const ground = getGroundHeight(p.x, p.z, springY.current);
     if (ground !== null) {
       const targetY = ground + PLAYER_PHYSICS.hoverHeight;
       springY.current += (targetY - springY.current) * (1 - Math.exp(-PLAYER_PHYSICS.verticalLambda * delta));

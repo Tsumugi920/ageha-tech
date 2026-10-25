@@ -234,17 +234,28 @@ test("世界品牌字「Ageha.tech」深墨令牌：对 sky / 氛围层 / 加载
   }
 });
 
-test("世界 HUD / 引导卡：玻璃底上一律深墨文字，白字仅限青色渐变 CTA 一处", () => {
+test("世界 HUD / 引导卡 / 信息面板：玻璃底上一律深墨文字，白字仅限深蓝渐变 CTA", () => {
   const cssHud = css;
 
-  // HUD 件文字色只允许消费 text-primary / text-secondary / link 令牌
+  // HUD 件与面板文字色只允许消费 text-primary / text-secondary / link 令牌
+  // （阶段 2 新增面板类串：详情 / 导航 / 说明三面板 + 诚实空链说明；
+  //  阶段 3 新增场景内名牌类串：drei Html 门户内的 .world-nameplate__*）
   for (const cls of [
     "world-hud__zone",
-    "world-hud__prompt-link",
+    "world-hud__prompt-btn",
     "world-hud__hint",
     "world-hud__quick-name",
     "world-toast__intro",
     "world-fallback__note",
+    "world-panel__title",
+    "world-panel__eyebrow",
+    "world-detail__desc",
+    "world-nav__card-name",
+    "world-help__list",
+    "world-detail__nolink",
+    "world-nameplate__name",
+    "world-nameplate__status",
+    "world-nameplate__status--live",
   ]) {
     const rule = cssHud.match(new RegExp(`\\.${cls}\\s*\\{([\\s\\S]*?)\\}`));
     assert.ok(rule, `globals.css 应有 .${cls} 规则`);
@@ -274,23 +285,43 @@ test("世界 HUD / 引导卡：玻璃底上一律深墨文字，白字仅限青�
     }
   }
 
-  // 白字只允许出现在深蓝渐变 CTA（.world-toast__primary，15px semibold）：
-  // 渐变各端点逐个数值核算 ≥4.5:1（浅青渐变白字仅 2.0~3.4:1，已弃用）
-  const ctaRule = cssHud.match(/\.world-toast__primary\s*\{([\s\S]*?)\}/);
-  assert.ok(ctaRule, "globals.css 应有 .world-toast__primary 规则");
-  assert.match(ctaRule[1], /color:\s*#ffffff/);
-  const ctaGradient = ctaRule[1].match(/linear-gradient\(([^)]+)\)/);
-  assert.ok(ctaGradient, "CTA 应为渐变底");
-  const ctaStops = [...ctaGradient[1].matchAll(/#[0-9a-fA-F]{6}\b/g)].map((m) =>
-    hexToRgb(m[0]),
-  );
-  assert.ok(ctaStops.length >= 3, "CTA 渐变应至少三个端点");
-  for (const stop of ctaStops) {
-    const ratio = contrast(WHITE, stop);
+  // 场景内名牌（阶段 3）：底为白 88% 玻璃（.world-nameplate），衬底是
+  // 3D 画面而非固定 sky——取最坏衬底（深蓝岩 #10294B，全场景最深物质色）
+  // 做 alpha 合成核算（68% 玻璃时 text-secondary 仅 3.02:1，已提白修复）
+  const nameplateWorstBg = over(WHITE, 0.88, hexToRgb("#10294B"));
+  for (const [name, fg] of [
+    ["text-primary", textPrimaryRgb],
+    ["text-secondary", textSecondaryRgb],
+    ["link", linkRgb],
+  ]) {
+    const ratio = contrast(fg, nameplateWorstBg);
     assert.ok(
       ratio >= 4.5,
-      `CTA 端点 rgb(${stop.r},${stop.g},${stop.b}) 对白字实测 ${ratio.toFixed(2)}:1，15px semibold 需 ≥4.5:1`,
+      `名牌 ${name} 对最坏衬底（白68%/深蓝岩）实测 ${ratio.toFixed(2)}:1，需 ≥4.5:1`,
     );
+  }
+
+  // 白字只允许出现在深蓝渐变 CTA（15px semibold）：
+  // 渐变各端点逐个数值核算 ≥4.5:1（浅青渐变白字仅 2.0~3.4:1，已弃用）
+  // ——引导卡主按钮（world-toast__primary）与世界面板主按钮
+  // （world-panel__primary，阶段 2）同组端点，逐组断言
+  for (const ctaClass of ["world-toast__primary", "world-panel__primary"]) {
+    const ctaRule = cssHud.match(new RegExp(`\\.${ctaClass}\\s*\\{([\\s\\S]*?)\\}`));
+    assert.ok(ctaRule, `globals.css 应有 .${ctaClass} 规则`);
+    assert.match(ctaRule[1], /color:\s*#ffffff/);
+    const ctaGradient = ctaRule[1].match(/linear-gradient\(([^)]+)\)/);
+    assert.ok(ctaGradient, `.${ctaClass} 应为渐变底`);
+    const ctaStops = [...ctaGradient[1].matchAll(/#[0-9a-fA-F]{6}\b/g)].map((m) =>
+      hexToRgb(m[0]),
+    );
+    assert.ok(ctaStops.length >= 3, `.${ctaClass} 渐变应至少三个端点`);
+    for (const stop of ctaStops) {
+      const ratio = contrast(WHITE, stop);
+      assert.ok(
+        ratio >= 4.5,
+        `.${ctaClass} 端点 rgb(${stop.r},${stop.g},${stop.b}) 对白字实测 ${ratio.toFixed(2)}:1，15px semibold 需 ≥4.5:1`,
+      );
+    }
   }
 });
 

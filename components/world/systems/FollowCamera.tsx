@@ -12,19 +12,26 @@ import type { PlayerApi } from "./usePlayerController";
 /**
  * 第三人称跟随相机（蓝图 §7）：
  * - 目标点 = 角色位置 + 前向 1.5；相机 = 目标点 + 球坐标（yaw/pitch/距离档）；
- * - 指针拖拽轨道观察（不锁定指针）；滚轮三档距离；移动时 yaw 缓慢对齐移动方向；
+ * - 指针拖拽轨道观察（不锁定指针）；滚轮 / 触屏双指捏合三档距离；
+ *   移动时 yaw 缓慢对齐移动方向（权重可调：触屏自动回正更弱，§6.3）；
  * - 帧率无关阻尼（damp 位置 λ=4 / lookAt λ=6），无抖动；
  * - 遮挡：目标点→相机连线对碰撞体 Box3 raycast，命中则前移；
  *   相机 y 不低于当地地面 +0.5；
  * - 初始构图保持：首次输入前相机停在蓝图初始机位（§7 第一眼世界观）。
+ *
+ * 阶段 4：拖拽增量自算差值（Safari iOS 触摸 PointerEvent 无 movementX，
+ * 自算保证触屏观察可用）；双指捏合走 zoomStep 同滚轮通道。
  */
 export function FollowCamera({
   player,
   distanceOffset = 0,
+  alignWeight = 0.4,
 }: {
   player: PlayerApi;
   /** 移动端 +2 档距离补偿（蓝图 §6.3） */
   distanceOffset?: number;
+  /** 移动时 yaw 对齐移动方向的权重（桌面 0.4 / 触屏 0.15，§6.3 简化摄影机） */
+  alignWeight?: number;
 }) {
   const { camera, gl } = useThree();
 
@@ -54,22 +61,71 @@ export function FollowCamera({
   const hitPoint = useMemo(() => new Vector3(), []);
   const dirVec = useMemo(() => new Vector3(), []);
 
-  // 画布指针拖拽（轨道观察）与滚轮（距离档）——不锁定指针，点击留给场景交互
+  // 画布指针拖拽（轨道观察）/ 双指捏合（距离档）/ 滚轮——不锁定指针，
+  // 点击留给场景交互。拖拽累计位移：超过阈值判定为「观察拖拽」而非「点击」，
+  // 供场景交互体（点击打开详情）与面板（点击空白关闭）对账
   useEffect(() => {
     const canvas = gl.domElement;
     let dragging = false;
+    let dragDistance = 0;
+    const DRAG_THRESHOLD = 6;
+    // 触摸 PointerEvent 的 movementX 在 Safari iOS 恒为 0：自算差值
+    const pointers = new Map<number, { x: number; y: number }>();
+    // 双指捏合：基准距离与累计变化（每 ±80px 一步距离档）
+    let pinchBase = 0;
+    let pinchAccum = 0;
+    const PINCH_STEP = 80;
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
-      dragging = true;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 1) {
+        dragging = true;
+        dragDistance = 0;
+        inputState.pointerDragged = false;
+      } else {
+        // 双指进入捏合：退出单指观察（拖拽视角让位给缩放）
+        dragging = false;
+        const [a, b] = [...pointers.values()];
+        pinchBase = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchAccum = 0;
+        inputState.pointerDragged = true;
+      }
       holdInitial.current = false;
     };
     const onPointerMove = (event: PointerEvent) => {
+      const prev = pointers.get(event.pointerId);
+      if (!prev) return;
+      const dx = event.clientX - prev.x;
+      const dy = event.clientY - prev.y;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (pointers.size >= 2) {
+        // 双指捏合：距离变化 → 距离档步进（拉远 +1 / 拉近 -1，与滚轮同通道）
+        const [a, b] = [...pointers.values()];
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchAccum += distance - pinchBase;
+        pinchBase = distance;
+        while (pinchAccum >= PINCH_STEP) {
+          inputState.zoomStep += 1;
+          pinchAccum -= PINCH_STEP;
+        }
+        while (pinchAccum <= -PINCH_STEP) {
+          inputState.zoomStep -= 1;
+          pinchAccum += PINCH_STEP;
+        }
+        return;
+      }
+
       if (!dragging) return;
-      inputState.lookDelta.x += event.movementX * 0.0042;
-      inputState.lookDelta.y += event.movementY * 0.0032;
+      dragDistance += Math.abs(dx) + Math.abs(dy);
+      if (dragDistance > DRAG_THRESHOLD) inputState.pointerDragged = true;
+      inputState.lookDelta.x += dx * 0.0042;
+      inputState.lookDelta.y += dy * 0.0032;
     };
-    const onPointerUp = () => {
+    const onPointerUp = (event: PointerEvent) => {
+      pointers.delete(event.pointerId);
+      // 捏合后残留的单指不回到拖拽（防视角跳变），抬指重按再观察
       dragging = false;
     };
     const onWheel = (event: WheelEvent) => {
@@ -81,11 +137,13 @@ export function FollowCamera({
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       canvas.removeEventListener("wheel", onWheel);
     };
   }, [gl]);
@@ -93,6 +151,12 @@ export function FollowCamera({
   useFrame((_, rawDelta) => {
     const delta = Math.min(rawDelta, 1 / 30);
     const p = player.pos.current;
+
+    // ---- 传送起飞即解除初始构图保持（相机立即接管跟随运镜） ----
+    if (inputState.wantCameraRelease) {
+      inputState.wantCameraRelease = false;
+      holdInitial.current = false;
+    }
 
     // ---- 输入消费：轨道观察 / 距离档 ----
     if (inputState.lookDelta.x !== 0 || inputState.lookDelta.y !== 0) {
@@ -119,6 +183,9 @@ export function FollowCamera({
         CAMERA_LIMITS.distances.length - 1,
       );
       inputState.zoomStep = 0;
+      // 距离档变化即用户输入：解除初始构图保持（滚轮路径在 onWheel 已设，
+      // 捏合路径在此统一——否则捏合后相机仍钉在初始机位，档位变化不可见）
+      holdInitial.current = false;
     }
 
     // ---- 初始构图保持：未操作前停在蓝图初始机位 ----
@@ -139,7 +206,7 @@ export function FollowCamera({
       holdInitial.current = false;
     }
 
-    // ---- 移动时 yaw 以 0.4 权重缓慢对齐移动方向（§7） ----
+    // ---- 移动时 yaw 缓慢对齐移动方向（§7；权重：桌面 0.4 / 触屏 0.15 弱回正） ----
     const v = player.vel.current;
     const sp = Math.hypot(v.x, v.z);
     if (sp > 2) {
@@ -147,7 +214,7 @@ export function FollowCamera({
       let diff = moveYaw - cameraState.yaw;
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
-      cameraState.yaw += diff * Math.min(1, 0.4 * 2 * delta);
+      cameraState.yaw += diff * Math.min(1, alignWeight * 2 * delta);
     }
 
     const distance =
@@ -192,8 +259,9 @@ export function FollowCamera({
         .add(dir.multiplyScalar(nearest));
     }
 
-    // ---- 相机 y 不低于当地地面 +0.5（无地面则不约束） ----
-    const camGround = getGroundHeight(desiredPos.current.x, desiredPos.current.z);
+    // ---- 相机 y 不低于脚下地面 +0.5（多层地形：带相机高度作参考，只被
+    //      不高于相机 +4 的地面接住——茧居所内不被头顶蝶径的地面顶起） ----
+    const camGround = getGroundHeight(desiredPos.current.x, desiredPos.current.z, desiredPos.current.y);
     if (camGround !== null && desiredPos.current.y < camGround + 0.5) {
       desiredPos.current.y = camGround + 0.5;
     }

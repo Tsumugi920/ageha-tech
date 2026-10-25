@@ -13,6 +13,7 @@ import {
 } from "three";
 import { WORLD_COLORS } from "@/lib/world/constants";
 import { getGroundHeight } from "@/lib/world/layout";
+import { usePrefersReducedMotion } from "../systems/usePrefersReducedMotion";
 import type { PlayerApi } from "../systems/usePlayerController";
 
 /**
@@ -24,6 +25,7 @@ import type { PlayerApi } from "../systems/usePlayerController";
 const TRAIL_COUNT = 20;
 
 export function DriftLantern({ player }: { player: PlayerApi }) {
+  const reducedMotion = usePrefersReducedMotion();
   const groupRef = useRef<Group>(null);
   const coreRef = useRef<Group>(null);
   const wingFLRef = useRef<Group>(null);
@@ -64,15 +66,19 @@ export function DriftLantern({ player }: { player: PlayerApi }) {
       groupRef.current.position.copy(p);
       groupRef.current.rotation.y = player.heading.current;
     }
-    // 水晶核：悬停微浮 + 随速度加快自转
+    // 水晶核：悬停微浮 + 随速度加快自转（reduced-motion：微浮与基速自转停，
+    // 仅保留随玩家移动的自转分量——角色可控性优先，环境自饰静止）
     if (coreRef.current) {
-      coreRef.current.position.y = 0.05 + Math.sin(t * 2.1) * 0.045;
-      const spin = 0.6 + Math.min(speed / 7.5, 1) * 2.2;
+      coreRef.current.position.y =
+        0.05 + (reducedMotion ? 0 : Math.sin(t * 2.1) * 0.045);
+      const spin = (reducedMotion ? 0 : 0.6) + Math.min(speed / 7.5, 1) * 2.2;
       coreRef.current.rotation.y += spin * 0.016;
     }
-    // 光翼：移动后掠收拢、悬停张开微颤（前后两对，对称相位）
+    // 光翼：移动后掠收拢、悬停张开微颤（前后两对，对称相位；reduced 不颤）
     const sweep = 0.42 + Math.min(speed / 7.5, 1) * 0.5;
-    const flutter = Math.sin(t * 9) * 0.1 * (speed > 0.6 ? 1 : 0.35);
+    const flutter = reducedMotion
+      ? 0
+      : Math.sin(t * 9) * 0.1 * (speed > 0.6 ? 1 : 0.35);
     if (wingFLRef.current) wingFLRef.current.rotation.z = sweep + flutter;
     if (wingFRRef.current) wingFRRef.current.rotation.z = -sweep - flutter;
     if (wingBLRef.current) wingBLRef.current.rotation.z = sweep * 0.8 - flutter * 0.6;

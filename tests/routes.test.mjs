@@ -247,14 +247,26 @@ test("全站图片一律 next/image：无裸 <img>，首屏 priority，其余懒
   scanDir(path.join(projectRoot, "components"));
 
   // 首屏大图 priority：项目详情页封面；列表页 / 世界降级页卡片封面不 priority
-  // （原 HeroScene/FeaturedProjects 首屏断言随组件退役移除；阶段 2 将补
-  //   ProjectDetailPanel 封面 next/image 懒加载断言——蓝图 §14.1）
+  // 世界详情面板封面同样懒加载（阶段 2 交付：面板非首屏，走 next/image 懒加载）
   const listPage = readProjectFile("app/projects/page.tsx");
   assert.ok(!listPage.includes("priority"), "列表页卡片封面应懒加载");
   const fallback = readProjectFile("components/world/ui/FallbackProjects.tsx");
   assert.ok(!fallback.includes("priority"), "世界降级页卡片封面应懒加载");
   const detail = readProjectFile("app/projects/[slug]/page.tsx");
   assert.match(detail, /priority/, "详情页封面为首屏大图，应 priority");
+
+  // 世界场景内详情面板（§13.4）：封面 next/image + fill + 懒加载
+  const worldPanel = readProjectFile("components/world/ui/ProjectDetailPanel.tsx");
+  assert.match(
+    worldPanel,
+    /from "next\/image"/,
+    "世界详情面板封面应使用 next/image",
+  );
+  assert.match(worldPanel, /fill/, "世界详情面板封面应 fill 适配");
+  assert.ok(
+    !worldPanel.includes("priority"),
+    "世界详情面板封面应懒加载（非首屏大图）",
+  );
 });
 
 /* ------------------------------ 内页公共页头 ------------------------------ */

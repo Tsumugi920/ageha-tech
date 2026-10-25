@@ -11,11 +11,12 @@
  * 运行方式：npm test（即 node --test "tests/*.test.mjs"）
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { TIER_PARAMS, MOBILE_MODIFIERS } from "../lib/world/performance.ts";
+import { INTERACTION } from "../lib/world/constants.ts";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -262,12 +263,16 @@ test("触控面积：玻璃按钮基类 min-h-11，项目卡「查看详情」�
 test("触控面积：世界 HUD 按钮与提示条 ≥44px 高（min-height 2.75rem）", () => {
   const css = readProjectFile("app/globals.css");
   for (const cls of [
-    "world-hud__prompt-link",
+    "world-hud__prompt-btn",
     "world-hud__hint-dot",
     "world-hud__quick-item",
     "world-hud__quick-mini",
     "world-toast__primary",
     "world-toast__ghost",
+    "world-panel__close",
+    "world-panel__primary",
+    "world-panel__ghost",
+    "world-detail__link",
   ]) {
     const rule = css.match(new RegExp(`\\.${cls}\\s*\\{([\\s\\S]*?)\\}`));
     assert.ok(rule, `globals.css 应有 .${cls} 规则`);
@@ -377,6 +382,155 @@ test("键盘可操作：世界控制键全键盘可达（WASD/方向键/E/R）�
   assert.match(controller, /removeEventListener/, "卸载应注销全部监听");
 });
 
+/* ==================== 阶段 2 交互系统：键盘 / 焦点 / 传送 / 拖拽守卫 ==================== */
+
+test("世界快捷键：M 导航 / H·? 说明 / Esc 关闭 / 1·2·3 传送，面板焦点内让位", () => {
+  const shortcuts = readProjectFile("components/world/systems/useWorldShortcuts.ts");
+  for (const code of ["KeyM", "KeyH", "Escape", "Digit1", "Digit2", "Digit3"]) {
+    assert.ok(shortcuts.includes(`"${code}"`), `快捷键应处理 ${code}`);
+  }
+  assert.match(shortcuts, /event\.key === "\?"/, "? 应与 H 同义打开操作说明");
+  // 焦点在面板内（data-world-panel）时快捷键让位（Tab/Enter 归面板语义）
+  assert.match(
+    shortcuts,
+    /closest\("\[data-world-panel\]"\)/,
+    "面板内焦点应豁免全局快捷键",
+  );
+  assert.match(shortcuts, /removeEventListener/, "卸载应注销监听");
+  // WorldShell 就绪后启用快捷键
+  const shell = readProjectFile("components/world/WorldShell.tsx");
+  assert.match(
+    shell,
+    /useWorldShortcuts\(phase === "ready"\)/,
+    "世界就绪后才启用快捷键",
+  );
+});
+
+test("面板键盘可达：对话框语义 + 焦点陷阱 + 焦点归还 + Esc / 点空白关闭", () => {
+  const a11y = readProjectFile("components/world/ui/usePanelA11y.ts");
+  assert.match(a11y, /key === "Escape"/, "Esc 应关闭面板");
+  assert.match(a11y, /key === "Tab"/, "应处理 Tab 循环（焦点陷阱）");
+  assert.match(a11y, /openerRef/, "关闭后应把焦点还给打开者");
+  assert.match(a11y, /removeEventListener/, "卸载应注销监听");
+  // 点击场景空白关闭：canvas 上的非拖拽 pointerup（3D 交互体点击有守卫标记）
+  assert.match(a11y, /closest\("canvas"\)/, "应识别画布空白点击");
+  assert.match(a11y, /pointerDragged/, "拖拽观察不应误关面板");
+
+  for (const file of [
+    "components/world/ui/ProjectDetailPanel.tsx",
+    "components/world/ui/WorldNavPanel.tsx",
+    "components/world/ui/HelpPanel.tsx",
+  ]) {
+    const src = readProjectFile(file);
+    assert.match(src, /role="dialog"/, `${file} 应有对话框语义`);
+    assert.match(src, /aria-modal="true"/, `${file} 应声明模态`);
+    assert.match(src, /aria-hidden=\{!open\}/, `${file} 关闭态应 aria-hidden`);
+    assert.match(src, /inert=\{!open\}/, `${file} 关闭态应 inert 不可聚焦`);
+  }
+});
+
+test("拖拽守卫：观察拖拽不触发场景交互 / 面板关闭，3D 点击直达详情", () => {
+  const camera = readProjectFile("components/world/systems/FollowCamera.tsx");
+  assert.match(camera, /pointerDragged/, "相机拖拽应累计并写共享守卫标志");
+  assert.match(camera, /DRAG_THRESHOLD/, "应有判定阈值");
+
+  const isle = readProjectFile("components/world/objects/ProjectIsle.tsx");
+  assert.match(isle, /inputState\.pointerDragged/, "交互体点击前应查拖拽守卫");
+  assert.match(isle, /onPointerOver/, "交互体应有悬停反馈");
+  assert.match(isle, /onClick/, "交互体应可点击打开详情");
+  assert.match(isle, /openDetail\(isle\.slug\)/, "点击应打开场景内详情面板");
+  assert.match(isle, /suppressSceneClose/, "3D 点击应防误关守卫（换开面板不秒关）");
+
+  // 高亮与名牌反馈：靠近 <6 / 悬停 → cyan 光圈脉冲；<10 名牌淡入
+  assert.match(isle, /ringRef/, "应有高亮光圈");
+  assert.match(isle, /nameplateDistance/, "名牌透明度应随距离");
+  // 阶段 3 起脉冲周期收口到 MOTION 统一节奏表（值断言在 world-assets
+  // 的 worldMotion 检查里：pulsePeriod 1.6 与 DOM 层同拍）
+  assert.match(isle, /MOTION\.pulsePeriod/, "光圈脉冲周期应取 MOTION.pulsePeriod（1.6s，§8 反馈一致性）");
+});
+
+test("传送系统：1.2s 贝塞尔运镜 + 输入锁定 + 弹簧对齐 + reduced-motion 降级", () => {
+  const teleport = readProjectFile("components/world/systems/TeleportSystem.tsx");
+  assert.match(teleport, /teleportTarget/, "应消费 DOM 层传送请求");
+  assert.match(teleport, /teleportActive/, "飞行期间应锁定控制器输入");
+  assert.match(teleport, /reducedMotion \? 0\.3 : 1\.2/, "reduced-motion 应 300ms 直线飞行");
+  assert.match(teleport, /lift/, "正常档应有抬升弧线（§7 传送运镜）");
+  assert.match(teleport, /springY/, "落地应对齐贴地弹簧（多层地形防跨层吸附）");
+
+  // 控制器让位：传送期间跳过运动 / 贴地
+  const controller = readProjectFile("components/world/systems/usePlayerController.ts");
+  assert.match(
+    controller,
+    /inputState\.teleportActive/,
+    "控制器应识别传送锁并让位",
+  );
+  // 快捷键 1/2/3 → 传送目标来自 PROJECT_ISLES（数据单源）
+  const shortcuts = readProjectFile("components/world/systems/useWorldShortcuts.ts");
+  assert.match(shortcuts, /PROJECT_ISLES\[index\]/, "数字键传送应查 PROJECT_ISLES");
+});
+
+test("世界面板动画与降级：280ms 同曲线滑入滑出，reduced-motion 瞬时完成", () => {
+  const css = readProjectFile("app/globals.css");
+  const panelRule = css.match(/\.world-panel\s*\{([\s\S]*?)\}/);
+  assert.ok(panelRule, "应有 .world-panel 基础规则");
+  assert.match(
+    panelRule[1],
+    /transform 0\.28s cubic-bezier\(0\.22, 1, 0\.36, 1\)/,
+    "面板过渡应为 280ms 同曲线（§8 反馈一致性）",
+  );
+  assert.match(panelRule[1], /visibility 0s linear 0\.28s/, "滑出完成后才隐藏");
+  const openRule = css.match(/\.world-panel--open\s*\{([\s\S]*?)\}/);
+  assert.ok(openRule, "应有打开态规则");
+  // 移动端底部抽屉形态（§13.4）
+  const mobileBlock = css.slice(css.indexOf("@media (max-width: 640px)"));
+  assert.match(
+    mobileBlock,
+    /\.world-panel\s*\{[\s\S]*?max-height:\s*76vh/,
+    "移动端面板应为底部抽屉（≤76vh）",
+  );
+  // reduced-motion：全局兜底瞬时化已覆盖面板（hero/responsive 双断言在此复核）
+  const reducedBlock = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reducedBlock, /\.world-panel\s*\{[^}]*transition:\s*none/);
+});
+
+test("世界面板顶部避让：× 关闭键不被 fixed Navbar 遮挡（真实点击回归）", () => {
+  const css = readProjectFile("app/globals.css");
+  // 根因：面板在 .world-root(z-index:0) 层叠上下文内，压不过文档流 sticky z-50
+  // 的 Navbar，只能物理避让。实测导航底边 ≈82px，避让线取 5.75rem(92px)。
+  const rootRule = css.match(/\.world-root\s*\{([^}]*)\}/);
+  assert.ok(rootRule, "应有 .world-root 规则");
+  assert.match(
+    rootRule[1],
+    /--world-nav-clear:\s*5\.75rem/,
+    ".world-root 应定义导航避让令牌 --world-nav-clear: 5.75rem（>导航实测底边 82px）",
+  );
+
+  const panelRule = css.match(/\.world-panel\s*\{([\s\S]*?)\}/);
+  assert.ok(panelRule, "应有 .world-panel 基础规则");
+  assert.match(
+    panelRule[1],
+    /top:\s*var\(--world-nav-clear,\s*5\.75rem\)/,
+    "面板顶边应下移到避让线，× 关闭键落在导航之下可被真实点击（不能是 top:0）",
+  );
+
+  // 品牌角标同一避让线（同一令牌单一来源，视觉顶线一致）
+  const dockRule = css.match(/\.world-brand--dock\s*\{([^}]*)\}/);
+  assert.ok(dockRule, "应有 .world-brand--dock 规则");
+  assert.match(
+    dockRule[1],
+    /top:\s*var\(--world-nav-clear,\s*5\.75rem\)/,
+    "品牌角标应消费同一避让令牌",
+  );
+
+  // 移动端底部抽屉不受影响：top 归位 auto（由 bottom 撑起）
+  const mobileBlock = css.slice(css.indexOf("@media (max-width: 640px)"));
+  assert.match(
+    mobileBlock,
+    /\.world-panel\s*\{[\s\S]*?top:\s*auto/,
+    "移动端底部抽屉应保持 top:auto，避让线只作用于桌面右侧滑入形态",
+  );
+});
+
 /* ============================ 四、对比度 ============================ */
 
 test("对比度：玻璃面板上的正文一律使用深蓝令牌（text-primary / text-secondary）", () => {
@@ -436,15 +590,20 @@ test("性能档位表（lib/world/performance.ts）：三档齐全，DPR/阴影/
   assert.ok(MOBILE_MODIFIERS.speedScale < 1, "移动端速度上限应打折");
 });
 
-test("性能：WorldCanvas 按档位限 DPR 与阴影，SSR 安全动态装载", () => {
+test("性能：WorldCanvas 初始档限 DPR 与阴影 + QualityProvider 动态接管（SSR 安全）", () => {
   const canvas = readProjectFile("components/world/WorldCanvas.tsx");
   assert.match(canvas, /"use client"/);
-  assert.match(canvas, /dpr=\{\[1, tier\.dprMax\]\}/, "DPR 应限制在 [1, 档位上限]");
+  // 初始档（设备形态静态选档）声明 Canvas 上限；此后 AdaptiveQuality 按帧时间接管
+  assert.match(canvas, /dpr=\{\[1, initialTier\.dprMax\]\}/, "初始 DPR 应限制在 [1, 初始档上限]");
   assert.match(
     canvas,
-    /shadows=\{tier\.shadows !== false \? true : false\}/,
-    "阴影应随档位开关（three 0.186 已移除 PCFSoft，用默认 PCF）",
+    /shadows=\{initialTier\.shadows !== false\}/,
+    "初始阴影应随初始档开关（three 0.186 已移除 PCFSoft，用默认 PCF）",
   );
+  assert.match(canvas, /<QualityProvider isMobileLike=\{isMobileLike\}>/, "场景应包裹 QualityProvider");
+  for (const system of ["AdaptiveQuality", "ShadowToggle", "ContextGuard"]) {
+    assert.ok(canvas.includes(`<${system} />`), `场景应挂载 ${system}`);
+  }
   const shell = readProjectFile("components/world/WorldShell.tsx");
   assert.match(shell, /ssr: false/, "3D Canvas 必须 ssr:false 装载");
   // ResizeObserver 兜底：原生失效的 WebView 下注入测量 polyfill（§10）
@@ -458,6 +617,182 @@ test("性能：WorldCanvas 按档位限 DPR 与阴影，SSR 安全动态装载",
     /resize=\{resizePolyfill \? \{ polyfill: resizePolyfill \} : undefined\}/,
     "Canvas 应支持注入测量 polyfill",
   );
+});
+
+test("性能：AdaptiveQuality 帧率自适应（120 帧滑动窗口，22ms·2s 降档 / 14ms·8s 升档，最多升 2 次）", () => {
+  const source = readProjectFile("components/world/systems/AdaptiveQuality.tsx");
+  // 判定参数数据化（§12.2 逐项锁定，防调参回归）
+  for (const marker of [
+    "windowFrames: 120",
+    "slowAvgMs: 22",
+    "slowHoldSeconds: 2",
+    "fastAvgMs: 14",
+    "fastHoldSeconds: 8",
+    "maxUpgrades: 2",
+    "warmupSeconds: 3",
+  ]) {
+    assert.ok(source.includes(marker), `ADAPTIVE_RULES 应含 ${marker}`);
+  }
+  // 升降执行：档位切换走 setTier（React 状态仅在档位变化时更新一次），
+  // 换档清空采样窗（旧帧时间不代表新档负载），并通知 HUD
+  assert.match(source, /setTier\(next\)/, "判定达成应切换档位");
+  assert.match(source, /notifyQuality\(TIER_NOTICE\[next\]\)/, "档位变化应通知 HUD");
+  assert.match(source, /buffer\.length = 0/, "换档应清空采样窗");
+  assert.match(source, /setDpr\(Math\.min\(devicePixelRatio, tier\.dprMax\)\)/, "DPR 应随档位 setDpr 动态生效");
+  // 三档 HUD 通知文案齐备（一次性提示，不做性能宣称）
+  for (const tier of ["high", "medium", "low"]) {
+    assert.match(source, new RegExp(`${tier}: "[^"]+"`), `应有 ${tier} 档通知文案`);
+  }
+});
+
+test("性能：档位动态生效链路（useQuality 消费 + 阴影管线动态开关含显存释放）", () => {
+  const canvas = readProjectFile("components/world/WorldCanvas.tsx");
+  // ShadowToggle：阴影管线随档位动态开关
+  assert.match(canvas, /applyShadowPipeline/, "应有阴影管线切换入口");
+  assert.match(canvas, /gl\.shadowMap\.enabled/, "应同步 renderer 阴影开关");
+  assert.match(canvas, /shadow\.map\.dispose\(\)/, "关档应释放阴影贴图显存");
+  assert.match(canvas, /needsUpdate = true/, "开关阴影应标记材质重编译");
+  // 场景组件继续随 tier prop 重渲（粒子 / 远景 / 贴图 / transmission）
+  assert.match(canvas, /<CloudLayer tier=\{tier\} \/>/, "云层应消费动态档位");
+  assert.match(canvas, /<DistantIsles tier=\{tier\} \/>/, "远景岛应消费动态档位");
+  assert.match(canvas, /screenTextures=\{tier\.screenTextures\}/, "屏幕贴图应随档位挂载");
+  assert.match(canvas, /mistCount=\{Math\.floor\(tier\.particleBudget \/ 5\)\}/, "水雾粒子应随档位预算");
+  // HUD 一次性提示：context 存 4s 自动清除
+  const context = readProjectFile("components/world/WorldUIContext.tsx");
+  assert.match(context, /notifyQuality/, "WorldUIContext 应提供档位通知");
+  assert.match(context, /setTimeout\(\(\) => setQualityNotice\(null\), 4000\)/, "档位提示应 4s 自动清除");
+  const hud = readProjectFile("components/world/ui/HudOverlay.tsx");
+  assert.match(hud, /world-hud__quality/, "HUD 应渲染档位提示");
+  const css = readProjectFile("app/globals.css");
+  const qualityRule = css.match(/\.world-hud__quality\s*\{([\s\S]*?)\}/);
+  assert.ok(qualityRule, "globals.css 应有 .world-hud__quality 规则");
+  assert.match(qualityRule[1], /color:\s*var\(--color-text-secondary\)/, "档位提示应使用深墨令牌");
+});
+
+test("移动端：交互距离 ×1.4、3D 热区外扩、提示按钮 52px、相机弱回正与双指捏合", () => {
+  assert.equal(INTERACTION.mobileRadiusScale, 1.4, "触屏交互距离倍率应为 1.4（6→8.4）");
+
+  const interaction = readProjectFile("components/world/systems/InteractionSystem.tsx");
+  assert.match(
+    interaction,
+    /isMobileLike \? INTERACTION\.mobileRadiusScale : 1/,
+    "交互采样应按触屏放大半径",
+  );
+
+  const isle = readProjectFile("components/world/objects/ProjectIsle.tsx");
+  assert.match(isle, /mobileRadiusScale/, "名牌/高亮距离应消费触屏倍率");
+  assert.match(
+    isle,
+    /isMobileLike \? 2\.5 : 1\.5/,
+    "交互代理圆柱触屏应再外扩（点击热区 ≥3 单位 + 1）",
+  );
+
+  // CSS：触屏提示条 52px（≥44px 底线上的触屏加档）
+  const css = readProjectFile("app/globals.css");
+  const mobileBlock = css.slice(css.indexOf("@media (max-width: 640px)"));
+  const promptMobile = mobileBlock.match(/\.world-hud__prompt-btn\s*\{([\s\S]*?)\}/);
+  assert.ok(promptMobile, "移动端块应有提示条按钮规则");
+  assert.match(promptMobile[1], /min-height:\s*3\.25rem/, "触屏提示按钮应 52px");
+
+  // 相机：触屏自动回正更弱 + 拖拽差值自算（Safari iOS 触摸 PointerEvent 无 movementX）+ 双指捏合
+  const camera = readProjectFile("components/world/systems/FollowCamera.tsx");
+  assert.doesNotMatch(camera, /event\.movementX/, "不得依赖 event.movementX（触屏恒 0 的兼容坑）");
+  assert.match(camera, /event\.clientX - prev\.x/, "拖拽增量应自算差值");
+  assert.match(camera, /pointers\.size >= 2/, "应识别双指捏合");
+  assert.match(camera, /inputState\.zoomStep \+= 1/, "捏合应接入距离档通道");
+  assert.match(camera, /alignWeight \* 2 \* delta/, "yaw 对齐应使用可调权重");
+  assert.equal(MOBILE_MODIFIERS.cameraAlignWeight, 0.15, "触屏回正权重应为 0.15（桌面 0.4）");
+  const canvas = readProjectFile("components/world/WorldCanvas.tsx");
+  assert.match(
+    canvas,
+    /alignWeight=\{isMobileLike \? MOBILE_MODIFIERS\.cameraAlignWeight : 0\.4\}/,
+    "相机应按设备形态传对齐权重",
+  );
+  // 触屏提示文案不带键盘按键（E 键对触屏无意义）
+  const hud = readProjectFile("components/world/ui/HudOverlay.tsx");
+  assert.match(hud, /isMobileLike[\s\S]{0,120}`查看 \$\{prompt\.label\}`/, "触屏提示文案应为「查看 ···」");
+});
+
+test("可访问性：reduced-motion 覆盖全部帧循环环境动画（objects/terrain 无遗漏）", () => {
+  const worldDir = path.join(projectRoot, "components", "world");
+  const scan = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return scan(full);
+      return /\.(tsx|ts)$/.test(entry.name) ? [full] : [];
+    });
+  const files = scan(worldDir);
+  // 含 useFrame 的 objects/terrain 组件 = 环境动画载体，必须消费 reduced-motion
+  for (const file of files.filter((f) => /[\\/](objects|terrain)[\\/]/.test(f))) {
+    const src = readFileSync(file, "utf8");
+    if (!src.includes("useFrame")) continue;
+    assert.ok(
+      src.includes("usePrefersReducedMotion"),
+      `${path.relative(projectRoot, file)} 含帧循环动画，应消费 usePrefersReducedMotion（§12.3）`,
+    );
+  }
+  // 系统组件白名单（玩家控制 / 相机跟随 / 低频采样属「可控性优先」，不强制）：
+  // usePlayerController / FollowCamera / InteractionSystem / useIdleSeconds / useNearPlayer
+});
+
+test("降级与恢复：WebGL 上下文丢失守卫 + 恢复遮罩（不白屏不静默）", () => {
+  const guard = readProjectFile("components/world/systems/ContextGuard.tsx");
+  assert.match(guard, /webglcontextlost/, "应监听上下文丢失");
+  assert.match(guard, /event\.preventDefault\(\)/, "丢失事件应 preventDefault 以允许恢复");
+  assert.match(guard, /webglcontextrestored/, "应监听上下文恢复");
+  assert.match(guard, /removeEventListener/, "卸载应注销监听");
+
+  const shell = readProjectFile("components/world/WorldShell.tsx");
+  assert.match(shell, /world-context-mask/, "上下文丢失应显示恢复遮罩");
+  assert.match(shell, /window\.location\.reload\(\)/, "遮罩应提供刷新页面出口");
+  assert.match(shell, /href="\/projects"/, "遮罩应提供项目列表降级入口");
+  const css = readProjectFile("app/globals.css");
+  const maskRule = css.match(/\.world-context-mask\s*\{([\s\S]*?)\}/);
+  assert.ok(maskRule, "globals.css 应有遮罩样式");
+  assert.match(maskRule[1], /z-index:\s*40/, "遮罩应盖过 HUD");
+});
+
+test("加载失败路径：资源失败如实提示 + 重试 + 项目列表降级入口（§13.2）", () => {
+  const loading = readProjectFile("components/world/loading/LoadingScreen.tsx");
+  assert.match(loading, /errors\.length > 0/, "应消费 useProgress 的 errors");
+  assert.match(loading, /部分区域未能点亮/, "失败文案应如实");
+  assert.match(loading, /world-loading__retry/, "应有重试按钮");
+  assert.match(loading, /href="\/projects"/, "应有项目列表降级链接");
+  assert.match(loading, /直接浏览项目列表/, "降级链接应有明确文案");
+});
+
+test("资源清理审计：显式创建的 GPU 资源全部 dispose，监听器成对注销", () => {
+  const worldDir = path.join(projectRoot, "components", "world");
+  const scan = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return scan(full);
+      return /\.(tsx|ts)$/.test(entry.name) ? [full] : [];
+    });
+  // 显式 new 的 GPU 资源（几何/材质/纹理/渲染目标）必须同文件 dispose；
+  // 白名单 = 几何工厂（返回值由调用方 dispose，调用方均在本断言覆盖内）
+  const factoryWhitelist = new Set(["FloatingRock.ts", "butterflyShape.ts", "ribbonGeometry.ts"]);
+  const gpuResource = /new\s+[A-Z]\w*(Geometry|Material|Texture|PMREMGenerator|WebGLRenderTarget)\b/;
+  for (const file of scan(worldDir)) {
+    if (factoryWhitelist.has(path.basename(file))) continue;
+    const src = readFileSync(file, "utf8");
+    if (!gpuResource.test(src)) continue;
+    assert.ok(
+      src.includes(".dispose()"),
+      `${path.relative(projectRoot, file)} 显式创建 GPU 资源，应含 dispose`,
+    );
+  }
+  // 指针监听含 pointercancel（触摸中断不清残留会卡死拖拽态）
+  const camera = readProjectFile("components/world/systems/FollowCamera.tsx");
+  assert.match(camera, /addEventListener\("pointercancel"/, "应监听 pointercancel");
+  assert.ok(
+    (camera.match(/removeEventListener/g) ?? []).length >= 5,
+    "相机五组监听（含 pointercancel）都应注销",
+  );
+  // 自适应零逐帧 React 状态：setTier 调用只在升降档分支内
+  const adaptive = readProjectFile("components/world/systems/AdaptiveQuality.tsx");
+  const setTierCalls = adaptive.split("\n").filter((line) => line.includes("setTier(next)"));
+  assert.equal(setTierCalls.length, 2, "setTier 仅应在降档/升档两处分支调用");
 });
 
 test("性能：加载屏真实进度（useProgress），禁假百分比", () => {

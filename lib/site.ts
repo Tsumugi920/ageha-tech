@@ -47,6 +47,11 @@ export const site = {
     { label: "文章", href: "/articles" },
   ] satisfies NavItem[],
   /**
+   * 联系页路由（Navbar「联系我」按钮与世界导航面板 §13.5 共用；
+   * 不入 navItems——Navbar 五项主导航不含联系，避免改写全站导航契约）
+   */
+  contactRoute: { label: "联系我", href: "/contact" } as NavItem,
+  /**
    * 联系方式：GitHub 已接入真实账号（有据可查，configured: true）；
    * 其余渠道保持 { value: "待配置", configured: false } 占位——
    * 数据留档、渲染隐藏，绝不虚构。

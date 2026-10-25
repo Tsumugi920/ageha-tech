@@ -10,6 +10,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { WORLD_COLORS } from "../lib/world/constants.ts";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -173,10 +174,58 @@ test("玻璃拟态类被真实消费：app/ 与 components/ 中至少各命中�
         if (source.includes("glass-card")) cardUsages += 1;
       }
     }
-  };
+    };
   scan(path.join(projectRoot, "app"));
   scan(path.join(projectRoot, "components"));
 
   assert.ok(panelUsages >= 1, ".glass-panel 应至少被一个组件使用（当前 0 次）");
   assert.ok(cardUsages >= 1, ".glass-card 应至少被一个组件使用（当前 0 次）");
+});
+
+/* --------------------- 3D 世界色板与 @theme 令牌同源（阶段 3） --------------------- */
+
+test("WORLD_COLORS 与 globals.css @theme 令牌逐项同源：可映射色值逐字一致（蓝图 §3.1）", () => {
+  const tokens = parseThemeTokens(readProjectFile("app/globals.css"));
+
+  // 直接同源映射：3D 常量 ↔ CSS 令牌（逐字一致，防漂移）
+  const mappings = [
+    ["--color-sky", WORLD_COLORS.glass, "玻璃主材质 = sky"],
+    ["--color-sky", WORLD_COLORS.iceEdge, "冰晶缘 = sky"],
+    ["--color-ice", WORLD_COLORS.snow, "冰雪面 = ice"],
+    ["--color-text-primary", WORLD_COLORS.rockDeep, "深蓝岩 = text-primary"],
+    ["--color-text-secondary", WORLD_COLORS.rockMid, "中蓝灰岩 = text-secondary"],
+    ["--color-cyan", WORLD_COLORS.trailGlow, "径流鳞粉 = cyan"],
+    ["--color-blue", WORLD_COLORS.crystal[1], "水晶中带 = blue"],
+    ["--color-purple", WORLD_COLORS.crystal[2], "水晶翼根 = purple"],
+  ];
+  for (const [token, worldValue, meaning] of mappings) {
+    assert.equal(
+      tokens.get(token)?.toLowerCase(),
+      worldValue.toLowerCase(),
+      `${meaning}：WORLD_COLORS 应与 @theme ${token} 逐字同源`,
+    );
+  }
+
+  // 3D 专属延展色（无同名令牌，蓝图 §3.1 注明出处）：色值格式合法 + 注释在档
+  for (const [key, value] of [
+    ["skyTop", WORLD_COLORS.skyTop],
+    ["skyHorizon", WORLD_COLORS.skyHorizon],
+    ["fog", WORLD_COLORS.fog],
+    ["sea", WORLD_COLORS.sea],
+    ["crystal0", WORLD_COLORS.crystal[0]],
+    ["mossGreen", WORLD_COLORS.mossGreen],
+    ["marketWarm", WORLD_COLORS.marketWarm],
+  ]) {
+    assert.match(
+      value,
+      /^#[0-9a-fA-F]{6}$/,
+      `3D 延展色 ${key} 应为合法 hex（实际 ${value}）`,
+    );
+  }
+  const constantsSrc = readProjectFile("lib/world/constants.ts");
+  assert.match(
+    constantsSrc,
+    /icon\.svg|品牌三色/,
+    "constants.ts 应注明 crystal 三色的 icon.svg 同源出处",
+  );
 });

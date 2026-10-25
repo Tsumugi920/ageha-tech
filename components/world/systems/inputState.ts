@@ -24,6 +24,26 @@ export const inputState = {
   wantRespawn: false,
   /** 交互触发计数（E 键 / 提示条点击递增，InteractionSystem 对账消费） */
   interactToken: 0,
+  /**
+   * 指针拖拽守卫（阶段 2 交互）：pointerdown 复位，FollowCamera 拖拽累计
+   * 位移超过阈值后置 true——区分「点击交互体」与「拖拽观察」，
+   * 拖拽结束时的 pointerup 不触发场景交互 / 面板关闭。
+   */
+  pointerDragged: false,
+  /**
+   * 传送请求（DOM 层写入目标 id，TeleportSystem 帧内消费后清空）
+   */
+  teleportTarget: null as string | null,
+  /**
+   * 相机构图保持解除请求（TeleportSystem 起飞时置位，FollowCamera 帧内
+   * 消费——传送作为首次输入也要立即接管相机，不能停在初始机位看戏）
+   */
+  wantCameraRelease: false,
+  /**
+   * 传送飞行中（TeleportSystem 置位）：控制器让位——跳过移动 / 贴地，
+   * 位置完全由传送运镜接管，结束后复位。
+   */
+  teleportActive: false,
 };
 
 /** 相机轨道状态（yaw/pitch/距离档）：pointer 拖拽与跟随对齐共同驱动 */
@@ -48,6 +68,10 @@ export function resetInputState() {
   inputState.zoomStep = 0;
   inputState.wantRespawn = false;
   inputState.interactToken = 0;
+  inputState.pointerDragged = false;
+  inputState.teleportTarget = null;
+  inputState.teleportActive = false;
+  inputState.wantCameraRelease = false;
   cameraState.yaw = CAMERA_LIMITS.initialYaw;
   cameraState.pitch = CAMERA_LIMITS.initialPitch;
   cameraState.distanceIndex = CAMERA_LIMITS.initialDistanceIndex;

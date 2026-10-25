@@ -4,8 +4,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   AdditiveBlending,
   BoxGeometry,
-  BufferAttribute,
-  BufferGeometry,
   DoubleSide,
   InstancedMesh,
   Matrix4,
@@ -14,49 +12,13 @@ import {
 } from "three";
 import { TRAILS } from "@/lib/world/layout";
 import { WORLD_COLORS } from "@/lib/world/constants";
+import { buildRibbonGeometry } from "./ribbonGeometry";
 
 /**
  * 鳞粉蝶径（蓝图 §2.3 / 阶段 1 雏形：几何光带 + 悬浮石板段，零纹理）。
  * 石板用 InstancedMesh（重复物体实例化渲染），光带为双层丝带几何
  * （宽幅微光 + 中心亮线），全部程序化生成、卸载时 dispose。
  */
-
-function buildRibbonGeometry(
-  samples: ReadonlyArray<{ x: number; y: number; z: number }>,
-  width: number,
-  yOffset: number,
-): BufferGeometry {
-  const count = samples.length;
-  const positions = new Float32Array(count * 2 * 3);
-  const indices: number[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const prev = samples[Math.max(0, i - 1)];
-    const next = samples[Math.min(count - 1, i + 1)];
-    let tx = next.x - prev.x;
-    let tz = next.z - prev.z;
-    const len = Math.hypot(tx, tz) || 1;
-    tx /= len;
-    tz /= len;
-    // 侧向 = 切线 × 上
-    const sx = tz * (width / 2);
-    const sz = -tx * (width / 2);
-    const s = samples[i];
-    positions[i * 6] = s.x - sx;
-    positions[i * 6 + 1] = s.y + yOffset;
-    positions[i * 6 + 2] = s.z - sz;
-    positions[i * 6 + 3] = s.x + sx;
-    positions[i * 6 + 4] = s.y + yOffset;
-    positions[i * 6 + 5] = s.z + sz;
-    if (i < count - 1) {
-      const a = i * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  return geometry;
-}
 
 const SLAB_STRIDE = 3;
 const SLAB_SCALE = new Vector3(2.6, 0.16, 1.7);
@@ -67,7 +29,7 @@ export function Trails() {
     () =>
       TRAILS.map((trail) => ({
         band: buildRibbonGeometry(trail.samples, trail.width * 1.15, -0.26),
-        line: buildRibbonGeometry(trail.samples, 0.5, -0.24),
+        line: buildRibbonGeometry(trail.samples, 0.7, -0.24),
       })),
     [],
   );
@@ -119,12 +81,13 @@ export function Trails() {
     <group>
       {TRAILS.map((trail, i) => (
         <group key={trail.id}>
-          {/* 宽幅微光带 */}
+          {/* 宽幅微光带（阶段 3 实测调校：0.16 在初始构图里读不出径向，
+              提到 0.22——仍克制，不与蝶枢抢焦点） */}
           <mesh geometry={ribbons[i].band}>
             <meshBasicMaterial
               color={WORLD_COLORS.trailGlow}
               transparent
-              opacity={0.16}
+              opacity={0.22}
               depthWrite={false}
               side={DoubleSide}
             />
@@ -134,7 +97,7 @@ export function Trails() {
             <meshBasicMaterial
               color={WORLD_COLORS.trailGlow}
               transparent
-              opacity={0.5}
+              opacity={0.6}
               depthWrite={false}
               blending={AdditiveBlending}
               side={DoubleSide}

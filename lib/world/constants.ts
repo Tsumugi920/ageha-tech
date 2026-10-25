@@ -21,6 +21,7 @@ export const WORLD_COLORS = {
   iceEdge: "#DDF3FF",
   glass: "#DDF3FF",
   glassEdge: "#54E3FF",
+  /** 蝶枢水晶三色渐变（翼尖→中带→翼根）：app/icon.svg 同款品牌三色 */
   crystal: ["#8FE8FF", "#269DFF", "#9C83FF"] as const,
   trailGlow: "#54E3FF",
   mossGreen: "#6FCF9E",
@@ -81,6 +82,13 @@ export const PLAYER_PHYSICS = {
 export const INTERACTION = {
   nameplateDistance: 10,
   promptDistance: 6,
+  /** 茧居所发现半径（进入即点亮导航传送项，§9.1 隐藏彩蛋） */
+  nookDiscoveryRadius: 12,
+  /**
+   * 移动端交互距离倍率（§7 触屏友好的交互距离）：提示 / 高亮 /
+   * 名牌淡入半径整体 ×1.4（6→8.4、10→14），3D 点击热区同步外扩。
+   */
+  mobileRadiusScale: 1.4,
 } as const;
 
 /** 空间尺度（§2.2 坐标表引用的通用尺度） */
@@ -90,4 +98,14 @@ export const WORLD_SCALE = {
   seaSize: 2000,
   skyDomeRadius: 380,
   cloudBandY: [30, 60] as const,
+} as const;
+
+/**
+ * 场景内资产路径登记（§11.2 产物，阶段 3 起消费）：
+ * 数据层单源——渲染组件一律从本登记取路径，禁内联路径字面量
+ * （world-assets.test.mjs 断言 useTexture 只消费登记变量）。
+ */
+export const WORLD_ASSET_PATHS = {
+  /** 星尘蝶群精灵：app/icon.svg 栅格化 512px（透明底，§5.3） */
+  butterflySprite: "/world/butterfly-sprite-512.png",
 } as const;

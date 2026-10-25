@@ -65,10 +65,12 @@ export const TIER_PARAMS: Record<QualityTier, TierParams> = {
   },
 } as const;
 
-/** 移动端补偿（§6.3：摄影机 +2 档偏移、速度上限 −20%；FOV 60 见 constants） */
+/** 移动端补偿（§6.3：摄影机 +2 档偏移、速度上限 −20%、自动回正更弱；FOV 60 见 constants） */
 export const MOBILE_MODIFIERS = {
   defaultTier: "medium" as QualityTier,
   cameraDistanceOffset: 2,
+  /** 移动端 yaw 对齐移动方向的权重（桌面 0.4；触屏自动回正更弱，§6.3「简化摄影机」） */
+  cameraAlignWeight: 0.15,
   speedScale: 0.8,
 } as const;
 

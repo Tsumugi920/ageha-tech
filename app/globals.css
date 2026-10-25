@@ -254,6 +254,9 @@ body:has(#world-root) footer {
   z-index: 0;
   overflow: hidden;
   background: var(--color-sky);
+  /* fixed Navbar 避让线：Navbar 底边实测 ≈82px（pt-4 + 4rem 胶囊），
+     取 92px；品牌角标与世界面板共用，保证同一条视觉顶线 */
+  --world-nav-clear: 5.75rem;
 }
 
 .world-canvas {
@@ -336,6 +339,124 @@ body:has(#world-root) footer {
   color: var(--color-text-secondary);
 }
 
+/* 资源加载失败（useProgress errors）：如实提示 + 重试 / 项目列表降级（§13.2） */
+.world-loading__fail {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(158, 196, 236, 0.9);
+  box-shadow: var(--shadow-card);
+}
+
+.world-loading__fail-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.world-loading__fail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.world-loading__retry {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #1668C4, #269DFF);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: filter 0.25s ease;
+}
+
+.world-loading__retry:hover {
+  filter: brightness(1.08);
+}
+
+.world-loading__browse {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1.25rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-link);
+}
+
+/* WebGL 上下文丢失恢复遮罩（§12.3：恢复期间不白屏、给手动出路） */
+.world-context-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: rgba(221, 243, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.world-context-mask__text {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.world-context-mask__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.world-context-mask__reload {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #1668C4, #269DFF);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: filter 0.25s ease;
+}
+
+.world-context-mask__reload:hover {
+  filter: brightness(1.08);
+}
+
+.world-context-mask__browse {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1.25rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-link);
+}
+
 /* ---- 品牌标头：加载态大字 → 就绪态 HUD 左上角标（同一节点过渡） ---- */
 .world-brand {
   position: absolute;
@@ -370,10 +491,10 @@ body:has(#world-root) footer {
   letter-spacing: 0.04em;
 }
 
-/* 就绪：收缩为 HUD 左上品牌角标（避让 fixed Navbar） */
+/* 就绪：收缩为 HUD 左上品牌角标（避让 fixed Navbar，与世界面板同一条避让线） */
 .world-brand--dock {
   left: 1.25rem;
-  top: 5.75rem;
+  top: var(--world-nav-clear, 5.75rem);
   transform: none;
   gap: 0.15rem;
   align-items: flex-start;
@@ -421,6 +542,25 @@ body:has(#world-root) footer {
   animation: world-zone-in 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* 档位自适应一次性提示（§12.2：升降档 4s 后自动消失；与 zone 同语言小一号） */
+.world-hud__quality {
+  position: absolute;
+  top: 8.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.32rem 0.95rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  animation: world-zone-in 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .world-hud__prompt {
   position: absolute;
   bottom: 6.5rem;
@@ -428,7 +568,7 @@ body:has(#world-root) footer {
   transform: translateX(-50%);
 }
 
-.world-hud__prompt-link {
+.world-hud__prompt-btn {
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
@@ -445,10 +585,11 @@ body:has(#world-root) footer {
   color: var(--color-link);
   white-space: nowrap;
   transition: background 0.25s ease;
+  cursor: pointer;
   pointer-events: auto;
 }
 
-.world-hud__prompt-link:hover {
+.world-hud__prompt-btn:hover {
   background: rgba(255, 255, 255, 0.9);
   color: var(--color-link-hover);
 }
@@ -529,6 +670,7 @@ body:has(#world-root) footer {
   -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--shadow-card);
   transition: background 0.25s ease;
+  cursor: pointer;
 }
 
 .world-hud__quick-item:hover {
@@ -743,8 +885,10 @@ body:has(#world-root) footer {
   gap: 0.15rem;
   padding: 0.45rem 0.9rem;
   border-radius: 0.875rem;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  /* 白 88%：名牌会悬浮在深色衬底前（茧居所穹窟岩壁 / 岛岩背光面），
+     68% 时 text-secondary 对最坏衬底仅 3.02:1（contrast.test.mjs 数值核算） */
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-card);
@@ -818,6 +962,471 @@ body:has(#world-root) footer {
   color: var(--color-link-hover);
 }
 
+/* ---- 世界面板（详情 / 导航 / 说明：右侧 380px 滑入，移动端底部抽屉） ----
+   蓝图 §13.4-§13.6 / §8 反馈一致性：打开 280ms cubic-bezier(0.22,1,0.36,1)
+   右滑入；文字一律深墨令牌（contrast.test.mjs 数值级守护），白字仅限
+   深蓝渐变 CTA（与 world-toast__primary 同一组端点）。 */
+.world-panel {
+  position: absolute;
+  /* 顶边必须避让 Navbar：面板活在 .world-root(z-index:0) 层叠上下文里，
+     永远压不过文档流 sticky z-50 的导航（实测 × 键 y12-56 被导航 y0-82 吃掉点击），
+     因此物理下移到避让线，而不是比 z-index */
+  top: var(--world-nav-clear, 5.75rem);
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: min(24rem, 92vw);
+  background: rgba(255, 255, 255, 0.86);
+  border-left: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow: -18px 0 48px rgba(71, 115, 183, 0.16);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  transform: translateX(100%);
+  visibility: hidden;
+  pointer-events: none;
+  /* 打开 280ms 滑入；关闭同曲线滑出，visibility 在动画结束后才隐藏 */
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0.28s;
+}
+
+.world-panel--open {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.world-panel:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.world-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.35rem 0.9rem;
+}
+
+.world-panel__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.world-panel__title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.world-panel__close {
+  display: grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: -0.5rem -0.6rem 0 0;
+  border-radius: 9999px;
+  font-size: 1.375rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.world-panel__close:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
+}
+
+.world-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.35rem 1.35rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.world-panel__footer {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.35rem 1.35rem;
+  border-top: 1px solid rgba(69, 126, 194, 0.18);
+}
+
+/* 详情面板（§13.4）：数据全部来自 lib/projects.ts，封面 next/image */
+.world-detail__cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: #E8F3FD;
+}
+
+.world-detail__cover-img {
+  object-fit: cover;
+}
+
+.world-detail__status {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.2rem 0.7rem;
+  border-radius: 9999px;
+  background: rgba(38, 157, 255, 0.14);
+  border: 1px solid rgba(38, 157, 255, 0.3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.world-detail__desc {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.world-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.world-detail__tag {
+  padding: 0.18rem 0.6rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(69, 126, 194, 0.22);
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  color: var(--color-text-secondary);
+}
+
+.world-detail__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.world-detail__link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1.1rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-link);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.world-detail__link:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-link-hover);
+}
+
+/* Moss World 诚实边界：无链接时如实说明，不渲染任何入口按钮 */
+.world-detail__nolink {
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.75rem;
+  background: rgba(75, 102, 138, 0.08);
+  border: 1px dashed rgba(75, 102, 138, 0.35);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* 面板 CTA：深蓝渐变白字（端点与 world-toast__primary 同组，4.9/5.4/6.5:1） */
+.world-panel__primary {
+  display: inline-flex;
+  min-height: 2.75rem;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-inline: 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-image: linear-gradient(102deg, #1173C4 0%, #0F6DB5 55%, #0E5FA8 100%);
+  box-shadow:
+    0 10px 30px rgba(17, 109, 181, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.world-panel__primary:hover {
+  transform: translateY(-2px);
+}
+
+.world-panel__ghost {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-inline: 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e3a66;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.world-panel__ghost:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* 世界导航面板（§13.5） */
+.world-nav__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.world-nav__heading {
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.world-nav__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.world-nav__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.world-nav__card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.world-nav__card-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.world-nav__card-status {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.world-nav__card-key {
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+
+.world-nav__card-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.world-nav__card-btn {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  padding-inline: 0.8rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(69, 126, 194, 0.28);
+  font-size: 0.78125rem;
+  font-weight: 600;
+  color: var(--color-link);
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.world-nav__card-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-link-hover);
+}
+
+.world-nav__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.world-nav__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.1rem;
+}
+
+.world-nav__link {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-link);
+  text-decoration: none;
+  min-height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.world-nav__link:hover {
+  color: var(--color-link-hover);
+}
+
+/* 操作说明面板（§13.6） */
+.world-help__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.world-help__heading {
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.world-help__table {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem 1rem;
+  margin: 0;
+}
+
+.world-help__table dt {
+  font-family: var(--font-mono);
+  font-size: 0.78125rem;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.world-help__table dd {
+  font-size: 0.84375rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.world-help__table kbd {
+  display: inline-block;
+  min-width: 1.35rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(69, 126, 194, 0.3);
+  border-bottom-width: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.world-help__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--color-text-secondary);
+}
+
+.world-help__list li {
+  font-size: 0.84375rem;
+  line-height: 1.65;
+}
+
+.world-help__note {
+  font-size: 0.84375rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  margin: 0 0 0.35rem;
+}
+
+/* 面板移动端形态：底部抽屉（§13.4，触屏可达 / 摇杆避让） */
+@media (max-width: 640px) {
+  .world-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 76vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.92);
+    border-radius: 1.25rem 1.25rem 0 0;
+    transform: translateY(100%);
+  }
+
+  .world-panel--open {
+    transform: translateY(0);
+  }
+
+  /* 触屏交互提示条放大（§7 触屏友好的点击区域：44 → 52px + 大字号） */
+  .world-hud__prompt {
+    bottom: 9.5rem;
+  }
+
+  .world-hud__prompt-btn {
+    min-height: 3.25rem;
+    padding-inline: 1.75rem;
+    font-size: 1.0625rem;
+  }
+}
+
 /* ---- 世界关键帧 ---- */
 @keyframes world-progress-sweep {
   0% {
@@ -860,6 +1469,7 @@ body:has(#world-root) footer {
   .world-brand__logo,
   .world-loading__bar::after,
   .world-hud__zone,
+  .world-hud__quality,
   .world-toast {
     animation: none;
   }
@@ -867,8 +1477,9 @@ body:has(#world-root) footer {
   .world-brand,
   .world-loading::before,
   .world-loading__progress,
-  .world-hud__prompt-link,
-  .world-toast__primary {
+  .world-hud__prompt-btn,
+  .world-toast__primary,
+  .world-panel {
     transition: none;
   }
 

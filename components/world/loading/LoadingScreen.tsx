@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import Link from "next/link";
 import { useProgress } from "@react-three/drei";
 import { ButterflyLogo } from "@/components/layout/ButterflyLogo";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,8 @@ import { cn } from "@/lib/utils";
  *   h1 节点随世界就绪经 CSS 过渡收缩为 HUD 左上品牌角标（§13.1，节点不换）；
  * - 进度来自 drei useProgress 的真实资产计数（首屏零大纹理，进度快是
  *   真实结果）；无资产加载时显示阶段文案，绝不显示假百分比；
+ * - 资源加载失败（useProgress errors）：如实提示「部分区域未能点亮」+
+ *   重试 + 项目列表降级入口（brief §10 失败路径，不静默）；
  * - 世界就绪后整体淡出并放行指针事件。
  */
 export function LoadingScreen({
@@ -23,7 +26,8 @@ export function LoadingScreen({
   engineReady: boolean;
   children: ReactNode;
 }) {
-  const { active: assetsLoading, progress, loaded, total } = useProgress();
+  const { active: assetsLoading, progress, loaded, total, errors } = useProgress();
+  const failed = errors.length > 0;
 
   // 加载期禁止底层画布滚动 / 拖拽误触
   useEffect(() => {
@@ -42,19 +46,37 @@ export function LoadingScreen({
     >
       <div className="world-loading__brand">
         {children}
-        <div className="world-loading__progress" role="status" aria-live="polite">
-          {/* 不确定态为扫描光带；有真实资产时以文本呈现真实计数与百分比
-              （useProgress 实测值），不用假进度宽度 */}
-          <div
-            className="world-loading__bar"
-            data-state={showAssets ? "assets" : "engine"}
-          />
-          <p className="world-loading__text">
-            {showAssets
-              ? `正在点亮群岛… ${Math.round(progress)}%（${loaded}/${total}）`
-              : "正在点亮群岛…"}
-          </p>
-        </div>
+        {failed ? (
+          <div className="world-loading__fail" role="alert">
+            <p className="world-loading__fail-text">部分区域未能点亮</p>
+            <div className="world-loading__fail-actions">
+              <button
+                type="button"
+                className="world-loading__retry"
+                onClick={() => window.location.reload()}
+              >
+                重试
+              </button>
+              <Link href="/projects" className="world-loading__browse">
+                直接浏览项目列表
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="world-loading__progress" role="status" aria-live="polite">
+            {/* 不确定态为扫描光带；有真实资产时以文本呈现真实计数与百分比
+                （useProgress 实测值），不用假进度宽度 */}
+            <div
+              className="world-loading__bar"
+              data-state={showAssets ? "assets" : "engine"}
+            />
+            <p className="world-loading__text">
+              {showAssets
+                ? `正在点亮群岛… ${Math.round(progress)}%（${loaded}/${total}）`
+                : "正在点亮群岛…"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

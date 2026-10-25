@@ -8,7 +8,13 @@
  * 纯 TS 数据（无 three 依赖），node --test 直接 import 校验
  * （tests/world-layout.test.mjs：碰撞体须含蝶枢与三屿主体、交互登记覆盖三 slug）。
  */
-import { BUTTERFLY_CORE, PROJECT_ISLES } from "./layout.ts";
+import {
+  BUTTERFLY_CORE,
+  CHRYSALIS_NOOK,
+  PROJECT_ISLES,
+  SIGN_POST,
+  TRAIL_BEACONS,
+} from "./layout.ts";
 
 export type CylinderCollider = {
   readonly kind: "cylinder";
@@ -34,8 +40,9 @@ export type BoxCollider = {
 export type Collider = CylinderCollider | BoxCollider;
 
 /**
- * 静态碰撞体清单（阶段 1：蝶枢禁入圆柱 + 三屿中央结构占位圆柱；
- * 阶段 2 随正式造型扩充栏杆 / 基座 / 穹舱壁等）。
+ * 静态碰撞体清单：蝶枢禁入圆柱 + 三屿中央结构圆柱（每屿的偏移/半径
+ * 见 PROJECT_ISLES.collider）+ 主岛石碑与三径导向标（阶段 3 落地；
+ * 导向标为径头侧方位石，推出半径 0.5 已按不占可行走带校核）。
  */
 export const STATIC_COLLIDERS: readonly Collider[] = [
   {
@@ -51,18 +58,38 @@ export const STATIC_COLLIDERS: readonly Collider[] = [
     (isle): CylinderCollider => ({
       kind: "cylinder",
       id: `collider-${isle.id}-structure`,
-      centerX: isle.center.x,
-      centerZ: isle.center.z,
-      radius: 3,
+      centerX: isle.center.x + isle.collider.offsetX,
+      centerZ: isle.center.z + isle.collider.offsetZ,
+      radius: isle.collider.radius,
       yMin: isle.center.y,
-      yMax: isle.center.y + 12,
+      yMax: isle.center.y + 14,
+    }),
+  ),
+  {
+    kind: "cylinder",
+    id: `collider-${SIGN_POST.id}`,
+    centerX: SIGN_POST.x,
+    centerZ: SIGN_POST.z,
+    radius: 1.0,
+    yMin: -1,
+    yMax: 3.4,
+  },
+  ...TRAIL_BEACONS.map(
+    (beacon): CylinderCollider => ({
+      kind: "cylinder",
+      id: `collider-${beacon.id}`,
+      centerX: beacon.x,
+      centerZ: beacon.z,
+      radius: 0.5,
+      yMin: -1,
+      yMax: 2.2,
     }),
   ),
 ] as const;
 
 /**
  * 相机遮挡体（AABB）：相机↔角色连线 raycast 命中则前移（§7）。
- * 阶段 1 覆盖蝶枢与三屿结构体量；阶段 2 随造型精修同步更新。
+ * 蝶枢 + 三屿结构体量（按各屿 collider 尺寸推导）；阶段 3 随造型精修。
  */
 export const CAMERA_OCCLUDERS: readonly BoxCollider[] = [
   {
@@ -76,9 +103,12 @@ export const CAMERA_OCCLUDERS: readonly BoxCollider[] = [
     (isle): BoxCollider => ({
       kind: "box",
       id: `occluder-${isle.id}-structure`,
-      minX: isle.center.x - 3.2, maxX: isle.center.x + 3.2,
-      minY: isle.center.y, maxY: isle.center.y + 12,
-      minZ: isle.center.z - 3.2, maxZ: isle.center.z + 3.2,
+      minX: isle.center.x + isle.collider.offsetX - isle.collider.radius,
+      maxX: isle.center.x + isle.collider.offsetX + isle.collider.radius,
+      minY: isle.center.y,
+      maxY: isle.center.y + 14,
+      minZ: isle.center.z + isle.collider.offsetZ - isle.collider.radius,
+      maxZ: isle.center.z + isle.collider.offsetZ + isle.collider.radius,
     }),
   ),
 ] as const;
@@ -100,17 +130,18 @@ export type Interactable = {
 };
 
 /**
- * 交互体登记：三项目屿 + 蝶枢 + 茧居所彩蛋（彩蛋阶段 2 开放交互）。
- * world-layout.test.mjs 校验 slug 覆盖三项目。
+ * 交互体登记：三项目屿 + 蝶枢 + 茧居所彩蛋（阶段 2 开放：旋径可达，
+ * 进入发现半径后导航面板点亮传送项；画廊展品交互在阶段 3 落地）。
+ * world-layout.test.mjs 校验 slug 覆盖三项目 + core / egg 类型。
  */
 export const INTERACTABLES: readonly Interactable[] = [
   ...PROJECT_ISLES.map((isle) => ({
     id: isle.id,
     type: "project" as const,
     slug: isle.slug,
-    x: isle.center.x,
+    x: isle.center.x + (isle.anchor?.offsetX ?? 0),
     y: isle.center.y,
-    z: isle.center.z,
+    z: isle.center.z + (isle.anchor?.offsetZ ?? 0),
     radius: 6,
     label: isle.name,
   })),
@@ -122,6 +153,15 @@ export const INTERACTABLES: readonly Interactable[] = [
     z: BUTTERFLY_CORE.center.z,
     radius: 6,
     label: "蝶枢 · 世界核心",
+  },
+  {
+    id: CHRYSALIS_NOOK.id,
+    type: "egg",
+    x: CHRYSALIS_NOOK.center.x,
+    y: CHRYSALIS_NOOK.center.y,
+    z: CHRYSALIS_NOOK.center.z,
+    radius: 6,
+    label: "茧居所 · 设计原稿画廊",
   },
 ] as const;
 
