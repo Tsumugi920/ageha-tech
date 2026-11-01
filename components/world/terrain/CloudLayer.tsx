@@ -20,10 +20,12 @@ export function CloudLayer({ tier }: { tier: TierParams }) {
   const reducedMotion = usePrefersReducedMotion();
   const texture = useMemo(() => createSoftBlobTexture(), []);
   // 两档材质（远带更淡），按索引轮换复用
+  // R12.0-D（G10）：透明度与体量各提一档——旧云在 380 穹顶下几乎
+  // 不可读（18 号仰视机位近乎空白天空），增强后地平线有可读的天象
   const materials = useMemo(
     () => [
-      new SpriteMaterial({ map: texture, transparent: true, opacity: 0.68, depthWrite: false }),
-      new SpriteMaterial({ map: texture, transparent: true, opacity: 0.4, depthWrite: false }),
+      new SpriteMaterial({ map: texture, transparent: true, opacity: 0.7, depthWrite: false }),
+      new SpriteMaterial({ map: texture, transparent: true, opacity: 0.45, depthWrite: false }),
     ],
     [texture],
   );
@@ -40,10 +42,10 @@ export function CloudLayer({ tier }: { tier: TierParams }) {
     for (let i = 0; i < tier.clouds; i += 1) {
       const material = materials[i % 2];
       const angle = i * 2.399963 + 0.7;
-      // 半径 80~160：阶段 3 实测调校——超过 ~180 后被线性雾（far 260）
-      // 大半吃掉、天上一朵都读不出来（浏览器实测 0 团可见的回归修复）
-      const radius = 80 + ((i * 53) % 100) * 0.8;
-      const scale = 30 + ((i * 17) % 26);
+      // 半径 80~150、云团 40~78：贴着地平线的两档云带（R12.0-D 加大），
+      // 在蝶枢与远景岛之间提供尺度参照，但保持低对比、不抢主视觉。
+      const radius = 80 + ((i * 53) % 100) * 0.7;
+      const scale = 40 + ((i * 17) % 38);
       const sprite = new Sprite(material);
       const y = i % 2 === 0 ? minY + ((i * 13) % 12) : maxY - ((i * 29) % 14);
       sprite.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
@@ -61,11 +63,20 @@ export function CloudLayer({ tier }: { tier: TierParams }) {
   }, [materials, tier.clouds]);
 
   const anglesRef = useRef<number[]>(clouds.map((c) => c.angle));
+  const frameRef = useRef(0);
+  const pendingDelta = useRef(0);
 
   useFrame((_, delta) => {
     if (reducedMotion) return;
+    // 云漂移是分钟级运动：每 12 帧更新一次（60Hz 下约 5Hz）即可，
+    // 把逐帧 5 次 sprite 位置写入从主线程移除。
+    pendingDelta.current += delta;
+    frameRef.current += 1;
+    if (frameRef.current % 12 !== 0) return;
+    const step = pendingDelta.current;
+    pendingDelta.current = 0;
     for (let i = 0; i < clouds.length; i += 1) {
-      anglesRef.current[i] += clouds[i].drift * delta * (i % 2 === 0 ? 1 : -1);
+      anglesRef.current[i] += clouds[i].drift * step * (i % 2 === 0 ? 1 : -1);
       const a = anglesRef.current[i];
       clouds[i].sprite.position.set(
         Math.cos(a) * clouds[i].radius,

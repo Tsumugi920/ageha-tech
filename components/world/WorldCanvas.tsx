@@ -9,9 +9,10 @@ import {
   WORLD_FOG,
 } from "@/lib/world/constants";
 import { PROJECT_ISLES } from "@/lib/world/layout";
-import { MOBILE_MODIFIERS, pickInitialTier } from "@/lib/world/performance";
+import { MOBILE_MODIFIERS, pickInitialTier, pickTierOverride } from "@/lib/world/performance";
 import { MainIsland } from "./terrain/MainIsland";
 import { Trails } from "./terrain/Trails";
+import { NorthRouteDressing } from "./terrain/NorthRouteDressing";
 import { SkyDome } from "./terrain/SkyDome";
 import { CloudLayer } from "./terrain/CloudLayer";
 import { IceSea } from "./terrain/IceSea";
@@ -20,11 +21,14 @@ import { AmbientShards } from "./terrain/AmbientShards";
 import { SceneEnvironment } from "./terrain/SceneEnvironment";
 import { ProjectIsle } from "./objects/ProjectIsle";
 import { GalleryNook } from "./objects/GalleryNook";
+import { MemoryRing } from "./objects/MemoryRing";
 import { ButterflyCore } from "./objects/ButterflyCore";
 import { GuideButterfly } from "./objects/GuideButterfly";
 import { ButterflyFlock } from "./objects/ButterflyFlock";
+import { TextureBoundary } from "./systems/TextureBoundary";
 import { SignPost } from "./objects/SignPost";
 import { DriftLantern } from "./objects/DriftLantern";
+import { WorldAudioMotion } from "./systems/WorldAudio";
 import { usePlayerController } from "./systems/usePlayerController";
 import { FollowCamera } from "./systems/FollowCamera";
 import { InteractionSystem } from "./systems/InteractionSystem";
@@ -36,6 +40,8 @@ import {
 } from "./systems/AdaptiveQuality";
 import { ContextGuard } from "./systems/ContextGuard";
 import { resetInputState } from "./systems/inputState";
+import { WorldDiagnostics } from "./systems/WorldDiagnostics";
+import { SunLight } from "./systems/SunLight";
 import type { ResizeObserverCtor } from "./systems/resizePolyfill";
 
 /**
@@ -57,7 +63,12 @@ export default function WorldCanvas({
   onReady: () => void;
   resizePolyfill?: ResizeObserverCtor;
 }) {
-  const initialTier = pickInitialTier(isMobileLike);
+  const initialTier =
+    pickTierOverride(
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("tier"),
+    ) ?? pickInitialTier(isMobileLike);
   const fov = isMobileLike ? CAMERA_LIMITS.fovMobile : CAMERA_LIMITS.fovDesktop;
 
   // 卸载时复位共享输入 / 相机状态，防止跨会话残留
@@ -71,7 +82,7 @@ export default function WorldCanvas({
     <Canvas
       className="world-canvas"
       shadows={initialTier.shadows !== false}
-      dpr={[1, initialTier.dprMax]}
+      dpr={[Math.min(1, initialTier.dprMax), initialTier.dprMax]}
       resize={resizePolyfill ? { polyfill: resizePolyfill } : undefined}
       camera={{
         fov,
@@ -84,17 +95,43 @@ export default function WorldCanvas({
         ],
       }}
       gl={{
-        antialias: true,
+        // 手机上关闭 MSAA：1.25× 渲染分辨率 + 低多边形切面已足够干净，
+        // 而 4× MSAA 在移动 GPU 上是实打实的带宽成本。
+        antialias: !isMobileLike,
+        precision: isMobileLike ? "mediump" : "highp",
         powerPreference: "high-performance",
         toneMapping: ACESFilmicToneMapping,
+        toneMappingExposure: 0.9,
       }}
       onCreated={handleCreated}
     >
-      <QualityProvider isMobileLike={isMobileLike}>
+      <QualityProvider isMobileLike={isMobileLike} initialTier={initialTier}>
         <WorldScene isMobileLike={isMobileLike} />
       </QualityProvider>
     </Canvas>
   );
+}
+
+/**
+ * 页面不可见时暂停整条渲染循环（切后台 / 锁屏 / 切标签页）：
+ * 既避免无意义的 GPU 占用，也避免把挂起时长误算进性能采样。
+ */
+function VisibilityPause() {
+  const setFrameloop = useThree((state) => state.setFrameloop);
+
+  useEffect(() => {
+    const sync = () => {
+      setFrameloop(document.visibilityState === "visible" ? "always" : "never");
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      setFrameloop("always");
+    };
+  }, [setFrameloop]);
+
+  return null;
 }
 
 /**
@@ -171,37 +208,42 @@ function SceneContent({
 
   return (
     <>
-      {/* 线性雾（§2.3：near 70 / far 260，色 #CFEBFF） */}
+      {/* 线性雾（R2：near 105 / far 360，近景不再被雾冲淡） */}
       <fog attach="fog" args={[WORLD_FOG.color, WORLD_FOG.near, WORLD_FOG.far]} />
 
-      {/* 阶段 4 系统：帧率自适应 / 阴影动态开关 / WebGL 上下文守卫 */}
-      <AdaptiveQuality />
+      {/* 阶段 4 系统：帧率自适应 / 阴影动态开关 / WebGL 上下文守卫 / 后台暂停 */}
+      <AdaptiveQuality
+        isMobileLike={isMobileLike}
+        pinned={Boolean(
+          typeof window !== "undefined" &&
+            new URLSearchParams(window.location.search).has("tier"),
+        )}
+      />
       <ShadowToggle />
       <ContextGuard />
+      <VisibilityPause />
 
       {/* 环境反射：程序化 PMREM（零外部 HDR；金属 / 玻璃的冰蓝反射来源） */}
       <SceneEnvironment />
 
-      {/* 光照（§3.3）：晨光平行光（东北 35° 仰角，投影只罩主岛+蝶枢）+ 半球光 */}
+      {/* 光照（R2）：暖色主光建立明确明暗面 + 冷色半球补暗部 + 反向冷填光。
+          R12.0-D（G7）：曝光再平衡——主光 2.7→2.45（雪面向阳坡不再顶到
+          近纯白），半球 / 填光各 +12%/+10% 补偿（背光面更透 气），
+          总亮度量级不变、方向对比收敛 */}
       <hemisphereLight
         color={WORLD_COLORS.hemiSky}
         groundColor={WORLD_COLORS.hemiGround}
-        intensity={0.55}
+        intensity={0.47}
       />
+      <SunLight player={player} shadowsEnabled={shadowsEnabled} />
+      {/* 冷色反向填光：只塑形不投影，避免背光面变成死黑 */}
       <directionalLight
-        color={WORLD_COLORS.sunLight}
-        intensity={1.25}
-        position={[46, 40, -34]}
-        castShadow={shadowsEnabled}
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-42}
-        shadow-camera-right={42}
-        shadow-camera-top={36}
-        shadow-camera-bottom={-36}
-        shadow-camera-near={8}
-        shadow-camera-far={180}
-        shadow-bias={-0.0004}
+        color="#A9DFFF"
+        intensity={0.46}
+        position={[-34, 22, 34]}
       />
+      {/* 冰海反照：极弱自下而上补光，托起浮岛底面（不是第二主光） */}
+      <directionalLight color="#BCE4FF" intensity={0.3} position={[-12, -30, 18]} />
 
       {/* 环境：天空穹 / 云层 / 冰海 / 远景浮岛 / 浮晶中景 */}
       <SkyDome />
@@ -214,8 +256,10 @@ function SceneContent({
 
       {/* 近景：主岛 / 石碑与导向标 / 三条蝶径 / 三座项目屿 / 茧居所旋径 */}
       <MainIsland />
+      <MemoryRing />
       <SignPost />
       <Trails />
+      <NorthRouteDressing player={player} />
       {PROJECT_ISLES.map((isle) => (
         <ProjectIsle
           key={isle.id}
@@ -231,19 +275,24 @@ function SceneContent({
       {/* 蝶三件套：蝶枢（世界核心）/ 引导蝶（导航角色）/ 星尘蝶群（氛围+彩蛋） */}
       <ButterflyCore glass={glass} />
       <GuideButterfly player={player} />
-      <Suspense fallback={null}>
-        <ButterflyFlock player={player} tier={tier} />
-      </Suspense>
+      <TextureBoundary fallback={null}>
+        <Suspense fallback={null}>
+          <ButterflyFlock player={player} tier={tier} />
+        </Suspense>
+      </TextureBoundary>
 
-      {/* 角色 / 相机 / 交互 / 传送 */}
+      {/* 角色 / 声音 / 相机 / 交互 / 传送 */}
       <DriftLantern player={player} />
+      <WorldAudioMotion player={player} />
       <FollowCamera
         player={player}
+        isMobileLike={isMobileLike}
         distanceOffset={isMobileLike ? MOBILE_MODIFIERS.cameraDistanceOffset : 0}
         alignWeight={isMobileLike ? MOBILE_MODIFIERS.cameraAlignWeight : 0.4}
       />
       <InteractionSystem player={player} />
       <TeleportSystem player={player} />
+      <WorldDiagnostics player={player} />
     </>
   );
 }
