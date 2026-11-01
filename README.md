@@ -43,6 +43,10 @@
 键盘（WASD / E / 1·2·3 / M / H）与触屏（虚拟摇杆 / 双指捏合）均可操控，
 世界导航面板可直达任意项目与全部站点路由——探索不是获取信息的唯一路径。
 
+少量探索目标与本地进度：北径信标、三个项目区体验、茧居所发现；中央广场的
+记忆环逐瓣点亮，完整进度可在世界导航查看与重置。进度只保存目标 id，不保存
+个人信息；本地存储不可用时退化为会话内状态并如实提示。
+
 **性能与降级**（阶段 4，`lib/world/performance.ts` 三档 + 帧率自适应）：
 
 - 设备形态静态选初始档（桌面高 / 触屏中），此后按实测帧时间自动升降档
@@ -56,6 +60,10 @@
   （蝶枢开合 / 引导蝶巡飞 / 云漂移 / 行情柱滚动等）全部静止或瞬时完成，
   角色操控保持可用；
 - 加载屏进度来自真实资产计数（drei `useProgress`），不用假百分比。
+
+R4 的性能复测方法（含 R3 5.3 FPS 假象的根因）、多端实测数据、前后对比截图与
+已知限制见 [docs/r4-report.md](docs/r4-report.md)。P5 生产构建最终回归（视口 /
+性能 / 无障碍 / 失败路径 / 路由）见 [docs/p5-final-report.md](docs/p5-final-report.md)。
 
 ## 技术栈
 
@@ -89,12 +97,13 @@ npm run start
 # 5. 代码检查
 npm run lint
 
-# 6. 测试套件（node --test，13 个测试文件 / 161 条断言用例）
+# 6. 测试套件（node --test，21 个测试文件；R11 施工中用例数会变化）
 npm test
 ```
 
-以上命令均来自 `package.json` 的 `scripts` 字段，其中 `lint`、`test`、`build`
-已在提交前于本机实际运行通过（0 告警 / 161 通过 0 失败 / 构建成功）。
+以上命令均来自 `package.json` 的 `scripts` 字段。P5 快照最后一次全量为
+245 通过 0 失败、lint 0 告警、构建成功；当前工作区仍有并发 R11 地形细化，
+最终门禁需在 R11 完成后复跑。
 
 ## 目录结构
 
@@ -179,7 +188,7 @@ AgehaTech/
 
 ## 测试套件
 
-`npm test` 运行 `tests/*.test.mjs`（Node 内置 test runner），覆盖：
+`npm test` 运行 `tests/*.test.mjs`（Node 内置 test runner；P5 快照 21 个文件 / 245 条用例，R11 施工中仍会变化），覆盖：
 
 | 文件 | 守护内容 |
 | --- | --- |
@@ -192,6 +201,14 @@ AgehaTech/
 | `home-sections.test.mjs` / `sections.test.mjs` | 版块数据单源、世界详情/导航面板数据同源与 Moss 诚实空链、无年份承诺 |
 | `content-honesty.test.mjs` | 数据级诚实边界：外链白名单 / 无日期 / 联系渠道「待配置」/ 世界层零外链 |
 | `world-layout.test.mjs` | 世界坐标级校验：蝶径与茧居所旋径、多层地形、交互登记、碰撞体、传送落点、屏幕贴图登记、性能档位 |
+| `world-feedback.test.mjs` | P2 北径信标时序、音量持久化、运动声音映射 |
+| `world-experiences.test.mjs` | P3 三项目演示选项、标题/复位文案与诚实边界 |
+| `world-exploration.test.mjs` | P4 五目标状态机、幂等完成、版本化存档、Storage 失败回退与清除 |
+| `player-motion.test.mjs` | 输入聚合与碰撞法线速度解算 |
+| `agehaos-geometry.test.mjs` / `butterfly-sculpture.test.mjs` | 程序化几何尺度 / 材质与蝶雕塑约束 |
 | `world-assets.test.mjs` | 世界资产纪律：客户端组件、禁 troika Text、零外链、无裸 img、§11.2 产物体积上限 |
+| `r10-materials.test.mjs` | R10 环境材质与后处理红线：岩层明度、雪面哑光、路缘低透明度、无后处理栈 |
+| `r11-terrain-refine.test.mjs` | R11 主岛四区地貌 / 檐口 / 层错 / 丝带自发光守护（并发施工中） |
+| `ribbon-geometry.test.mjs` | 贴地丝带的宽度 / 横向 offset / 法线朝上（R9 广场—道路铺装连续性） |
 | `site.test.mjs` | 站点配置、`.gitignore` 必含项、素材非空 |
 | `readme.test.mjs` | README 与仓库真实状态一致（命令 / 素材表 / 占位说明） |

@@ -371,15 +371,23 @@ test("键盘可操作：跳转链接 + 主内容锚点 + 移动菜单 Esc 关闭
   assert.match(navbar, /aria-controls="mobile-nav-menu"/);
 });
 
-test("键盘可操作：世界控制键全键盘可达（WASD/方向键/E/R），窗口失焦清空按键态", () => {
+test("键盘可操作：世界控制器绑定键盘 / 失焦 / 页面隐藏监听并在卸载时注销", () => {
   const controller = readProjectFile("components/world/systems/usePlayerController.ts");
-  for (const code of ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyE", "KeyR", "ShiftLeft"]) {
+  // E / R 仍由控制器直接处理（阶段 2 交互 / 回航）
+  for (const code of ["KeyE", "KeyR"]) {
     assert.ok(controller.includes(`"${code}"`), `控制器应处理 ${code}`);
   }
   assert.match(controller, /addEventListener\("keydown"/, "应监听 keydown");
   assert.match(controller, /addEventListener\("keyup"/, "应监听 keyup");
   assert.match(controller, /addEventListener\("blur"/, "窗口失焦应清空按键态");
+  assert.match(controller, /addEventListener\("visibilitychange"/, "页面隐藏应清空按键态");
   assert.match(controller, /removeEventListener/, "卸载应注销全部监听");
+  // 移动键 / 同义键 / 左右 Shift 的行为覆盖见 tests/player-motion.test.mjs
+  assert.match(
+    controller,
+    /createKeyboardMoveInput/,
+    "移动输入应走纯键盘状态机（物理键集合 → 逻辑轴）",
+  );
 });
 
 /* ==================== 阶段 2 交互系统：键盘 / 焦点 / 传送 / 拖拽守卫 ==================== */
@@ -473,24 +481,69 @@ test("世界面板动画与降级：280ms 同曲线滑入滑出，reduced-motion
   const css = readProjectFile("app/globals.css");
   const panelRule = css.match(/\.world-panel\s*\{([\s\S]*?)\}/);
   assert.ok(panelRule, "应有 .world-panel 基础规则");
+  // 打开 / 关闭用 transform 滑入；焦点使用 preventScroll 防止世界容器滚屏
+  // （usePanelA11y 中守护，见面板键盘可达测试）。
   assert.match(
     panelRule[1],
     /transform 0\.28s cubic-bezier\(0\.22, 1, 0\.36, 1\)/,
     "面板过渡应为 280ms 同曲线（§8 反馈一致性）",
   );
+  assert.match(panelRule[1], /transform:\s*translateX\(100%\)/, "关闭态应向右滑出");
   assert.match(panelRule[1], /visibility 0s linear 0\.28s/, "滑出完成后才隐藏");
   const openRule = css.match(/\.world-panel--open\s*\{([\s\S]*?)\}/);
   assert.ok(openRule, "应有打开态规则");
-  // 移动端底部抽屉形态（§13.4）
+  assert.match(openRule[1], /transform:\s*translateX\(0\)/, "打开态应回归零位移");
+  // 移动端内容自适应底部抽屉（§13.4）；不再使用固定 82vh 导致空白
   const mobileBlock = css.slice(css.indexOf("@media (max-width: 640px)"));
   assert.match(
     mobileBlock,
-    /\.world-panel\s*\{[\s\S]*?max-height:\s*76vh/,
-    "移动端面板应为底部抽屉（≤76vh）",
+    /\.world-panel\s*\{[\s\S]*?max-height:\s*calc\(100dvh - var\(--world-nav-clear/,
+    "移动端面板高度应受导航下方视口限制，内容自适应",
+  );
+  assert.match(
+    mobileBlock,
+    /\.world-panel__header\s*\{/,
+    "移动端标题 / 关闭键应独立于滚动区",
+  );
+  assert.match(
+    css,
+    /\.world-panel__body\s*\{[\s\S]*?overscroll-behavior:\s*contain/,
+    "正文滚动不应带动背景",
+  );
+  // 引导卡与摇杆 / 工具栏分层避让（R4 移动端重叠修复）
+  assert.match(
+    mobileBlock,
+    /\.world-toast\s*\{[\s\S]*?bottom:\s*calc\(8\.25rem \+ env\(safe-area-inset-bottom, 0px\)\)/,
+    "移动端引导卡应抬到摇杆 / 工具栏之上",
   );
   // reduced-motion：全局兜底瞬时化已覆盖面板（hero/responsive 双断言在此复核）
   const reducedBlock = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
   assert.match(reducedBlock, /\.world-panel\s*\{[^}]*transition:\s*none/);
+});
+
+test("详情封面不收缩：纵向 Flex 中保持 16/10，正文独立滚动（矮桌面防压扁）", () => {
+  const css = readProjectFile("app/globals.css");
+  const coverRule = css.match(/\.world-detail__cover\s*\{([\s\S]*?)\}/);
+  assert.ok(coverRule, "应有 .world-detail__cover 基础规则");
+  assert.match(
+    coverRule[1],
+    /aspect-ratio:\s*16\s*\/\s*10/,
+    "桌面封面应保持 16 / 10 比例",
+  );
+  assert.match(
+    coverRule[1],
+    /flex-shrink:\s*0/,
+    "封面不得在纵向 Flex 正文中收缩（矮窗口不塌缩成横带）",
+  );
+
+  const bodyRule = css.match(/\.world-panel__body\s*\{([\s\S]*?)\}/);
+  assert.ok(bodyRule, "应有 .world-panel__body 规则");
+  assert.match(bodyRule[1], /min-height:\s*0/, "滚动区应允许收缩到父级高度内");
+  assert.match(bodyRule[1], /overflow-y:\s*auto/, "超出高度的正文应独立滚动");
+
+  const footerRule = css.match(/\.world-panel__footer\s*\{([\s\S]*?)\}/);
+  assert.ok(footerRule, "应有 .world-panel__footer 规则");
+  assert.match(footerRule[1], /flex-shrink:\s*0/, "底部操作区应常驻可见");
 });
 
 test("世界面板顶部避让：× 关闭键不被 fixed Navbar 遮挡（真实点击回归）", () => {
@@ -594,15 +647,26 @@ test("性能：WorldCanvas 初始档限 DPR 与阴影 + QualityProvider 动态�
   const canvas = readProjectFile("components/world/WorldCanvas.tsx");
   assert.match(canvas, /"use client"/);
   // 初始档（设备形态静态选档）声明 Canvas 上限；此后 AdaptiveQuality 按帧时间接管
-  assert.match(canvas, /dpr=\{\[1, initialTier\.dprMax\]\}/, "初始 DPR 应限制在 [1, 初始档上限]");
+  assert.match(
+    canvas,
+    /dpr=\{\[Math\.min\(1, initialTier\.dprMax\), initialTier\.dprMax\]\}/,
+    "初始 DPR 应限制在 [min(1, 档位上限), 档位上限]（低档允许 sub-1 渲染）",
+  );
   assert.match(
     canvas,
     /shadows=\{initialTier\.shadows !== false\}/,
     "初始阴影应随初始档开关（three 0.186 已移除 PCFSoft，用默认 PCF）",
   );
-  assert.match(canvas, /<QualityProvider isMobileLike=\{isMobileLike\}>/, "场景应包裹 QualityProvider");
-  for (const system of ["AdaptiveQuality", "ShadowToggle", "ContextGuard"]) {
-    assert.ok(canvas.includes(`<${system} />`), `场景应挂载 ${system}`);
+  assert.match(
+    canvas,
+    /<QualityProvider isMobileLike=\{isMobileLike\} initialTier=\{initialTier\}>/,
+    "场景应把设备形态与初始档位一起传入 QualityProvider",
+  );
+  for (const system of ["AdaptiveQuality", "ShadowToggle", "ContextGuard", "VisibilityPause"]) {
+    assert.ok(
+      canvas.includes(`<${system}`),
+      `场景应挂载 ${system}`,
+    );
   }
   const shell = readProjectFile("components/world/WorldShell.tsx");
   assert.match(shell, /ssr: false/, "3D Canvas 必须 ssr:false 装载");
@@ -771,7 +835,7 @@ test("资源清理审计：显式创建的 GPU 资源全部 dispose，监听器�
     });
   // 显式 new 的 GPU 资源（几何/材质/纹理/渲染目标）必须同文件 dispose；
   // 白名单 = 几何工厂（返回值由调用方 dispose，调用方均在本断言覆盖内）
-  const factoryWhitelist = new Set(["FloatingRock.ts", "butterflyShape.ts", "ribbonGeometry.ts"]);
+  const factoryWhitelist = new Set(["islandGeometry.ts", "butterflyShape.ts", "ribbonGeometry.ts"]);
   const gpuResource = /new\s+[A-Z]\w*(Geometry|Material|Texture|PMREMGenerator|WebGLRenderTarget)\b/;
   for (const file of scan(worldDir)) {
     if (factoryWhitelist.has(path.basename(file))) continue;

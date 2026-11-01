@@ -7,7 +7,7 @@ import { getZoneName } from "@/lib/world/layout";
 import { INTERACTION } from "@/lib/world/constants";
 import { inputState } from "./inputState";
 import type { PlayerApi } from "./usePlayerController";
-import { useWorldUI } from "../WorldUIContext";
+import { useWorldUI, type WorldPrompt } from "../WorldUIContext";
 
 /**
  * 交互系统（蓝图 §8 全量，阶段 2；阶段 4 移动端交互距离放大）：
@@ -19,9 +19,9 @@ import { useWorldUI } from "../WorldUIContext";
  * 场景点击入口在 ProjectIsle 的交互代理 mesh（含拖拽守卫）。
  */
 export function InteractionSystem({ player }: { player: PlayerApi }) {
-  const { setZone, setPrompt, openDetail, panel, isMobileLike } = useWorldUI();
+  const { setZone, setPrompt, openDetail, activateRelay, panel, isMobileLike } = useWorldUI();
   const lastZone = useRef<string | null>(null);
-  const lastPromptSlug = useRef<string | null>(null);
+  const lastPromptKey = useRef<string | null>(null);
   const lastToken = useRef(0);
   const frameCounter = useRef(0);
 
@@ -39,29 +39,36 @@ export function InteractionSystem({ player }: { player: PlayerApi }) {
       setZone(zone);
     }
 
-    // 最近项目交互体（触屏半径整体放大，交互锚点含 Moss 舱外监测屏）
+    // 最近交互体：项目详情或北径信标（触屏半径整体放大）
     const radiusScale = isMobileLike ? INTERACTION.mobileRadiusScale : 1;
-    let bestSlug: string | null = null;
-    let bestLabel = "";
+    let bestPrompt: WorldPrompt = null;
     let bestDistance = Infinity;
     for (const item of INTERACTABLES) {
-      if (item.type !== "project" || !item.slug) continue;
+      if (item.type !== "project" && item.type !== "relay") continue;
       const d = Math.hypot(p.x - item.x, p.z - item.z);
-      if (d < item.radius * radiusScale && d < bestDistance) {
+      if (d >= item.radius * radiusScale || d >= bestDistance) continue;
+      if (item.type === "project" && item.slug) {
+        bestPrompt = { kind: "project", label: item.label, slug: item.slug };
         bestDistance = d;
-        bestSlug = item.slug;
-        bestLabel = item.label;
+      } else if (item.type === "relay") {
+        bestPrompt = { kind: "relay", label: item.label, relayId: item.id };
+        bestDistance = d;
       }
     }
-    if (bestSlug !== lastPromptSlug.current) {
-      lastPromptSlug.current = bestSlug;
-      setPrompt(bestSlug ? { label: bestLabel, slug: bestSlug } : null);
+    const promptKey = bestPrompt
+      ? `${bestPrompt.kind}:${bestPrompt.kind === "project" ? bestPrompt.slug : bestPrompt.relayId}`
+      : null;
+    if (promptKey !== lastPromptKey.current) {
+      lastPromptKey.current = promptKey;
+      setPrompt(bestPrompt);
     }
 
     // E 键触发（token 对账，避免丢按 / 重复触发；面板打开期间不触发）
     if (inputState.interactToken !== lastToken.current) {
       lastToken.current = inputState.interactToken;
-      if (bestSlug && panel === null) openDetail(bestSlug);
+      if (panel !== null) return;
+      if (bestPrompt?.kind === "project") openDetail(bestPrompt.slug);
+      else if (bestPrompt?.kind === "relay") activateRelay();
     }
   });
 

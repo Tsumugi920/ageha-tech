@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { useWorldUI } from "../WorldUIContext";
+import { useWorldAudio } from "../systems/WorldAudio";
 import { usePanelA11y } from "./usePanelA11y";
 
 /**
@@ -12,6 +13,7 @@ import { usePanelA11y } from "./usePanelA11y";
  */
 export function HelpPanel() {
   const { panel, closePanel, isMobileLike } = useWorldUI();
+  const { muted, toggleMuted, volume, setVolume } = useWorldAudio();
   const open = panel === "help";
   const panelRef = useRef<HTMLElement>(null);
   usePanelA11y({ open, onClose: closePanel, panelRef });
@@ -89,8 +91,37 @@ export function HelpPanel() {
           <ul className="world-help__list">
             <li>三条蝶径各通向一座作品之屿，靠近设施出现「按 E 或点击」提示。</li>
             <li>主岛西北缘的窄径通往海面下的隐藏角落——发现后可从世界导航直达。</li>
+            <li>中央广场的记忆环会随探索进度逐瓣点亮；完整进度与重置在世界导航中。</li>
             <li>偏好减弱动态效果时，场景动画自动静止，操作不受影响。</li>
           </ul>
+        </section>
+
+        <section className="world-help__section" aria-label="声音">
+          <h3 className="world-help__heading">声音</h3>
+          <div className="world-help__volume">
+            <label htmlFor="world-help-volume">世界音量</label>
+            <input
+              id="world-help-volume"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(volume * 100)}
+              onChange={(event) => setVolume(Number(event.currentTarget.value) / 100)}
+            />
+            <span className="world-help__volume-value">{Math.round(volume * 100)}%</span>
+            <button
+              type="button"
+              className="world-help__mute"
+              onClick={toggleMuted}
+              aria-pressed={!muted}
+            >
+              {muted ? "开启声音" : "静音"}
+            </button>
+          </div>
+          <p className="world-help__note">
+            首次操作后启动；静音时所有视觉反馈保持完整。
+          </p>
         </section>
 
         <section className="world-help__section" aria-label="跳过探索">

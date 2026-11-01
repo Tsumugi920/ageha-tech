@@ -10,10 +10,10 @@
 
 /** 天空 / 雾 / 海（§3.1 色板；雾色介于天空顶与地平线之间） */
 export const WORLD_COLORS = {
-  skyTop: "#9CD8FF",
-  skyHorizon: "#EAF7FF",
-  fog: "#CFEBFF",
-  sea: "#A8DAF5",
+  skyTop: "#5FA6E0",
+  skyHorizon: "#E6F5FF",
+  fog: "#B7D6EC",
+  sea: "#8FC8E8",
   /** 岛岩：深蓝岩（globals.css --color-text-primary #10294B 转矿物色） */
   rockDeep: "#10294B",
   rockMid: "#4B668A",
@@ -28,27 +28,43 @@ export const WORLD_COLORS = {
   mossDeep: "#3E9E77",
   marketWarm: "#FFB36B",
   /** 晨光（微暖）与半球光（§3.3） */
-  sunLight: "#FFF6E8",
+  sunLight: "#FFF1DC",
   hemiSky: "#CDEBFF",
-  hemiGround: "#E8DFF0",
+  hemiGround: "#AFC6DD",
 } as const;
 
-/** 雾与相机（§2.3：线性雾 70→260，far=500，天空穹 r=380） */
-export const WORLD_FOG = { color: "#CFEBFF", near: 70, far: 260 } as const;
+/**
+ * 雾与相机（R3 重调）：
+ * - 雾 120→380：近景与主岛保持饱和，三屿 50~75 距离保留材质层次，
+ *   远景只在 200 以外才被雾吃掉；
+ * - 初始机位由 SPAWN_POINT + 跟随相机球坐标推导（与移动状态完全一致），
+ *   不再有「先停特殊机位、一移动就跳到跟随机位」的断层。
+ */
+export const WORLD_FOG = { color: "#B7D6EC", near: 120, far: 380 } as const;
 export const CAMERA_LIMITS = {
   near: 0.1,
   far: 500,
-  fovDesktop: 55,
-  fovMobile: 60,
-  /** 跟随距离三档（§6.2 滚轮） */
-  distances: [6, 9, 13] as const,
-  /** 初始构图（§7：出生点 → 蝶枢居中偏上 → 北径尽头塔剪影） */
-  initialPosition: { x: 0, y: 4.6, z: 18.5 },
-  initialLookAt: { x: 0, y: 3.2, z: -12 },
-  /** 跟随相机球坐标初始值（yaw=0 → 相机在目标正南方） */
-  initialYaw: 0,
-  initialPitch: 0.34,
+  fovDesktop: 58,
+  fovMobile: 64,
+  /** 跟随距离三档（§6.2 滚轮）：近看角色 / 常规探索 / 看全地标 */
+  distances: [8, 14, 20] as const,
+  /**
+   * 初始构图：相机在出生点正南、略仰视。yaw=0 时按 W 直行北径，
+   * 不会因初始斜角把玩家带向岛缘。
+   */
+  initialYaw: 0.55,
+  /** P1：初始俯角降低，镜头更贴近地面，首屏从「俯瞰沙盘」变为第三人称 */
+  initialPitch: 0.18,
+  /** P1：默认 14m 中近景——玩家信灯可读，北径与终点塔仍在画内 */
   initialDistanceIndex: 1,
+  /**
+   * 世界坐标初始机位（与 spawn + initialYaw/Pitch/Distance 推导值一致，
+   * 仅用于 Canvas 首帧；第一帧起由 FollowCamera 接管，二者无跳变）。
+   */
+  initialPosition: { x: 12.44, y: 3.96, z: 16.7 },
+  initialLookAt: { x: 5.25, y: 1.45, z: 4.95 },
+  /** 跟随视点前探距离（角色的前方探索区，而不是只看角色背影） */
+  lookAhead: 2.4,
   /** 轨道观察范围（§6.2：水平 ±120°、垂直 +8°~+60°） */
   yawRange: (Math.PI * 2) / 3,
   pitchMin: 0.14,
@@ -78,9 +94,9 @@ export const PLAYER_PHYSICS = {
   mobileSpeedScale: 0.8,
 } as const;
 
-/** 交互系统（§8：靠近 <10 名牌浮现、<6 高亮提示） */
+/** 交互系统（§8：靠近 <16 名牌浮现、<6 高亮提示；R2 提高名牌可读距离） */
 export const INTERACTION = {
-  nameplateDistance: 10,
+  nameplateDistance: 16,
   promptDistance: 6,
   /** 茧居所发现半径（进入即点亮导航传送项，§9.1 隐藏彩蛋） */
   nookDiscoveryRadius: 12,
@@ -97,7 +113,8 @@ export const WORLD_SCALE = {
   seaLevelY: -60,
   seaSize: 2000,
   skyDomeRadius: 380,
-  cloudBandY: [30, 60] as const,
+  /** R4：云带下移到地平线附近（8~26），才能在初始仰视构图里被看到 */
+  cloudBandY: [8, 26] as const,
 } as const;
 
 /**

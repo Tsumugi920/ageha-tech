@@ -11,12 +11,14 @@ import { usePrefersReducedMotion } from "../systems/usePrefersReducedMotion";
 /**
  * 浮晶碎屑（阶段 3 远景层次的中景层）：主岛与远景岛之间的高/低空
  * 悬浮小冰晶（instanced 八面体），给「近景主岛 → 中景三屿 → 远景浮岛」
- * 之间补上纵深参照物与前景遮挡关系——从蝶径上回望时碎屑掠过取景，
- * 空间尺度感成立。高度带避开可行走层（上带 +12~+30 / 下带 −30~−14，
- * 与三屿 / 蝶径在垂直方向天然分离，无需逐点避让）。
+ * 之间补上纵深参照物。
+ *
+ * R8 收敛：在近景构图里，半径 34 的上带碎屑会贴着主岛 / 蝶枢读成
+ * 「无来由的悬浮小晶体」。数量 34 → 18，上带外推到 48~110、抬高到
+ * 14~30，只保留远景尺度参照；下带仍在岛底以下。高度带继续避开可行走层。
  * 数量随性能档缩放；reduced-motion 冻结。位置确定性伪随机（无 SSR 抖动）。
  */
-const SHARD_COUNT_MAX = 34;
+const SHARD_COUNT_MAX = 18;
 
 type ShardUnit = {
   angle: number;
@@ -32,6 +34,7 @@ export function AmbientShards({ count }: { count: number }) {
   const reducedMotion = usePrefersReducedMotion();
   const meshRef = useRef<InstancedMesh>(null);
   const dummy = useMemo(() => new Object3D(), []);
+  const frameRef = useRef(0);
 
   const units = useMemo<ShardUnit[]>(() => {
     const list: ShardUnit[] = [];
@@ -41,13 +44,13 @@ export function AmbientShards({ count }: { count: number }) {
       // （阶段 3 实测：贴着主岛底会读成岛旁的暗色碎块，推远后成中景）
       const upper = i % 2 === 0;
       const radius = upper
-        ? 34 + ((i * 41) % 100) / 100 * 62
+        ? 48 + ((i * 41) % 100) / 100 * 62
         : 60 + ((i * 41) % 100) / 100 * 50;
       list.push({
         angle,
         radius,
         y: upper
-          ? 12 + ((i * 23) % 100) / 100 * 18
+          ? 14 + ((i * 23) % 100) / 100 * 16
           : -30 + ((i * 19) % 100) / 100 * 16,
         scale: 0.5 + ((i * 29) % 100) / 100 * 1.1,
         spin: 0.1 + ((i * 37) % 100) / 100 * 0.35,
@@ -68,6 +71,9 @@ export function AmbientShards({ count }: { count: number }) {
   useFrame((state) => {
     const mesh = meshRef.current;
     if (!mesh || reducedMotion || activeCount === 0) return;
+    // 碎屑只是缓慢升沉：每 3 帧更新一次（60Hz 下约 20Hz）足以保持连贯
+    frameRef.current += 1;
+    if (frameRef.current % 3 !== 0) return;
     const t = state.clock.elapsedTime;
     for (let i = 0; i < activeCount; i += 1) {
       const unit = units[i];

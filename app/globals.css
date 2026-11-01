@@ -243,8 +243,9 @@ body:has(#world-root) {
   overflow: hidden;
 }
 
-body:has(#world-root) > footer,
-body:has(#world-root) footer {
+/* 只隐藏站点级页脚（body 的直接子节点）；不能误伤世界面板内的
+   <footer class="world-panel__footer">（R4 修复：详情底部操作栏曾被一起隐藏） */
+body:has(#world-root) > footer {
   display: none;
 }
 
@@ -343,17 +344,25 @@ body:has(#world-root) footer {
 .world-loading__fail {
   position: absolute;
   left: 50%;
-  top: 62%;
+  top: 22%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  width: min(30rem, calc(100vw - 2rem));
   padding: 1.25rem 1.5rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(158, 196, 236, 0.9);
   box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+/* 世界已就绪后才发生的按需贴图失败：加载屏容器仍保持 pointer-events:none，
+   但失败提示必须可操作，且不能被 aria-hidden 隐藏。 */
+.world-loading--failed .world-loading__fail {
+  pointer-events: auto;
 }
 
 .world-loading__fail-text {
@@ -491,13 +500,24 @@ body:has(#world-root) footer {
   letter-spacing: 0.04em;
 }
 
-/* 就绪：收缩为 HUD 左上品牌角标（避让 fixed Navbar，与世界面板同一条避让线） */
+/* 就绪：品牌节点保留在 DOM / 读屏（h1 常驻），视觉上让位给顶部导航——
+   R2 修复：截图里左上曾同时出现导航品牌与这枚角标，形成重复品牌。
+   这里用 sr-only 视觉隐藏，而不是删除 h1（SEO / 标题层级仍完整）。 */
 .world-brand--dock {
   left: 1.25rem;
   top: var(--world-nav-clear, 5.75rem);
   transform: none;
   gap: 0.15rem;
   align-items: flex-start;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .world-brand--dock .world-brand__logo {
@@ -561,11 +581,117 @@ body:has(#world-root) footer {
   animation: world-zone-in 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* 探索目标完成一次性提示（P4；与档位提示同语言，暖色区分奖励） */
+.world-hud__progress {
+  position: absolute;
+  top: 10.3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.32rem 0.95rem;
+  border-radius: 9999px;
+  background: rgba(255, 246, 233, 0.82);
+  border: 1px solid rgba(255, 194, 122, 0.62);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b3f12;
+  white-space: nowrap;
+  max-width: 92vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: world-zone-in 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .world-hud__prompt {
   position: absolute;
   bottom: 6.5rem;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: max-content;
+  max-width: min(34rem, 94vw);
+}
+
+/* P3 场景体验控制带：与详情按钮同层，不遮挡项目入口 */
+.world-experience {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem 0.25rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  /* HUD 根层 pointer-events:none；体验控件必须显式恢复命中，
+     否则真实指针 / 触摸点不到选项（P4 目标完成依赖此入口）。 */
+  pointer-events: auto;
+}
+
+.world-experience__label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  padding-inline: 0.15rem;
+}
+
+.world-experience__options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.world-experience__btn,
+.world-experience__reset {
+  min-height: 2.75rem;
+  padding-inline: 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(69, 126, 194, 0.24);
+  background: rgba(255, 255, 255, 0.66);
+  font-size: 0.78125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.world-experience__btn:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-link-hover);
+}
+
+.world-experience__btn[aria-pressed="true"] {
+  background: rgba(38, 157, 255, 0.16);
+  border-color: rgba(38, 157, 255, 0.55);
+  color: var(--color-link);
+}
+
+.world-experience__reset {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.world-experience__reset:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.world-experience__note {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 0.625rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
 }
 
 .world-hud__prompt-btn {
@@ -600,23 +726,24 @@ body:has(#world-root) footer {
   bottom: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.9rem 1.1rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.62);
+  gap: 0.3rem;
+  width: min(22rem, calc(100vw - 2.5rem));
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: var(--shadow-card);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: 0.6875rem;
+  line-height: 1.55;
   color: var(--color-text-secondary);
   pointer-events: auto;
 }
 
 .world-hud__hint-close {
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
   align-self: flex-start;
   font-family: var(--font-sans);
   font-size: 0.75rem;
@@ -657,42 +784,73 @@ body:has(#world-root) footer {
   pointer-events: auto;
 }
 
+/* 项目入口合为一张玻璃卡片：字号可读、层级清楚，不再是一串散落胶囊 */
+.world-hud__projects {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 13.75rem;
+  padding: 0.4rem;
+  border-radius: 1.05rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: var(--shadow-card);
+}
+
+.world-hud__projects-label {
+  margin: 0;
+  padding: 0.15rem 0.55rem 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
 .world-hud__quick-item {
   display: flex;
+  width: 100%;
   min-height: 2.75rem;
   align-items: center;
+  justify-content: space-between;
   gap: 0.6rem;
-  padding-inline: 1rem;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-card);
-  transition: background 0.25s ease;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  border: 0;
+  transition: background 0.2s ease;
   cursor: pointer;
+  text-align: left;
 }
 
 .world-hud__quick-item:hover {
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .world-hud__quick-name {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--color-text-primary);
-  white-space: nowrap;
+  /* 长项目名允许换行：宁可行数增加，也不把「CS 饰品虚拟投资模拟器」截成省略号 */
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .world-hud__quick-status {
-  font-size: 0.6875rem;
+  flex-shrink: 0;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .world-hud__quick-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .world-hud__quick-mini {
@@ -717,31 +875,104 @@ body:has(#world-root) footer {
   color: var(--color-link-hover);
 }
 
+.world-hud__quick-icon {
+  padding-inline: 0.65rem;
+}
+
+.world-hud__quick-icon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.world-hud__quick-mini--active {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(38, 157, 255, 0.58);
+  color: var(--color-link);
+}
+
 /* ---- 首次引导卡（原 Hero 首屏文案迁移新家） ---- */
 .world-toast {
   position: absolute;
-  left: 50%;
-  bottom: 7.5rem;
-  transform: translateX(-50%);
+  left: max(1.5rem, calc((100vw - var(--container-max)) / 2 + var(--site-gutter)));
+  top: calc(var(--world-nav-clear, 5.75rem) + 1.1rem);
   z-index: 25;
-  width: min(27rem, calc(100vw - 2rem));
+  width: min(18.5rem, calc(100vw - 3rem));
+  max-height: calc(100dvh - var(--world-nav-clear, 5.75rem) - 1.6rem);
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
-  padding: 1.25rem 1.4rem;
-  border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  gap: 0.42rem;
+  padding: 0.85rem 0.95rem 0.7rem;
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
   box-shadow: var(--shadow-card);
-  animation: world-zone-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: world-toast-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: auto;
+  overflow: hidden;
+  transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+}
+
+.world-toast__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.1rem;
+}
+
+.world-toast__foot {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding-top: 0.15rem;
+  border-top: 1px solid rgba(69, 126, 194, 0.12);
+}
+
+.world-toast__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.world-toast__eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.world-toast__cancel {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -0.65rem -0.65rem -0.55rem 0;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.world-toast__cancel:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-primary);
 }
 
 .world-toast__intro {
-  font-size: 0.9375rem;
-  line-height: 1.7;
+  font-size: 0.875rem;
+  line-height: 1.65;
   color: var(--color-text-primary);
 }
 
@@ -752,10 +983,11 @@ body:has(#world-root) footer {
 
 .world-toast__stats {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.95rem;
   list-style: none;
-  padding: 0;
+  padding: 0.25rem 0 0;
   margin: 0;
+  border-top: 1px solid rgba(69, 126, 194, 0.14);
 }
 
 .world-toast__stats li {
@@ -766,28 +998,29 @@ body:has(#world-root) footer {
 
 .world-toast__value {
   font-family: var(--font-display);
-  font-size: 1.375rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
 .world-toast__label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--color-text-secondary);
 }
 
 .world-toast__actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .world-toast__primary {
   display: inline-flex;
   min-height: 2.75rem;
+  flex: 1;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding-inline: 1.35rem;
+  padding-inline: 1.1rem;
   border-radius: 9999px;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -812,7 +1045,7 @@ body:has(#world-root) footer {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding-inline: 1.35rem;
+  padding-inline: 1.1rem;
   border-radius: 9999px;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -828,17 +1061,39 @@ body:has(#world-root) footer {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.world-toast__guide {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* 暖色圆点：与场景中浮游信灯的暖芯一致，文字之外再给一个视觉锚点 */
+.world-toast__guide-dot {
+  flex-shrink: 0;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: #e8a45c;
+  box-shadow: 0 0 0 0.18rem rgba(232, 164, 92, 0.18);
+}
+
 .world-toast__keys {
   font-family: var(--font-mono);
-  font-size: 0.71875rem;
-  line-height: 1.6;
+  font-size: 0.6875rem;
+  line-height: 1.55;
   color: var(--color-text-secondary);
 }
 
 .world-toast__close {
   align-self: flex-end;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  min-height: 2.75rem;
+  padding-inline: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 700;
   color: var(--color-link);
   cursor: pointer;
 }
@@ -913,6 +1168,34 @@ body:has(#world-root) footer {
   color: var(--color-link);
 }
 
+/* 项目屿名牌：比导览牌更大一号（远处先读名字，靠近再读状态） */
+.world-nameplate--isle {
+  gap: 0.2rem;
+  padding: 0.5rem 1rem;
+}
+
+.world-nameplate--isle .world-nameplate__name {
+  font-size: 1.0625rem;
+}
+
+.world-nameplate--isle .world-nameplate__status {
+  font-size: 0.75rem;
+}
+
+/* 导览碑上的品牌句：不抢项目名牌的视觉层级 */
+.world-nameplate--quiet {
+  padding: 0.35rem 0.8rem;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.world-nameplate--quiet .world-nameplate__name {
+  font-size: 0.8125rem;
+}
+
+.world-nameplate--quiet .world-nameplate__status {
+  font-size: 0.6875rem;
+}
+
 /* ---- WebGL 降级项目浏览 ---- */
 .world-fallback {
   position: absolute;
@@ -966,6 +1249,29 @@ body:has(#world-root) footer {
    蓝图 §13.4-§13.6 / §8 反馈一致性：打开 280ms cubic-bezier(0.22,1,0.36,1)
    右滑入；文字一律深墨令牌（contrast.test.mjs 数值级守护），白字仅限
    深蓝渐变 CTA（与 world-toast__primary 同一组端点）。 */
+.world-panel-backdrop {
+  position: absolute;
+  top: var(--world-nav-clear, 5.75rem);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  border: 0;
+  background: rgba(24, 48, 73, 0.18);
+  backdrop-filter: blur(2px) saturate(0.92);
+  -webkit-backdrop-filter: blur(2px) saturate(0.92);
+  cursor: pointer;
+  animation: world-backdrop-in 0.22s ease-out;
+}
+
+.world-root[data-panel-open="true"] .world-hud,
+.world-root[data-panel-open="true"] .world-toast {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+}
+
 .world-panel {
   position: absolute;
   /* 顶边必须避让 Navbar：面板活在 .world-root(z-index:0) 层叠上下文里，
@@ -977,12 +1283,15 @@ body:has(#world-root) footer {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  width: min(24rem, 92vw);
-  background: rgba(255, 255, 255, 0.86);
-  border-left: 1px solid rgba(255, 255, 255, 0.92);
-  box-shadow: -18px 0 48px rgba(71, 115, 183, 0.16);
-  backdrop-filter: blur(22px) saturate(1.35);
-  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  width: min(26rem, 92vw);
+  background: rgba(251, 254, 255, 0.94);
+  border-left: 1px solid rgba(255, 255, 255, 0.96);
+  box-shadow: -24px 0 64px rgba(45, 82, 126, 0.2);
+  backdrop-filter: blur(24px) saturate(1.25);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  /* 打开 / 关闭用 transform 滑入；真正的错位根因是面板打开瞬间
+     focus() 触发了世界容器的自动滚屏，已在 usePanelA11y 用
+     preventScroll 修复。这里保持可合成的 280ms 同曲线过渡。 */
   transform: translateX(100%);
   visibility: hidden;
   pointer-events: none;
@@ -1054,7 +1363,10 @@ body:has(#world-root) footer {
 
 .world-panel__body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0.35rem 1.35rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -1064,7 +1376,8 @@ body:has(#world-root) footer {
 .world-panel__footer {
   display: flex;
   gap: 0.75rem;
-  padding: 1rem 1.35rem 1.35rem;
+  flex-shrink: 0;
+  padding: 1rem 1.35rem calc(1.35rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(69, 126, 194, 0.18);
 }
 
@@ -1073,6 +1386,9 @@ body:has(#world-root) footer {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 10;
+  /* 正文是纵向 Flex + overflow-y:auto：封面必须保持比例，矮桌面不压缩；
+     超出高度的内容交给正文滚动，底部操作按钮始终可达。 */
+  flex-shrink: 0;
   border-radius: 0.9rem;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -1304,6 +1620,140 @@ body:has(#world-root) footer {
   gap: 0.5rem;
 }
 
+/* 探索进度（P4）：低频状态列表 + 两步重置；全在导航面板内，不常驻 HUD */
+.world-progress__summary {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.world-progress__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.world-progress__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.world-progress__item[data-done="true"] {
+  background: rgba(255, 246, 233, 0.78);
+  border-color: rgba(255, 194, 122, 0.52);
+}
+
+.world-progress__mark {
+  font-size: 0.8rem;
+  color: #9cb8cd;
+}
+
+.world-progress__item[data-done="true"] .world-progress__mark {
+  color: #c1761c;
+}
+
+.world-progress__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.world-progress__title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.world-progress__hint {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.world-progress__state {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.world-progress__item[data-done="true"] .world-progress__state {
+  font-weight: 700;
+  color: #8a5514;
+}
+
+.world-progress__note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.world-progress__warning {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #8a2c1a;
+  font-weight: 600;
+}
+
+.world-progress__reset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.world-progress__reset > .world-nav__card-btn,
+.world-progress__actions .world-nav__card-btn {
+  min-height: 2.75rem;
+}
+
+.world-progress__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.8rem;
+  background: rgba(255, 246, 233, 0.88);
+  border: 1px solid rgba(255, 194, 122, 0.55);
+}
+
+.world-progress__confirm p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.world-progress__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.world-nav__card-btn--danger {
+  color: #8f3716;
+  border-color: rgba(143, 55, 22, 0.38);
+  background: rgba(255, 246, 233, 0.92);
+}
+
+.world-nav__card-btn--danger:hover {
+  background: #fff1de;
+  color: #73290e;
+}
+
 .world-nav__links {
   display: flex;
   flex-wrap: wrap;
@@ -1396,15 +1846,119 @@ body:has(#world-root) footer {
   margin: 0 0 0.35rem;
 }
 
-/* 面板移动端形态：底部抽屉（§13.4，触屏可达 / 摇杆避让） */
+.world-help__volume {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.world-help__volume label {
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.world-help__volume input[type="range"] {
+  flex: 1;
+  min-width: 7rem;
+  accent-color: var(--color-link);
+}
+
+.world-help__volume-value {
+  min-width: 2.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+.world-help__mute {
+  min-height: 2.75rem;
+  padding-inline: 0.8rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(69, 126, 194, 0.25);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.world-help__mute:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-link-hover);
+}
+
+/* 面板移动端形态：内容自适应底部抽屉（§13.4，触屏可达 / 摇杆避让） */
 @media (max-width: 640px) {
+  /* 引导卡改为底部信息条：抬到摇杆与工具栏之上，卡内滚动，不互相遮挡 */
+  .world-toast {
+    top: auto;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(8.25rem + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-height: calc(
+      100dvh - var(--world-nav-clear, 5.75rem) - 8.25rem - 0.75rem -
+        env(safe-area-inset-bottom, 0px)
+    );
+    padding: 0.85rem 0.95rem 0.6rem;
+    animation: none;
+  }
+
+  .world-toast__intro {
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  .world-toast__stats {
+    gap: 1.35rem;
+  }
+
+  .world-toast__value {
+    font-size: 1.05rem;
+  }
+
+  .world-toast__label {
+    font-size: 0.6875rem;
+  }
+
+  .world-toast__keys {
+    font-size: 0.65625rem;
+  }
+
+  .world-toast__cancel {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: -0.45rem -0.4rem -0.25rem 0;
+  }
+
+  .world-hud__quick {
+    right: 0.75rem;
+    bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.4rem;
+  }
+
+  .world-hud__quick-mini {
+    min-height: 2.75rem;
+    padding-inline: 0.75rem;
+    font-size: 0.78125rem;
+  }
+
+  .world-joystick {
+    bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* R4：内容自适应的底部抽屉。面板高度由内容决定，最高到导航下方；
+     标题与关闭键在滚动区外常驻，正文 / 封面在内部滚动，不再出现
+     “顶部被裁掉 + 底部一大片空白”的 82vh 固定高度问题。 */
   .world-panel {
     top: auto;
     left: 0;
     right: 0;
     bottom: 0;
     width: auto;
-    max-height: 76vh;
+    max-height: calc(100dvh - var(--world-nav-clear, 5.75rem) - 0.5rem);
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.92);
     border-radius: 1.25rem 1.25rem 0 0;
@@ -1415,15 +1969,143 @@ body:has(#world-root) footer {
     transform: translateY(0);
   }
 
+  .world-panel__header {
+    padding: 0.95rem 1rem 0.7rem;
+  }
+
+  .world-panel__title {
+    font-size: 1.25rem;
+  }
+
+  .world-panel__close {
+    margin: -0.3rem -0.35rem 0 0;
+  }
+
+  .world-panel__body {
+    padding: 0.25rem 1rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.85rem;
+  }
+
+  .world-panel__footer {
+    padding: 0.7rem 1rem calc(0.8rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 3:2 封面在 390px 宽下约占 260px 高，让详情首屏有足够视觉内容 */
+  .world-detail__cover {
+    aspect-ratio: 3 / 2;
+    flex-shrink: 0;
+  }
+
   /* 触屏交互提示条放大（§7 触屏友好的点击区域：44 → 52px + 大字号） */
   .world-hud__prompt {
     bottom: 9.5rem;
+  }
+
+  /* 探索进度：窄屏保持三列但压缩间距，说明文字允许换行 */
+  .world-progress__item {
+    gap: 0.45rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .world-progress__hint {
+    font-size: 0.65625rem;
+  }
+
+  .world-progress__state {
+    font-size: 0.625rem;
+  }
+
+  .world-progress__actions {
+    width: 100%;
+  }
+
+  .world-progress__actions .world-nav__card-btn {
+    flex: 1 1 8rem;
+    justify-content: center;
   }
 
   .world-hud__prompt-btn {
     min-height: 3.25rem;
     padding-inline: 1.75rem;
     font-size: 1.0625rem;
+  }
+
+  /* 移动端项目入口压缩：给 3D 场景留出更多画面（触控高度仍 ≥44px） */
+  .world-hud__projects {
+    width: 11.5rem;
+    padding: 0.3rem;
+  }
+
+  .world-hud__projects-label {
+    display: none;
+  }
+
+  .world-hud__quick-name {
+    font-size: 0.8125rem;
+  }
+
+  .world-hud__quick-status {
+    font-size: 0.6875rem;
+  }
+}
+
+/* ---- 触屏 / 窄屏：移除实时 backdrop-filter ----
+   全屏 WebGL 画布上的多层背景模糊需要每帧重新采样画面，在手机 GPU /
+   合成器上成本远高于它的视觉收益。这里改为更实的半透明白底；桌面端
+   仍保留完整玻璃质感。 */
+@media (max-width: 640px), (pointer: coarse) {
+  .world-joystick,
+  .world-hud__zone,
+  .world-hud__quality,
+  .world-hud__progress,
+  .world-hud__prompt-btn,
+  .world-hud__hint,
+  .world-hud__hint-dot,
+  .world-hud__projects,
+  .world-hud__quick-mini,
+  .world-toast,
+  .world-panel,
+  .world-panel-backdrop,
+  .world-nameplate,
+  body:has(#world-root) .glass-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .world-joystick {
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .world-hud__zone,
+  .world-hud__quality,
+  .world-hud__progress,
+  .world-hud__prompt-btn,
+  .world-hud__hint,
+  .world-hud__hint-dot,
+  .world-hud__projects,
+  .world-hud__quick-mini {
+    background: rgba(255, 255, 255, 0.86);
+  }
+
+  .world-hud__progress {
+    background: rgba(255, 246, 233, 0.94);
+  }
+
+  .world-hud__quick-mini:hover,
+  .world-hud__quick-mini--active {
+    background: rgba(255, 255, 255, 0.94);
+  }
+
+  .world-toast {
+    background: rgba(255, 255, 255, 0.93);
+  }
+
+  .world-panel {
+    background: rgba(251, 254, 255, 0.98);
+  }
+
+  body:has(#world-root) .glass-panel {
+    background: rgba(255, 255, 255, 0.92);
   }
 }
 
@@ -1460,6 +2142,26 @@ body:has(#world-root) footer {
   }
 }
 
+@keyframes world-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes world-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ---- 动效克制：偏好减弱动效时全部静止，文字与场景保持完整可读 ---- */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -1470,7 +2172,8 @@ body:has(#world-root) footer {
   .world-loading__bar::after,
   .world-hud__zone,
   .world-hud__quality,
-  .world-toast {
+  .world-toast,
+  .world-panel-backdrop {
     animation: none;
   }
 

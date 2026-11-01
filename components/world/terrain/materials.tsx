@@ -28,14 +28,16 @@ export function FrostRockMaterial({
   return <meshStandardMaterial color={color} roughness={0.85} flatShading />;
 }
 
-/** 冰雪面：可行走盘面（雪 / 冰微反光层，接收阴影的主表面） */
+/** 冰雪面：可行走盘面（雪 / 冰微反光层，接收阴影的主表面）。
+ *  R10：粗糙度 0.4→0.5、metalness 0.06→0.03——雪台帽在强光下的
+ *  塑料感高光收敛，读成积雪而不是亮面冰壳。 */
 export function SnowFieldMaterial({
   color = WORLD_COLORS.snow,
 }: {
   color?: string;
 }) {
   return (
-    <meshStandardMaterial color={color} roughness={0.4} metalness={0.06} />
+    <meshStandardMaterial color={color} roughness={0.5} metalness={0.03} />
   );
 }
 
@@ -55,14 +57,20 @@ export function GlassPaneMaterial({
   color = WORLD_COLORS.glass,
   opacity = 0.5,
   roughness = 0.22,
+  metalness = 0.1,
   emissive,
   emissiveIntensity = 0.2,
+  depthWrite = true,
+  envMapIntensity,
 }: {
   color?: string;
   opacity?: number;
   roughness?: number;
+  metalness?: number;
   emissive?: string;
   emissiveIntensity?: number;
+  depthWrite?: boolean;
+  envMapIntensity?: number;
 }) {
   return (
     <meshStandardMaterial
@@ -70,9 +78,11 @@ export function GlassPaneMaterial({
       transparent
       opacity={opacity}
       roughness={roughness}
-      metalness={0.1}
+      metalness={metalness}
       emissive={emissive}
       emissiveIntensity={emissiveIntensity}
+      depthWrite={depthWrite}
+      envMapIntensity={envMapIntensity}
     />
   );
 }

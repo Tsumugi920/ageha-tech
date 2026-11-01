@@ -35,3 +35,7 @@ screenshots/
 
 # 本地工作流工具状态
 .zcode/
+
+# 验收截图工作目录（各轮次对比图，仅本地保留）
+.r11-shots/
+.r12-shots/

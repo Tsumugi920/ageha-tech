@@ -64,16 +64,25 @@ export const MAIN_ISLAND = {
   coneDepth: 14,
 } as const;
 
-/** 出生点：主岛南缘，面北（§7 初始构图） */
-export const SPAWN_POINT = { x: 0, y: 0.35, z: 10 } as const;
+/**
+ * 出生点：主岛东南观景位（R3）。从这里向西北出发，视线正对蝶枢—
+ * 北径—AgehaOS 的纵深关系；镜头 yaw=0.3 时按 W 会沿主路径前进，
+ * 不再出现「初始 3/4 构图、一动就偏离主路」的断层。
+ */
+export const SPAWN_POINT = { x: 6.5, y: 0.35, z: 7 } as const;
 
-/** 蝶枢（世界核心）：主岛中心上空 (0,6,0)，环绕观赏不可进入（碰撞见 colliders.ts） */
+/**
+ * 蝶枢（世界核心）：主岛中心上空 (0,7,0)。
+ * R3：核心抬到 7m——玩家可从正下方穿过中央广场，不再被地面碰撞柱堵死
+ * 北径；碰撞/相机遮挡只作用于悬空装置本体（见 colliders.ts）。
+ */
 export const BUTTERFLY_CORE = {
   id: "butterfly-core",
   name: "蝶枢",
-  center: { x: 0, y: 6, z: 0 },
+  center: { x: 0, y: 7, z: 0 },
   height: 7,
-  wingspan: 10,
+  /** R4：翼展 7.6（R3 为 9.2）——仍是主视觉，但不再遮住后方终端塔与岛体 */
+  wingspan: 7.6,
 } as const;
 
 /* ------------------------------ 项目屿 ------------------------------ */
@@ -105,21 +114,25 @@ export const PROJECT_ISLES: readonly ProjectIsle[] = [
     id: "isle-agehaos",
     slug: "agehaos",
     name: "AgehaOS · 悬浮终端塔",
-    center: { x: 0, y: 4, z: -64 },
+    center: { x: -22, y: 4, z: -58 },
     radius: 12,
     accentColor: "#269DFF",
     collider: { offsetX: 0, offsetZ: 0, radius: 2.6 },
-    landingDistance: 5.5,
+    /** R3：塔身左移后，交互锚点仍在南侧到达平台（塔前观景位） */
+    anchor: { offsetX: 1, offsetZ: 5.2 },
+    landingDistance: 10.5,
   },
   {
     id: "isle-cs",
     slug: "cs-skin-invest",
     name: "CS 模拟器 · 行情观测环",
-    center: { x: -52, y: 8, z: 26 },
+    center: { x: -64, y: 8, z: 34 },
     radius: 13,
     accentColor: "#54E3FF",
     collider: { offsetX: 0, offsetZ: 0, radius: 2.8 },
-    landingDistance: 5.5,
+    /** R2：锚点移向东北到达侧（观测环入口），保证传送落地即出现查看入口 */
+    anchor: { offsetX: 4.6, offsetZ: -2.3 },
+    landingDistance: 10.2,
   },
   {
     id: "isle-moss",
@@ -130,7 +143,7 @@ export const PROJECT_ISLES: readonly ProjectIsle[] = [
     accentColor: WORLD_COLORS.mossGreen,
     collider: { offsetX: 4.5, offsetZ: 4.5, radius: 7.5 },
     anchor: { offsetX: -4, offsetZ: -2 },
-    landingDistance: 6.5,
+    landingDistance: 8.6,
   },
 ] as const;
 
@@ -193,10 +206,10 @@ export const TRAILS: readonly Trail[] = [
     "isle-agehaos",
     3.2,
     [
-      { x: 0, y: 0, z: -13 },
-      { x: 5, y: 1, z: -27 },
-      { x: -5, y: 2.5, z: -43 },
-      { x: 0, y: 4, z: -60 },
+      { x: -6, y: 0, z: -12 },
+      { x: -10.6, y: 1.2, z: -27 },
+      { x: -15, y: 2.6, z: -42 },
+      { x: -20, y: 4, z: -52 },
     ],
   ),
   buildTrail(
@@ -206,11 +219,16 @@ export const TRAILS: readonly Trail[] = [
     3.2,
     [
       { x: -15, y: 0, z: 6 },
-      { x: -24, y: 1, z: 0 },
-      { x: -38, y: 4.5, z: 14 },
-      // 终点外移至观测环结构碰撞体（半径 2.8）之外——阶段 1 的 (−50,8,24)
-      // 距岛心仅 2.83，会被推出圆柱卡住径尾（阶段 2 实测修正）
-      { x: -47, y: 8, z: 22 },
+      // R11.4 重排：旧路径 (-27,1.2,4)→(-44,4.2,17) 在离岛即爬升，
+      // 从西侧低机位（b0：(-40,-3.5,8)）仰视时采样点 0-20 全部投影在
+      // 岛上方 NDC y 0.19→0.95（最近 7.55m），读作横跨主岛的高架巨带。
+      // 新走向前段贴海低走（y ≤ 2）远离主岛轮廓，爬升段 (x −45 以远)
+      // 处于该机位视锥之外——连接功能与起终点不变。
+      { x: -24, y: 0.8, z: 10 },
+      { x: -38, y: 2.0, z: 17 },
+      // 终点在观测环结构碰撞体之外，落在新 CS 屿西侧到达平台
+      { x: -50, y: 5.5, z: 25 },
+      { x: -58, y: 8, z: 31 },
     ],
   ),
   buildTrail(
@@ -275,11 +293,14 @@ export const NOOK_CORRIDOR = {
   zoneName: "茧居所 · 旋径",
   width: 2.4,
   controlPoints: [
-    { x: -4, y: 0, z: -11.5 },
-    { x: -12, y: -1.5, z: -14.5 },
-    { x: -13.5, y: -6.5, z: -18.5 },
-    { x: -9.5, y: -13, z: -22 },
-    { x: -3, y: -17, z: -23 },
+    // R3：入口移到主岛西北缘并绕到岛身外侧——北径不再与旋径上下重叠，
+    // 从北径滑落不会被旋径接住（软边界会把玩家推回径面）
+    { x: -16.2, y: -0.2, z: -4.5 },
+    { x: -19.6, y: -2.4, z: -10 },
+    { x: -21.5, y: -7, z: -15.5 },
+    { x: -21, y: -12, z: -19.5 },
+    { x: -16, y: -16, z: -22 },
+    { x: -8, y: -17.5, z: -23 },
     { x: 0, y: -18, z: -22 },
   ] as const,
 } as const;
@@ -311,8 +332,39 @@ export const SIGN_POST = {
   x: 3.4,
   y: 0,
   z: 6.5,
-  /** 朝向：面向出生点与蝶枢连线方向（弧度，绕 Y） */
-  facing: Math.PI * 0.86,
+  /**
+   * 朝向：面向出生点的来客。R8 从 −0.72 转到 0.68——旧角度下三片导览鳍
+   * 与初始视线几乎平行，叠成一块高对比白片；转正后鳍片分开，碑体回到
+   * 「入口导览」的尺度，不再与中央广场争夺前景。
+   */
+  facing: 0.68,
+} as const;
+
+/**
+ * 中央广场的四个入口（R9）：三条蝶径的接近铺装 + 出生点迎宾步道。
+ *
+ * 这些点是「广场扇面铺装 → 接近铺装 → 径头门架」的共同 seam：
+ * - 半径约 5.9，位于广场压平区内（R9：r ≤ 6.4 全平，6.4–8.4 起坡），铺装与雪面同高过渡；
+ * - 四个方位刻意不等分：M 径（12°）与出生点（43°）在东南侧分开，
+ *   避免「入口与迎宾步道叠在一起」；A 径在西北、C 径在西南；
+ * - 仅作视觉铺装定位，不参与碰撞 / 可行走面查询（广场地面仍为解析 y=0）。
+ */
+export const PLAZA_MOUTHS = [
+  { id: "trail-a", x: -4.55, z: -3.76 },
+  { id: "trail-c", x: -5.51, z: 2.1 },
+  { id: "trail-m", x: 5.75, z: 1.22 },
+  { id: "spawn", x: 4.35, z: 4.05 },
+] as const;
+
+/**
+ * 北径触发信标（P1）：径头东侧的低矮基座 + 暖色晶石。
+ * 位于可行走带之外，但仍是实体——碰撞体登记在 colliders.ts。
+ */
+export const NORTH_RELAY = {
+  id: "north-relay",
+  x: TRAILS[0].samples[0].x + 3.4,
+  z: TRAILS[0].samples[0].z + 0.4,
+  radius: 0.75,
 } as const;
 
 /**
@@ -328,25 +380,170 @@ export const TRAIL_BEACONS: readonly {
   readonly x: number;
   readonly z: number;
 }[] = [
-  // 蝶径 A 起点 (0,−13)：径向 (0.336,−0.942)，内侧垂直偏移 → (2.26,−12.19)
-  { id: "beacon-trail-a", trailId: "trail-a", accentSlug: "agehaos", x: 2.26, z: -12.19 },
+  // 蝶径 A 起点 (−6,−12)：沿内侧垂直偏移 2.8 → (−8.68,−11.2)
+  { id: "beacon-trail-a", trailId: "trail-a", accentSlug: "agehaos", x: -8.68, z: -11.2 },
   // 蝶径 C 起点 (−15,6)：径向 (−0.834,−0.556)，内侧垂直偏移 → (−13.67,4.0)
   { id: "beacon-trail-c", trailId: "trail-c", accentSlug: "cs-skin-invest", x: -13.67, z: 4.0 },
   // 蝶径 M 起点 (14,7)：径向 (0.970,−0.243)，内侧垂直偏移 → (13.42,4.67)
   { id: "beacon-trail-m", trailId: "trail-m", accentSlug: "moss-world", x: 13.42, z: 4.67 },
 ] as const;
 
+/* ------------------------------ 主岛地表形态（视觉与碰撞同源） ------------------------------ */
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+const smoothstep01 = (edge0: number, edge1: number, value: number) => {
+  const t = clamp01((value - edge0) / (edge1 - edge0));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * 主岛雪原高度场（R11 四区地貌，单位 m）：
+ * - R7 的三层结构保留：大尺度山体 + 角度扰动的雪台 + 微风蚀面；
+ * - R11 把四个区域做出可辨识的性格：
+ *   「西岭高地」主峰抬到 2.4m 并加西北肩脊与两座迎风露岩丘；
+ *   「东北丘原」北坡抬到 0.95m，两座连绵圆丘构成起伏的丘原地貌；
+ *   「东缘冰碛带」东丘抬到 1.35m，一条斜向冰碛脊把高地体量引向冰晶池；
+ *   「南麓缓坡」保持温和（初始构图 / 出生 / 南观景台不动），只加深
+ *   西南风蚀洼地并在观景台内侧加一处浅雪盆；
+ * - 中央蝶枢广场、出生观景位、导览碑与三条蝶径周边继续自动压平；
+ *   径带过渡外缘从 5.4 收到 4.6——地形更早向道路抬升，路面不再像
+ *   独立铺装带；可行走半宽 1.6m 内仍然完全压平；
+ * - 顶面几何（islandGeometry.heightAt）与实际贴地碰撞（getGroundHeight）
+ *   共用本函数——视觉坡面即玩家脚下的坡面，不再是「贴图起伏 + 平板碰撞」。
+ * - 硬约束：全场最大高度 ≤3.0（多层 +4/−6 过滤安全余量），
+ *   广场四入口 y=0（入口压平测试钉死 ≤0.05）。
+ */
+export function mainIslandSurfaceY(x: number, z: number): number {
+  const ex = x / MAIN_ISLAND.semiAxisX;
+  const ez = z / MAIN_ISLAND.semiAxisZ;
+  const r = Math.hypot(ex, ez);
+  if (r > 1) return 0;
+
+  const theta = Math.atan2(ez, ex);
+  // 用低频角度波扭曲环状特征的边界（不是随机噪声，SSR / 刷新稳定）
+  const warp =
+    (0.03 * Math.sin(theta * 2.4 + 1.1) +
+      0.016 * Math.sin(theta * 4.7 - 0.6)) *
+    smoothstep01(0.18, 0.55, r);
+  const rw = r + warp;
+
+  let h =
+    // ---- 西岭高地：主峰 2.4m + 西北肩脊 + 两座迎风露岩丘 ----
+    2.4 * Math.exp(-(((x + 11.2) / 5.0) ** 2) - (((z - 2.2) / 3.6) ** 2)) +
+    0.75 * Math.exp(-(((x + 14.2) / 2.8) ** 2) - (((z + 1.2) / 2.4) ** 2)) +
+    0.85 * Math.exp(-(((x + 8.6) / 1.6) ** 2) - (((z + 0.6) / 1.4) ** 2)) +
+    0.6 * Math.exp(-(((x + 7.8) / 1.3) ** 2) - (((z - 3.6) / 1.1) ** 2)) +
+    // ---- 东缘冰碛带：东丘 1.35m + 斜向冰碛脊（长轴指向冰晶池）----
+    1.35 * Math.exp(-(((x - 10.6) / 4.6) ** 2) - (((z + 5.0) / 3.6) ** 2)) +
+    0.45 *
+      Math.exp(-(((x * 0.71 - z * 0.7 - 13.42) / 2.8) ** 2) - ((x * 0.7 + z * 0.71 - 3.15) / 1.2) ** 2) +
+    // ---- 南麓缓坡：西南雪坡保留，风蚀洼地加深（R11.2 −0.58：随雪台/
+    // 雪脊增强同步加深，保持南麓低伏走向可读）+ 观景台内侧浅雪盆 ----
+    0.65 * Math.exp(-(((x + 7.4) / 3.6) ** 2) - (((z - 9.0) / 2.7) ** 2)) -
+    0.58 * Math.exp(-(((x + 6.6) / 3.0) ** 2) - (((z - 8.1) / 2.5) ** 2)) -
+    0.22 * Math.exp(-(((x - 2.5) / 2.6) ** 2) - (((z - 10.5) / 2.0) ** 2)) +
+    // ---- 东北丘原：北坡 0.95m + 两座连绵圆丘 ----
+    0.95 * Math.exp(-(((x - 0.6) / 6.4) ** 2) - (((z + 8.0) / 3.4) ** 2)) +
+    0.5 * Math.exp(-(((x - 5.2) / 2.2) ** 2) - (((z + 10.2) / 1.9) ** 2)) +
+    0.45 * Math.exp(-(((x + 1.5) / 1.9) ** 2) - (((z + 8.5) / 1.6) ** 2)) +
+    // 广场外的局部地形：南侧雪埂 + 东侧冰丘（全部落在压平区之外）
+    0.27 * Math.exp(-(((x + 0.5) / 4.4) ** 2) - (((z - 8.7) / 2.2) ** 2)) +
+    0.24 * Math.exp(-(((x - 11.4) / 2.7) ** 2) - (((z + 7.4) / 2.5) ** 2)) +
+    0.2 * Math.exp(-(((x - 8.5) / 2.0) ** 2) - (((z - 3.2) / 1.7) ** 2)) +
+    // 两条斜向风蚀雪脊：给雪原一条可读的脊线，而不是只有圆丘
+    0.2 *
+      Math.exp(-(((x * 0.94 + z * 0.34 + 9.0) / 1.8) ** 2) - ((-x * 0.34 + z * 0.94 + 1.0) / 4.8) ** 2) +
+    0.15 *
+      Math.exp(-(((x * 0.82 - z * 0.57 - 3.7) / 1.4) ** 2) - ((x * 0.57 + z * 0.82 + 4.9) / 3.4) ** 2) +
+    // 大尺度雪脊：随半径抬升；R11.2 对比再拉大（0.26→0.32）——
+    // 西北侧明显隆起、东南侧压低，雪脊绕岛强弱分明
+    0.32 *
+      (0.5 + 0.5 * Math.sin(theta * 3.1 + 0.7 + 0.9 * Math.sin(theta * 1.3))) *
+      smoothstep01(0.38, 0.82, r) +
+    // 环岛雪台：R11.2 振幅 0.34→0.4、下限 0.2→0.12——四向地貌强弱
+    // 对比更分明（西北厚雪台 / 南侧薄缘），摆脱圆盘均匀感
+    0.4 *
+      smoothstep01(0.16, 0.42, rw) *
+      (1 - smoothstep01(0.7, 0.9, rw)) *
+      Math.max(
+        0.12,
+        0.62 + 0.38 * Math.sin(theta * 2.1 - 0.8) + 0.18 * Math.sin(theta * 3.3 + 1.7),
+      ) +
+    // R11.1 东南浅凹谷：一条 SW→NE 走向的缓凹槽穿过东南象限
+    // （r≈0.87，避开出生 3.2m / 广场 8.4 / 冰池 4.2），让南侧雪原
+    // 有了低伏的走向，不再四面均匀隆起
+    -0.3 *
+      Math.exp(
+        -((((x - 9.5) * 0.71 + (z - 9) * 0.71) / 3.4) ** 2) -
+          ((((x - 9.5) * 0.71 - (z - 9) * 0.71) / 1.6) ** 2),
+      ) +
+    // 风蚀中尺度起伏：近景可读的雪坡与浅槽（不是高频噪声）
+    0.17 *
+      Math.sin(x * 0.62 + z * 0.28 + 1.2) *
+      Math.sin(z * 0.55 - x * 0.2 - 0.5) *
+      smoothstep01(0.22, 0.55, r) +
+    0.06 * Math.cos(x * 1.35 - z * 0.8) * smoothstep01(0.3, 0.7, r) +
+    // 雪面细碎风纹：只做厘米级起伏，让大面积雪坡在低角度光下也有切面
+    0.042 *
+      Math.sin(x * 2.3 + z * 1.1 + 0.4) *
+      Math.sin(z * 1.9 - x * 0.7 - 1.2) *
+      smoothstep01(0.3, 0.68, r);
+
+  // 与道路一致：径带外缘 4.6——地形更早向路面抬升（R11 道路融合），
+  // 可行走半宽 1.6m 内仍然完全压平
+  let trailDistance = Infinity;
+  for (const trail of TRAILS) {
+    const near = nearestOnPolyline(x, z, trail.samples);
+    if (near) trailDistance = Math.min(trailDistance, near.distance);
+  }
+  // R11.1：径带外缘 4.6→4.0——地形贴路更紧，路面不再浮在压平带中央
+  const trailFlat = smoothstep01(2.0, 4.0, trailDistance);
+  // R9：广场压平半径从 7.2 扩到 8.4（起坡 6.4）——四个入口扇面（外缘 6.45）
+  // 与迎宾步道的前段必须坐在同一片平地上，否则铺装会被雪坡埋掉。
+  const plazaFlat = smoothstep01(6.4, 8.4, Math.hypot(x, z));
+  const spawnFlat = smoothstep01(1.8, 3.2, Math.hypot(x - SPAWN_POINT.x, z - SPAWN_POINT.z));
+  const signFlat = smoothstep01(1.2, 2.4, Math.hypot(x - SIGN_POST.x, z - SIGN_POST.z));
+  // R11.1：岛缘平台收窄（0.9-0.995 → 0.93-0.997）——外圈不再是一圈
+  // 均匀平环；檐口混合 heightAt（islandGeometry）保证接缝连续
+  const rimTaper = 1 - smoothstep01(0.93, 0.997, r);
+  h *= Math.min(trailFlat, plazaFlat, spawnFlat, signFlat, rimTaper);
+
+  // 冰晶池浅台：池心与池岸压平到 0.3m，便于池水 / 晶簇落地。
+  // R9 移到广场压平之后——池台不再随广场外缘一起被削低，
+  // 椭圆池岸四周保持同一高度，石岸不会单侧悬空。
+  const basinDistance = Math.hypot(x - 8, z + 2);
+  const basinBlend = 1 - smoothstep01(2.7, 4.2, basinDistance);
+  h = h * (1 - basinBlend) + 0.3 * basinBlend;
+
+  // 南缘观景台：弧段下方压平到 0，让 0.03m 的石铺面坐在雪面之上
+  let deckAngle = theta - Math.PI / 2;
+  while (deckAngle > Math.PI) deckAngle -= Math.PI * 2;
+  while (deckAngle < -Math.PI) deckAngle += Math.PI * 2;
+  const deckSector = 1 - smoothstep01(0.5, 0.68, Math.abs(deckAngle));
+  const deckBand =
+    smoothstep01(0.86, 0.91, r) * (1 - smoothstep01(0.995, 1, r));
+  const deckBlend = deckSector * deckBand;
+  h *= 1 - deckBlend;
+
+  return Math.max(0, h);
+}
+
 /* ------------------------------ 远景 ------------------------------ */
 
-/** 远景浮岛群：半径 120~220 环带，扇形分布避开工位，不可达剪影（§2.2） */
+/**
+ * 远景浮岛群（R3）：5 座、半径 120~220 环带。
+ * 数量从 7 收到 5，避开初始视线正后方的 AgehaOS 主景深线；
+ * 每座由 DistantIsles 使用不同剖面（mesa / shard / rooted），
+ * 只做第三层空间纵深，不与三座项目地标争夺轮廓。全部不可达。
+ */
 export const DISTANT_ISLES: readonly { x: number; y: number; z: number; scale: number }[] = [
-  { x: -96, y: 14, z: -150, scale: 2.4 },
-  { x: 46, y: 26, z: -196, scale: 3.0 },
-  { x: 168, y: 6, z: -104, scale: 1.8 },
-  { x: 186, y: 18, z: 58, scale: 2.6 },
-  { x: 128, y: -8, z: 168, scale: 1.6 },
-  { x: -88, y: 8, z: 190, scale: 2.2 },
-  { x: -198, y: 22, z: -28, scale: 2.8 },
+  // R4：远景从 200 环带收近到 145~160，让地平线真正有可读的群岛层次；
+  // 仍全部落在 120~220 环带内且不可达。NW 岛框住 AgehaOS，其余补足侧翼。
+  { x: -110, y: 24, z: -105, scale: 2.4 },
+  { x: 30, y: 30, z: -150, scale: 2.1 },
+  { x: 130, y: 18, z: -90, scale: 2.3 },
+  { x: 150, y: 8, z: 40, scale: 1.9 },
+  { x: -150, y: 14, z: 30, scale: 2.0 },
 ] as const;
 
 /* ------------------------------ 可行走表面查询 ------------------------------ */
@@ -416,12 +613,14 @@ export function getGroundHeight(x: number, z: number, refY?: number): number | n
   if (isOnNookPlatform(x, z)) candidates.push(CHRYSALIS_NOOK.center.y);
   const ex = x / MAIN_ISLAND.semiAxisX;
   const ez = z / MAIN_ISLAND.semiAxisZ;
-  if (ex * ex + ez * ez <= 1) candidates.push(MAIN_ISLAND.groundY);
+  if (ex * ex + ez * ez <= 1) candidates.push(mainIslandSurfaceY(x, z));
 
   if (candidates.length === 0) return null;
   if (refY === undefined) return Math.max(...candidates);
-  // 多层：只看脚下可达的层（≤ refY + 4），层中取最高
-  const reachable = candidates.filter((y) => y <= refY + 4);
+  // 多层：只接受脚边可达的层（上 ≤ refY + 4 / 下 ≥ refY − 6）。
+  // 下界很关键：茧居所旋径在主岛下方 15m+，没有下界时从岛面滑出会被
+  // 「吸附」到深层的旋径（R3 实测：按 W 走北径会掉进茧居所）。
+  const reachable = candidates.filter((y) => y <= refY + 4 && y >= refY - 6);
   if (reachable.length === 0) return null;
   return Math.max(...reachable);
 }
@@ -434,7 +633,7 @@ export function getGroundHeight(x: number, z: number, refY?: number): number | n
 export function getZoneName(x: number, z: number, refY?: number): string | null {
   /** 多层过滤：该层表面远高于参考高度（> refY + 4）则不参与 */
   const levelAllows = (surfaceY: number) =>
-    refY === undefined || surfaceY <= refY + 4;
+    refY === undefined || (surfaceY <= refY + 4 && surfaceY >= refY - 6);
 
   if (isOnNookPlatform(x, z) && levelAllows(CHRYSALIS_NOOK.center.y)) {
     return CHRYSALIS_NOOK.name;
@@ -522,6 +721,10 @@ export type TeleportSpot = {
    * 取「背对目标结构」的方向，落点即朝结构构图。
    */
   readonly cameraYaw: number;
+  /** 落点相机俯仰（R3：抵达项目屿时略微抬高视点，配合地标取景辅助） */
+  readonly cameraPitch?: number;
+  /** 落点相机距离档（0 近 / 1 标准 / 2 远） */
+  readonly cameraDistanceIndex?: number;
   /** 落点朝向（角色 heading，弧度；面向 = (−sin, 0, −cos)） */
   readonly heading: number;
 };
@@ -540,6 +743,8 @@ function isleTeleportSpot(isle: ProjectIsle): TeleportSpot {
     y: isle.center.y + PLAYER_PHYSICS.hoverHeight,
     z: isle.center.z + dirZ * landing,
     cameraYaw: Math.atan2(dirX, dirZ),
+    cameraPitch: 0.26,
+    cameraDistanceIndex: 1,
     heading: Math.atan2(dirX, dirZ),
   };
 }
@@ -556,6 +761,8 @@ export const TELEPORT_SPOTS: readonly TeleportSpot[] = [
     y: SPAWN_POINT.y,
     z: SPAWN_POINT.z,
     cameraYaw: CAMERA_LIMITS.initialYaw,
+    cameraPitch: CAMERA_LIMITS.initialPitch,
+    cameraDistanceIndex: CAMERA_LIMITS.initialDistanceIndex,
     heading: 0,
   },
   ...PROJECT_ISLES.map(isleTeleportSpot),
@@ -566,6 +773,7 @@ export const TELEPORT_SPOTS: readonly TeleportSpot[] = [
     y: CHRYSALIS_NOOK.center.y + PLAYER_PHYSICS.hoverHeight,
     z: CHRYSALIS_NOOK.center.z + 2,
     cameraYaw: Math.PI / 2,
+    cameraDistanceIndex: 0,
     heading: Math.PI / 2,
   },
 ] as const;

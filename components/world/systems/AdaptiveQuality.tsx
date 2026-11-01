@@ -68,13 +68,15 @@ const QualityContext = createContext<QualityContextValue | null>(null);
 
 export function QualityProvider({
   isMobileLike,
+  initialTier,
   children,
 }: {
   isMobileLike: boolean;
+  initialTier?: TierParams;
   children: ReactNode;
 }) {
   const [tier, setTierState] = useState<TierParams>(() =>
-    pickInitialTier(isMobileLike),
+    initialTier ?? pickInitialTier(isMobileLike),
   );
 
   const setTier = useCallback((next: QualityTier) => {
@@ -103,11 +105,22 @@ export function useQuality(): QualityContextValue {
   return value;
 }
 
-/** 帧时间监测与升降档执行器（挂在 QualityProvider 内，无渲染输出） */
-export function AdaptiveQuality() {
+/**
+ * 帧时间监测与升降档执行器（挂在 QualityProvider 内，无渲染输出）。
+ * 移动端最高只升到 medium：high 档的 transmission / 阴影 / 高 DPR
+ * 对手机收益很小，却会重新引入最重的两条渲染路径。
+ */
+export function AdaptiveQuality({
+  isMobileLike = false,
+  pinned = false,
+}: {
+  isMobileLike?: boolean;
+  pinned?: boolean;
+}) {
   const { tier, setTier } = useQuality();
   const { notifyQuality } = useWorldUI();
   const setDpr = useThree((state) => state.setDpr);
+  const ceiling = isMobileLike ? "medium" : "high";
 
   // DPR 随档位动态生效（初始值由 Canvas dpr prop 声明，此后由本 effect 接管）
   useEffect(() => {
@@ -129,10 +142,14 @@ export function AdaptiveQuality() {
   const upgrades = useRef(0);
 
   useFrame((_, rawDelta) => {
+    // ?tier=... 是验收 / 压测用的固定档位：不再自动升降
+    if (pinned) return;
     const delta = Math.min(rawDelta, 0.25);
     elapsed.current += delta;
     const buffer = samples.current;
-    buffer.push(rawDelta * 1000);
+    // 页面从后台恢复时 rawDelta 可能是数分钟；钳制到 250ms，
+    // 避免一次恢复帧直接触发降档。
+    buffer.push(Math.min(rawDelta * 1000, 250));
     if (buffer.length > ADAPTIVE_RULES.windowFrames) buffer.shift();
 
     // 预热期 / 未满窗口：只采样不判定（低帧率设备满窗约需 4~8s，更稳）
@@ -160,7 +177,8 @@ export function AdaptiveQuality() {
     } else if (avg < ADAPTIVE_RULES.fastAvgMs) {
       slowSince.current = null;
       const canUpgrade =
-        index < TIER_ORDER.length - 1 && upgrades.current < ADAPTIVE_RULES.maxUpgrades;
+        index < TIER_ORDER.indexOf(ceiling) &&
+        upgrades.current < ADAPTIVE_RULES.maxUpgrades;
       if (!canUpgrade) {
         fastSince.current = null;
         return;

@@ -27,12 +27,22 @@ function takeTeleportRequest(): string | null {
   return target;
 }
 
-/** 起飞写入：锁输入 / 吞掉本次 pointerup 交互判定 / 相机对齐构图方向 / 解除初始构图保持 */
-function beginFlightShared(cameraYaw: number): void {
+/** 起飞写入：锁输入 / 吞掉本次 pointerup 交互判定 / 相机对齐落点构图 */
+function beginFlightShared(
+  cameraYaw: number,
+  cameraPitch?: number,
+  cameraDistanceIndex?: number,
+): void {
   inputState.teleportActive = true;
   inputState.pointerDragged = true;
-  inputState.wantCameraRelease = true;
   cameraState.yaw = cameraYaw;
+  if (cameraPitch !== undefined) cameraState.pitch = cameraPitch;
+  if (cameraDistanceIndex !== undefined) {
+    cameraState.distanceIndex = Math.max(
+      0,
+      Math.min(2, cameraDistanceIndex),
+    );
+  }
 }
 
 /** 落地写入：解除输入锁 */
@@ -68,7 +78,11 @@ export function TeleportSystem({ player }: { player: PlayerApi }) {
         lift.current = reducedMotion ? 0 : 10;
         elapsed.current = 0;
         flying.current = true;
-        beginFlightShared(spot.cameraYaw);
+        beginFlightShared(
+          spot.cameraYaw,
+          spot.cameraPitch,
+          spot.cameraDistanceIndex,
+        );
         setRefValue(player.heading, spot.heading);
         setRefValue(spotHeadingRef, spot.heading);
       }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { projects } from "@/lib/projects";
 import { site } from "@/lib/site";
 import { CHRYSALIS_NOOK, PROJECT_ISLES } from "@/lib/world/layout";
+import { EXPLORE_GOALS } from "@/lib/world/exploration";
 import { useWorldUI } from "../WorldUIContext";
 import { usePanelA11y } from "./usePanelA11y";
 
@@ -23,10 +24,50 @@ export function WorldNavPanel() {
     openDetail,
     requestTeleport,
     nookDiscovered,
+    exploreProgress,
+    exploreCompletedCount,
+    progressPersistence,
+    resetExploreProgress,
   } = useWorldUI();
   const open = panel === "nav";
   const panelRef = useRef<HTMLElement>(null);
-  usePanelA11y({ open, onClose: closePanel, panelRef });
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const wasConfirming = useRef(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetWarning, setResetWarning] = useState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
+  usePanelA11y({
+    open,
+    onClose: closePanel,
+    panelRef,
+    returnFocusSelector: 'button[aria-label^="打开世界导航"]',
+  });
+
+  // 面板关闭时收起确认态（渲染期状态调整，避免 effect 内同步 setState）
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    setConfirmReset(false);
+    setResetWarning(null);
+  }
+
+  // 两步确认的焦点：展开后落到「确认重置」，取消 / 面板关闭后回到重置按钮
+  useEffect(() => {
+    if (confirmReset) {
+      confirmButtonRef.current?.focus({ preventScroll: true });
+    } else if (wasConfirming.current && open) {
+      resetButtonRef.current?.focus({ preventScroll: true });
+    }
+    wasConfirming.current = confirmReset;
+  }, [confirmReset, open]);
+
+  const handleReset = () => {
+    const cleared = resetExploreProgress();
+    setConfirmReset(false);
+    setResetWarning(
+      cleared ? null : "本地记录未能完全清除；刷新后进度可能恢复。",
+    );
+  };
 
   const teleportAndClose = (targetId: string) => {
     closePanel();
@@ -118,6 +159,93 @@ export function WorldNavPanel() {
               >
                 茧居所 · 已发现
               </button>
+            ) : null}
+          </div>
+        </section>
+
+        <section
+          className="world-nav__section"
+          aria-labelledby="world-progress-title"
+        >
+          <h3 id="world-progress-title" className="world-nav__heading">
+            探索进度
+          </h3>
+          <p className="world-progress__summary" role="status" aria-live="polite">
+            {exploreCompletedCount} / {EXPLORE_GOALS.length} 瓣记忆已点亮
+          </p>
+          <ul className="world-progress__list">
+            {EXPLORE_GOALS.map((goal) => {
+              const done = exploreProgress[goal.id];
+              return (
+                <li
+                  key={goal.id}
+                  className="world-progress__item"
+                  data-done={done ? "true" : "false"}
+                >
+                  <span className="world-progress__mark" aria-hidden="true">
+                    {done ? "◆" : "◇"}
+                  </span>
+                  <span className="world-progress__text">
+                    <span className="world-progress__title">{goal.title}</span>
+                    <span className="world-progress__hint">{goal.hint}</span>
+                  </span>
+                  <span className="world-progress__state">
+                    {done ? "已完成" : "未完成"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {progressPersistence === "session" ? (
+            <p className="world-progress__note" role="status">
+              本地存储不可用：新的进度只在本次浏览有效，刷新后可能丢失。
+            </p>
+          ) : null}
+          {resetWarning ? (
+            <p className="world-progress__warning" role="alert">
+              {resetWarning}
+            </p>
+          ) : null}
+          <div className="world-progress__reset">
+            <button
+              ref={resetButtonRef}
+              type="button"
+              className="world-nav__card-btn"
+              onClick={() => setConfirmReset((value) => !value)}
+              aria-expanded={confirmReset}
+              aria-controls="world-progress-reset-confirm"
+            >
+              重置探索进度
+            </button>
+            {confirmReset ? (
+              <div
+                id="world-progress-reset-confirm"
+                className="world-progress__confirm"
+                role="group"
+                aria-label="确认重置探索进度"
+              >
+                <p>
+                  重置后 {EXPLORE_GOALS.length} 项目标与广场记忆环会恢复未完成，
+                  可再次触发；不影响项目详情与站点路由。
+                </p>
+                <div className="world-progress__actions">
+                  <button
+                    ref={confirmButtonRef}
+                    type="button"
+                    className="world-nav__card-btn world-nav__card-btn--danger"
+                    onClick={handleReset}
+                  >
+                    确认重置
+                  </button>
+                  <button
+                    type="button"
+                    className="world-nav__card-btn"
+                    onClick={() => setConfirmReset(false)}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
             ) : null}
           </div>
         </section>

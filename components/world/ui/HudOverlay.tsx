@@ -1,38 +1,64 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Volume2, VolumeX } from "lucide-react";
 import { projects } from "@/lib/projects";
+import {
+  EXPERIENCE_NOTES,
+  EXPERIENCE_RESET_LABELS,
+  EXPERIENCE_TITLES,
+  getExperienceOptions,
+  isExperienceProjectSlug,
+} from "@/lib/world/experiences";
 import { useWorldUI } from "../WorldUIContext";
 import { Joystick } from "./Joystick";
+import { useWorldAudio } from "../systems/WorldAudio";
 
 /**
- * HUD 常态层（蓝图 §13.3）：区域名牌 / 交互提示条 / 键位提示 / 项目快捷入口 /
- * 世界导航与操作说明按钮 / 返回起点——不抢主视觉，全部玻璃令牌 + 深墨文字。
- * 项目快捷入口点击打开详情面板（信息直达），传送入口在世界导航面板（M）。
+ * HUD 常态层（R3 精简）：
+ * - 顶中区域名牌、交互提示条、左下操作提示、右下工具栏；
+ * - 项目屿列表改为「按需展开」的小抽屉，不再常驻遮挡场景；
+ *   默认只保留项目屿 / 导航 / 说明三个按钮；
+ * - 桌面端保留项目列表与返回起点两个次级入口，移动端收敛到导航面板。
+ * 所有交互控件 ≥44px 触控高度，面板打开时整层 HUD 淡出（根部 data 属性）。
  */
 export function HudOverlay() {
   const {
     zone,
     prompt,
     qualityNotice,
-    requestRespawn,
+    progressNotice,
     openDetail,
+    activateRelay,
+    experiences,
+    setExperience,
     toggleNav,
     toggleHelp,
     isMobileLike,
   } = useWorldUI();
-  const [hintExpanded, setHintExpanded] = useState(true);
+  // P1：首访由引导卡承担键位说明，HUD 常态只留一个 ? ；展开后 8s 自动收起
+  const [hintExpanded, setHintExpanded] = useState(false);
+  const { muted, toggleMuted } = useWorldAudio();
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 操作提示 10s 后收成 ? 图标（任意展开后再计时）
+  // 操作提示 8s 后收成 ? 图标（任意展开后再计时）
   useEffect(() => {
-    if (!hintExpanded) return;
-    timerRef.current = setTimeout(() => setHintExpanded(false), 10_000);
+    if (!hintExpanded || isMobileLike) return;
+    timerRef.current = setTimeout(() => setHintExpanded(false), 8000);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [hintExpanded]);
+  }, [hintExpanded, isMobileLike]);
+
+  const openNav = () => {
+    setProjectsOpen(false);
+    toggleNav();
+  };
+  const openHelp = () => {
+    setProjectsOpen(false);
+    toggleHelp();
+  };
 
   return (
     <div className="world-hud">
@@ -50,29 +76,50 @@ export function HudOverlay() {
         </p>
       ) : null}
 
-      {/* 中下：交互提示条（有目标时；点击打开详情面板；触屏文案不带键盘按键） */}
-      {prompt ? (
-        <p className="world-hud__prompt">
-          <button
-            type="button"
-            className="world-hud__prompt-btn"
-            onClick={() => openDetail(prompt.slug)}
-          >
-            {isMobileLike
-              ? `查看 ${prompt.label}`
-              : `按 E 或点击 · 查看 ${prompt.label}`}
-          </button>
+      {/* 探索目标完成：低频一次性提示；已完成的复访不重复出现 */}
+      {progressNotice ? (
+        <p key={progressNotice} className="world-hud__progress" role="status">
+          {progressNotice}
         </p>
       ) : null}
 
-      {/* 左下：移动端摇杆 / 桌面键位提示 */}
+      {/* 中下：交互提示条（有目标时；点击打开详情面板；触屏文案不带键盘按键） */}
+      {prompt ? (
+        <div className="world-hud__prompt">
+          {prompt.kind === "project" ? (
+            <ExperienceStrip
+              slug={prompt.slug}
+              activeId={experiences[prompt.slug] ?? null}
+              onSelect={(optionId) => setExperience(prompt.slug, optionId)}
+              onReset={() => setExperience(prompt.slug, null)}
+            />
+          ) : null}
+          <button
+            type="button"
+            className="world-hud__prompt-btn"
+            onClick={() => {
+              if (prompt.kind === "project") openDetail(prompt.slug);
+              else activateRelay();
+            }}
+          >
+            {prompt.kind === "project"
+              ? isMobileLike
+                ? `查看 ${prompt.label}`
+                : `按 E 或点击 · 查看 ${prompt.label}`
+              : isMobileLike
+                ? "点亮北径"
+                : "按 E 或点击 · 点亮北径"}
+          </button>
+        </div>
+      ) : null}
+
+      {/* 左下：移动端摇杆 / 桌面单行键位提示（8s 后收成 ?） */}
       {isMobileLike ? (
         <Joystick />
       ) : hintExpanded ? (
         <div className="world-hud__hint">
-          <span>WASD / 方向键 移动 · 鼠标拖拽 观察 · 滚轮 缩放</span>
-          <span>Shift 冲刺 · E 查看 · 1/2/3 传送三屿 · R 返回起点</span>
-          <span>M 世界导航 · H 键位说明</span>
+          <span>WASD 移动 · 拖拽观察 · 滚轮缩放</span>
+          <span>Shift 冲刺 · E 查看 · R 返回 · H 说明</span>
           <button
             type="button"
             className="world-hud__hint-close"
@@ -93,13 +140,46 @@ export function HudOverlay() {
         </button>
       )}
 
-      {/* 右下：工具行（世界导航 / 键位说明）+ 项目快捷入口 + 返回起点 */}
+      {/* 右下：工具栏 + 按需展开的项目屿列表 */}
       <div className="world-hud__quick">
+        {projectsOpen ? (
+          <div className="world-hud__projects" role="group" aria-label="项目屿入口">
+            <p className="world-hud__projects-label">项目屿 · 快速查看</p>
+            {projects.map((project) => (
+              <button
+                key={project.slug}
+                type="button"
+                className="world-hud__quick-item"
+                onClick={() => {
+                  setProjectsOpen(false);
+                  openDetail(project.slug);
+                }}
+              >
+                <span className="world-hud__quick-name">{project.name}</span>
+                <span className="world-hud__quick-status">{project.status}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <div className="world-hud__quick-row">
           <button
             type="button"
+            className={
+              projectsOpen
+                ? "world-hud__quick-mini world-hud__quick-mini--active"
+                : "world-hud__quick-mini"
+            }
+            onClick={() => setProjectsOpen((open) => !open)}
+            aria-expanded={projectsOpen}
+            aria-label="展开项目屿快速入口"
+          >
+            项目屿
+          </button>
+          <button
+            type="button"
             className="world-hud__quick-mini"
-            onClick={toggleNav}
+            onClick={openNav}
             aria-label="打开世界导航（快捷键 M）"
           >
             导航
@@ -107,36 +187,71 @@ export function HudOverlay() {
           <button
             type="button"
             className="world-hud__quick-mini"
-            onClick={toggleHelp}
+            onClick={openHelp}
             aria-label="查看操作说明（快捷键 H）"
           >
             说明
           </button>
-        </div>
-        {projects.map((project) => (
           <button
-            key={project.slug}
             type="button"
-            className="world-hud__quick-item"
-            onClick={() => openDetail(project.slug)}
+            className="world-hud__quick-mini world-hud__quick-icon"
+            onClick={toggleMuted}
+            aria-label={muted ? "开启声音" : "关闭声音"}
+            aria-pressed={!muted}
+            title={muted ? "开启声音" : "关闭声音"}
           >
-            <span className="world-hud__quick-name">{project.name}</span>
-            <span className="world-hud__quick-status">{project.status}</span>
+            {muted ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/** 三项目区场景体验控制带：只改 3D 演示状态，不替代项目详情入口。 */
+function ExperienceStrip({
+  slug,
+  activeId,
+  onSelect,
+  onReset,
+}: {
+  slug: string;
+  activeId: string | null;
+  onSelect: (optionId: string) => void;
+  onReset: () => void;
+}) {
+  const options = getExperienceOptions(slug);
+  if (!options || !isExperienceProjectSlug(slug)) return null;
+  return (
+    <div
+      className="world-experience"
+      role="group"
+      aria-label={`${EXPERIENCE_TITLES[slug]}（作品集演示）`}
+    >
+      <span className="world-experience__label">{EXPERIENCE_TITLES[slug]}</span>
+      <div className="world-experience__options">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className="world-experience__btn"
+            aria-pressed={activeId === option.id}
+            onClick={() => onSelect(option.id)}
+          >
+            {option.label}
           </button>
         ))}
-        <div className="world-hud__quick-row">
-          <Link href="/projects" className="world-hud__quick-mini">
-            项目列表
-          </Link>
-          <button
-            type="button"
-            className="world-hud__quick-mini"
-            onClick={requestRespawn}
-          >
-            返回起点
-          </button>
-        </div>
+        <button
+          type="button"
+          className="world-experience__reset"
+          onClick={onReset}
+          disabled={activeId === null}
+        >
+          {EXPERIENCE_RESET_LABELS[slug]}
+        </button>
       </div>
+      <span className="world-experience__note">{EXPERIENCE_NOTES[slug]}</span>
     </div>
   );
 }

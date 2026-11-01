@@ -41,8 +41,12 @@ export function LoadingScreen({
 
   return (
     <div
-      className={cn("world-loading", active ? "world-loading--active" : "world-loading--done")}
-      aria-hidden={!active}
+      className={cn(
+        "world-loading",
+        active ? "world-loading--active" : "world-loading--done",
+        failed && "world-loading--failed",
+      )}
+      aria-hidden={!active && !failed}
     >
       <div className="world-loading__brand">
         {children}

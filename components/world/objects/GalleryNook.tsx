@@ -26,6 +26,7 @@ import { MOTION } from "../systems/worldMotion";
 import type { PlayerApi } from "../systems/usePlayerController";
 import { useNearPlayer } from "../systems/useNearPlayer";
 import { usePrefersReducedMotion } from "../systems/usePrefersReducedMotion";
+import { TextureBoundary } from "../systems/TextureBoundary";
 import { useWorldUI } from "../WorldUIContext";
 import { buildRibbonGeometry } from "../terrain/ribbonGeometry";
 import { DeepMetalMaterial, FrostRockMaterial } from "../terrain/materials";
@@ -79,10 +80,26 @@ export function GalleryNook({
   const { nookDiscovered, discoverNook } = useWorldUI();
   const reducedMotion = usePrefersReducedMotion();
   const discoveredRef = useRef(false);
+  const rearmPendingRef = useRef(false);
   const cocoonRef = useRef<Group>(null);
+
+  // 进度恢复 / 重置同步：重置时先离开发现半径再重新武装，
+  // 避免玩家站在茧居所内重置后目标被下一帧立刻回填。
+  useEffect(() => {
+    if (nookDiscovered) {
+      discoveredRef.current = true;
+      rearmPendingRef.current = false;
+      return;
+    }
+    discoveredRef.current = false;
+    rearmPendingRef.current = true;
+  }, [nookDiscovered]);
 
   // 画廊纹理按需挂载（距茧居所 <40；GALLERY_ARTWORKS 登记单源）
   const near = useNearPlayer(player, CHRYSALIS_NOOK.center, GALLERY_ARTWORKS[0].mountDistance);
+  // 说明牌只在真正走近茧居所时出现：Html 不参与深度遮挡，若沿用 40 距离
+  // 会在主岛上方隔空显示（R2 实拍修复：初始视角出现三块画廊标签）。
+  const labelNear = useNearPlayer(player, CHRYSALIS_NOOK.center, 14);
 
   // 发现判定：低频采样（约 5Hz），进入半径即点亮（会话内保持）
   useFrame(() => {
@@ -95,6 +112,13 @@ export function GalleryNook({
       p.y - CHRYSALIS_NOOK.center.y,
       p.z - CHRYSALIS_NOOK.center.z,
     );
+    if (rearmPendingRef.current) {
+      // 带迟滞的重新武装：离开半径 25% 后才允许再次发现
+      if (d > INTERACTION.nookDiscoveryRadius * 1.25) {
+        rearmPendingRef.current = false;
+      }
+      return;
+    }
     if (d < INTERACTION.nookDiscoveryRadius) {
       discoveredRef.current = true;
       discoverNook();
@@ -225,13 +249,6 @@ export function GalleryNook({
             side={DoubleSide}
           />
         </mesh>
-        <pointLight
-          color={WORLD_COLORS.crystal[2]}
-          intensity={4}
-          distance={16}
-          decay={2}
-          position={[0, 3, 0]}
-        />
 
         {/* 设计原稿画廊：三画框 + 暖光射灯 + 如实说明牌（§9.1 完整态） */}
         {GALLERY_ARTWORKS.map((artwork, i) => {
@@ -249,22 +266,16 @@ export function GalleryNook({
                 <DeepMetalMaterial roughness={0.4} />
               </mesh>
               {near && screenTextures ? (
-                <Suspense fallback={<EmptyCanvas width={width} height={height} />}>
-                  <ArtworkCanvas path={artwork.path} width={width} height={height} />
-                </Suspense>
+                <TextureBoundary fallback={<EmptyCanvas width={width} height={height} />}>
+                  <Suspense fallback={<EmptyCanvas width={width} height={height} />}>
+                    <ArtworkCanvas path={artwork.path} width={width} height={height} />
+                  </Suspense>
+                </TextureBoundary>
               ) : (
                 <EmptyCanvas width={width} height={height} />
               )}
-              {/* 局部射灯：暖白点光（画框上前方，局部照明） */}
-              <pointLight
-                color="#FFF6E8"
-                intensity={4.5}
-                distance={4.6}
-                decay={2}
-                position={[0, height / 2 + 0.9, 1.0]}
-              />
               {/* 展品说明牌（近距离才挂载，DOM 层系统字体） */}
-              {near ? (
+              {near && labelNear ? (
                 <Html
                   position={[0, -height / 2 - 0.42, 0.1]}
                   center
@@ -295,18 +306,20 @@ export function GalleryNook({
         </group>
 
         {/* 画廊说明牌（文案如实：hero 原稿即来源） */}
-        <Html
-          position={[0, 3.1, -1.2]}
-          center
-          distanceFactor={12}
-          zIndexRange={[20, 0]}
-          style={{ pointerEvents: "none" }}
-        >
-          <div className="world-nameplate">
-            <span className="world-nameplate__name">设计原稿画廊</span>
-            <span className="world-nameplate__status">这个世界最初的草图</span>
-          </div>
-        </Html>
+        {near && labelNear ? (
+          <Html
+            position={[0, 3.1, -1.2]}
+            center
+            distanceFactor={12}
+            zIndexRange={[20, 0]}
+            style={{ pointerEvents: "none" }}
+          >
+            <div className="world-nameplate">
+              <span className="world-nameplate__name">设计原稿画廊</span>
+              <span className="world-nameplate__status">这个世界最初的草图</span>
+            </div>
+          </Html>
+        ) : null}
       </group>
 
       {/* 发现后入口微光提示（顶侧看向主岛底的访客线索） */}

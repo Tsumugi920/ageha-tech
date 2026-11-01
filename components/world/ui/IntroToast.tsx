@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useWorldUI } from "../WorldUIContext";
 
@@ -9,6 +9,8 @@ import { useWorldUI } from "../WorldUIContext";
  * - 个人简介与「有趣且优雅」高亮、统计口径（3+ / 16 / ∞）、双按钮
  *   （查看我的项目 / 了解我）自退役的 Hero.tsx 逐字搬迁（hero.test.mjs 契约）；
  * - 可关闭、可跳过、任意移动操作即隐；会话内关闭后不再自动弹出。
+ * - R4：内容区与底部「开始探索」分离，移动端卡片限高 + 内部滚动，
+ *   且整卡抬到摇杆 / 导航按钮之上；卡内滚动 / 点按不会误关。
  */
 const STATS = [
   { value: "3+", label: "代表项目" },
@@ -16,15 +18,40 @@ const STATS = [
   { value: "∞", label: "持续探索" },
 ] as const;
 
+const MOVE_KEYS = new Set([
+  "w",
+  "a",
+  "s",
+  "d",
+  "W",
+  "A",
+  "S",
+  "D",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+]);
+
 export function IntroToast() {
   const { introOpen, closeIntro, isMobileLike } = useWorldUI();
+  const toastRef = useRef<HTMLElement>(null);
 
-  // 任意操作即隐（键盘 / 指针 / 触摸）；Esc 同样关闭
+  // 卡外任意操作即隐；卡内点按 / 滚动留给内容本身。
   useEffect(() => {
     if (!introOpen) return;
-    const onActivity = () => closeIntro();
+    const onActivity = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        toastRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      closeIntro();
+    };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" || !event.repeat) closeIntro();
+      if (event.key === "Escape") closeIntro();
+      else if (MOVE_KEYS.has(event.key)) closeIntro();
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onActivity);
@@ -37,39 +64,49 @@ export function IntroToast() {
   if (!introOpen) return null;
 
   return (
-    <section
-      className="world-toast"
-      aria-label="探索引导"
-    >
-      <p className="world-toast__intro">
-        我是 Ageha，一名独立开发者，热爱探索技术与设计的边界，致力于构建有价值、
-        <span className="world-toast__accent">有趣且优雅</span>
-        的数字产品。
-      </p>
-      <ul className="world-toast__stats" aria-label="站点统计">
-        {STATS.map((stat) => (
-          <li key={stat.label}>
-            <span className="world-toast__value">{stat.value}</span>
-            <span className="world-toast__label">{stat.label}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="world-toast__actions">
-        <Link href="/projects" className="world-toast__primary">
-          查看我的项目
-        </Link>
-        <Link href="/about" className="world-toast__ghost">
-          了解我
-        </Link>
+    <section className="world-toast" aria-label="探索引导" ref={toastRef}>
+      <div className="world-toast__head">
+        <p className="world-toast__eyebrow">Digital Garden · 数字花园</p>
+        <button type="button" className="world-toast__cancel" onClick={closeIntro} aria-label="关闭引导卡">
+          ×
+        </button>
       </div>
-      <p className="world-toast__keys">
-        {isMobileLike
-          ? "左下摇杆移动 · 右半屏拖动观察 · 靠近项目出现查看入口"
-          : "WASD / 方向键 移动 · 鼠标拖拽 观察 · 滚轮 缩放 · E 查看 · R 返回起点"}
-      </p>
-      <button type="button" className="world-toast__close" onClick={closeIntro}>
-        开始探索
-      </button>
+
+      <div className="world-toast__scroll">
+        <p className="world-toast__intro">
+          我是 Ageha，一名独立开发者，热爱探索技术与设计的边界，致力于构建有价值、
+          <span className="world-toast__accent">有趣且优雅</span>
+          的数字产品。
+        </p>
+        <ul className="world-toast__stats" aria-label="站点统计">
+          {STATS.map((stat) => (
+            <li key={stat.label}>
+              <span className="world-toast__value">{stat.value}</span>
+              <span className="world-toast__label">{stat.label}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="world-toast__actions">
+          <Link href="/projects" className="world-toast__primary">
+            查看我的项目
+          </Link>
+          <Link href="/about" className="world-toast__ghost">
+            了解我
+          </Link>
+        </div>
+        <p className="world-toast__guide">
+          <span className="world-toast__guide-dot" aria-hidden="true" />
+          {isMobileLike
+            ? "左下摇杆移动 · 你操控的是暖色信灯"
+            : "WASD 移动 · 拖拽观察 · 你操控的是暖色信灯"}
+        </p>
+      </div>
+
+      <div className="world-toast__foot">
+        <button type="button" className="world-toast__close" onClick={closeIntro}>
+          开始探索 →
+        </button>
+      </div>
     </section>
   );
 }

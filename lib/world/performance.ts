@@ -32,36 +32,42 @@ export type TierParams = {
 export const TIER_PARAMS: Record<QualityTier, TierParams> = {
   high: {
     tier: "high",
-    dprMax: 2,
+    // R4：高 DPI 桌面把渲染分辨率收敛到 1.75×（2880×1800 → 2520×1575），
+    // 与 2× 的肉眼差异很小，却少约 23% 像素。
+    dprMax: 1.75,
     shadows: 2048,
     transmissionBudget: 3,
-    particleBudget: 1200,
+    particleBudget: 1000,
     screenTextures: true,
-    distantIsles: 7,
-    butterflySprites: 12,
-    clouds: 10,
+    distantIsles: 5,
+    butterflySprites: 8,
+    clouds: 8,
   },
   medium: {
     tier: "medium",
-    dprMax: 1.5,
+    // R4：手机真实 DPR 常见 3×，1.25× 上限 = 390 宽下 488px 缓冲，
+    // 在 DOM UI 仍清晰的前提下把像素量压到 3× 的 1/5.8。
+    dprMax: 1.25,
     shadows: false,
     transmissionBudget: 0,
-    particleBudget: 600,
+    particleBudget: 480,
     screenTextures: true,
-    distantIsles: 5,
-    butterflySprites: 6,
-    clouds: 7,
+    distantIsles: 4,
+    butterflySprites: 4,
+    clouds: 5,
   },
   low: {
     tier: "low",
-    dprMax: 1,
+    // 自适应最低档：低于 1× 渲染，配合去阴影 / 去透射 / 更少远景，
+    // 给低端手机留出稳定 30fps 的余地。
+    dprMax: 0.85,
     shadows: false,
     transmissionBudget: 0,
-    particleBudget: 300,
+    particleBudget: 240,
     screenTextures: false,
     distantIsles: 3,
-    butterflySprites: 4,
-    clouds: 4,
+    butterflySprites: 3,
+    clouds: 3,
   },
 } as const;
 
@@ -77,4 +83,12 @@ export const MOBILE_MODIFIERS = {
 /** 桌面默认高档；移动（粗指针 / 窄屏）默认中档。阶段 4 由 AdaptiveQuality 接管升降。 */
 export function pickInitialTier(isMobileLike: boolean): TierParams {
   return TIER_PARAMS[isMobileLike ? MOBILE_MODIFIERS.defaultTier : "high"];
+}
+
+/** 验收 / 压测用档位覆盖（?tier=low|medium|high）；普通访问返回 null。 */
+export function pickTierOverride(value: string | null): TierParams | null {
+  if (value === "high" || value === "medium" || value === "low") {
+    return TIER_PARAMS[value];
+  }
+  return null;
 }

@@ -16,10 +16,16 @@ export function usePanelA11y({
   open,
   onClose,
   panelRef,
+  returnFocusSelector,
 }: {
   open: boolean;
   onClose: () => void;
   panelRef: RefObject<HTMLElement | null>;
+  /**
+   * 触发按钮在面板打开期间被 HUD 淡出（visibility:hidden）时，
+   * activeElement 会退回 body；关闭后按此选择器把焦点还给入口。
+   */
+  returnFocusSelector?: string;
 }) {
   // 打开面板时记录触发者，关闭后归还焦点
   const openerRef = useRef<Element | null>(null);
@@ -29,13 +35,28 @@ export function usePanelA11y({
     // 清掉可能的陈旧守卫（无面板时点击 3D 交互体遗留）
     interactionState.suppressSceneClose = false;
     openerRef.current = document.activeElement;
-    // 焦点移入面板（优先关闭按钮，其次面板容器）
+    // #world-root 是 fixed + overflow:hidden，但浏览器仍可能因焦点 / Tab
+    // 把它的 scrollLeft 改掉，导致画布与 HUD 整体左移。面板打开期间锁在原点，
+    // 关闭后再复位一次，避免进度按钮的可达性操作留下错位。
+    const root = document.getElementById("world-root");
+    const keepRootAtOrigin = () => {
+      if (!root) return;
+      if (root.scrollTop !== 0) root.scrollTop = 0;
+      if (root.scrollLeft !== 0) root.scrollLeft = 0;
+    };
+    keepRootAtOrigin();
+    root?.addEventListener("scroll", keepRootAtOrigin, { passive: true });
+    // 焦点移入面板（优先关闭按钮，其次面板容器）。
+    // 必须 preventScroll：面板此刻仍在视口外（translate 100%），浏览器
+    // 默认会把 overflow:hidden 的 #world-root 滚动到焦点处，导致整个
+    // 面板/画布错位（R3 移动端详情顶部被裁掉、关闭键消失的根因）。
     const panel = panelRef.current;
     if (panel) {
       const focusable = panel.querySelector<HTMLElement>(
         "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
       );
-      (focusable ?? panel).focus();
+      (focusable ?? panel).focus({ preventScroll: true });
+      keepRootAtOrigin();
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -60,10 +81,10 @@ export function usePanelA11y({
         const active = document.activeElement;
         if (event.shiftKey && (active === first || !panel.contains(active))) {
           event.preventDefault();
-          last.focus();
+          last.focus({ preventScroll: true });
         } else if (!event.shiftKey && (active === last || !panel.contains(active))) {
           event.preventDefault();
-          first.focus();
+          first.focus({ preventScroll: true });
         }
       }
     };
@@ -85,11 +106,31 @@ export function usePanelA11y({
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("pointerup", onPointerUp);
-      // 归还焦点（触发者已随路由/卸载消失时安全失败）
+      root?.removeEventListener("scroll", keepRootAtOrigin);
+      keepRootAtOrigin();
+      // 归还焦点：触发者仍可用时优先还给它；被 HUD 淡出隐藏时回退到入口按钮。
+      // HUD 的 visibility 有 0.18s 过渡，cleanup 时可能仍不可聚焦——先尝试，
+      // 若焦点落到 body 且入口随后可见，再补一次（不打断用户新的焦点）。
       const opener = openerRef.current;
-      if (opener instanceof HTMLElement && document.contains(opener)) {
-        opener.focus();
+      const target =
+        opener instanceof HTMLElement &&
+        opener !== document.body &&
+        document.contains(opener)
+          ? opener
+          : returnFocusSelector
+            ? document.querySelector<HTMLElement>(returnFocusSelector)
+            : null;
+      const restore = () => {
+        if (!target?.isConnected) return false;
+        if (panel?.getAttribute("aria-hidden") !== "true") return false;
+        target.focus({ preventScroll: true });
+        return document.activeElement === target;
+      };
+      if (!restore()) {
+        window.setTimeout(() => {
+          if (document.activeElement === document.body) restore();
+        }, 240);
       }
     };
-  }, [open, onClose, panelRef]);
+  }, [open, onClose, panelRef, returnFocusSelector]);
 }

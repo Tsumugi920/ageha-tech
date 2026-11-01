@@ -54,7 +54,7 @@ export function SceneEnvironment() {
     if (ctx) {
       // 竖向渐变：天顶 → 天空顶色 → 地平线 → 冰海（供反射的宏观色结构）
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, "#7FC6FF");
+      gradient.addColorStop(0, "#5FA9E8");
       gradient.addColorStop(0.34, WORLD_COLORS.skyTop);
       gradient.addColorStop(0.52, WORLD_COLORS.skyHorizon);
       gradient.addColorStop(0.56, WORLD_COLORS.fog);
@@ -69,9 +69,9 @@ export function SceneEnvironment() {
       ctx.fillStyle = sun;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       // 两条低位冷色带（冰面反照，让金属底面不至发黑）
-      ctx.fillStyle = "rgba(207,235,255,0.5)";
+      ctx.fillStyle = "rgba(198,226,246,0.5)";
       ctx.fillRect(0, 148, canvas.width, 26);
-      ctx.fillStyle = "rgba(168,218,245,0.35)";
+      ctx.fillStyle = "rgba(157,210,240,0.35)";
       ctx.fillRect(0, 196, canvas.width, 22);
 
       texture = new CanvasTexture(canvas);
@@ -80,7 +80,7 @@ export function SceneEnvironment() {
       pmrem = new PMREMGenerator(gl);
       renderTarget = pmrem.fromEquirectangular(texture);
       // 强度收敛：IBL 只做反射细节，不做第二光源（光照仍由三光制主导）
-      applySceneEnvironment(scene, renderTarget.texture, 0.55);
+      applySceneEnvironment(scene, renderTarget.texture, 0.45);
     }
 
     return () => {

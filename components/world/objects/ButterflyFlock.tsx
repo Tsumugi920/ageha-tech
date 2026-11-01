@@ -22,13 +22,14 @@ import type { PlayerApi } from "../systems/usePlayerController";
 
 /**
  * 星尘蝶群（蓝图 §5.3 氛围 + §9.2 彩蛋线索）：
- * - 小型蝶精灵（app/icon.svg 栅格化 Sprite，路径取自 WORLD_ASSET_PATHS
- *   数据登记）聚于三蝶径中段与茧居所入口，数量随性能档
- *   （high 12 / medium 6 / low 4，§12.1）；
+ * - 透明底蝶形精灵（不是应用方形图标；路径仍取 WORLD_ASSET_PATHS 数据
+ *   登记）聚于三蝶径中段与茧居所入口，数量克制
+ *   （high 8 / medium 4 / low 3，§12.1）；
+ * - 翼面通过 Sprite 横向压缩模拟扇动，避免静态贴片感；
  * - 隐藏彩蛋：玩家原地静立 20s → 蝶群绕玩家聚成一圈短舞（14s，纯氛围
  *   奖励，无文案宣称），玩家一动即散回原聚集地；
  * - reduced-motion：冻结在当前帧（§12.3）。
- * 每帧只写 Sprite.position / 角度 refs，零逐帧 React 状态。
+ * 每帧只写 Sprite.position / scale refs，零逐帧 React 状态。
  */
 
 /** 聚集锚点：三蝶径中段 + 茧居所入口（阶段 3 彩蛋线索指向） */
@@ -52,6 +53,7 @@ type FlockUnit = {
   heightOffset: number;
   bobPhase: number;
   scale: number;
+  flapSpeed: number;
   position: Vector3;
 };
 
@@ -99,7 +101,11 @@ function tickFlock(
     unit.position.x = MathUtils.damp(unit.position.x, targetX, 2.4, delta);
     unit.position.y = MathUtils.damp(unit.position.y, targetY, 2.4, delta);
     unit.position.z = MathUtils.damp(unit.position.z, targetZ, 2.4, delta);
-    sprites[i].position.copy(unit.position);
+    const sprite = sprites[i];
+    sprite.position.copy(unit.position);
+    // 横向压缩 = 翅膀前后扇动的透视错觉；比每只蝶单独建网格便宜得多
+    const flap = 0.58 + Math.abs(Math.sin(t * unit.flapSpeed + unit.bobPhase)) * 0.42;
+    sprite.scale.set(unit.scale * flap, unit.scale, 1);
   }
 }
 
@@ -113,6 +119,8 @@ export function ButterflyFlock({
   const reducedMotion = usePrefersReducedMotion();
   const idle = useIdleSeconds(player);
   const groupRef = useRef<Group>(null);
+  const frameRef = useRef(0);
+  const pendingDelta = useRef(0);
 
   const texture = useTexture(WORLD_ASSET_PATHS.butterflySprite);
   useEffect(() => {
@@ -123,8 +131,9 @@ export function ButterflyFlock({
     () =>
       new SpriteMaterial({
         map: texture,
+        color: "#FFFFFF",
         transparent: true,
-        opacity: 0.92,
+        opacity: 0.82,
         depthWrite: false,
       }),
     [texture],
@@ -138,10 +147,11 @@ export function ButterflyFlock({
         anchor,
         angle: i * 2.399963,
         angularSpeed: (0.12 + ((i * 53) % 100) / 100 * 0.22) * (i % 2 === 0 ? 1 : -1),
-        orbitRadius: 1.8 + ((i * 37) % 100) / 100 * 2.6,
-        heightOffset: 1.4 + ((i * 29) % 100) / 100 * 2.2,
+        orbitRadius: 2.4 + ((i * 37) % 100) / 100 * 3.0,
+        heightOffset: 1.9 + ((i * 29) % 100) / 100 * 2.4,
         bobPhase: i * 1.7,
-        scale: 0.42 + ((i * 13) % 7) / 7 * 0.3,
+        scale: 0.4 + ((i * 13) % 7) / 7 * 0.2,
+        flapSpeed: 5.2 + ((i * 31) % 5) * 0.8,
         position: new Vector3(anchor.x, anchor.y + 2, anchor.z),
       });
     }
@@ -151,7 +161,7 @@ export function ButterflyFlock({
   const sprites = useMemo(
     () => units.map((unit) => {
       const sprite = new Sprite(material);
-      sprite.scale.setScalar(unit.scale);
+      sprite.scale.set(unit.scale, unit.scale, 1);
       sprite.position.copy(unit.position);
       return sprite;
     }),
@@ -170,6 +180,12 @@ export function ButterflyFlock({
 
   useFrame((state, rawDelta) => {
     if (reducedMotion) return; // 冻结在当前帧
+    // 蝶群是氛围层：半帧率（60Hz 下约 30Hz）+ 累积 delta，保持轨迹连续且减半 CPU
+    pendingDelta.current += Math.min(rawDelta, 1 / 30);
+    frameRef.current += 1;
+    if (frameRef.current % 2 !== 0) return;
+    const step = pendingDelta.current;
+    pendingDelta.current = 0;
     tickFlock(
       units,
       sprites,
@@ -177,7 +193,7 @@ export function ButterflyFlock({
       idle.current,
       player.pos.current as Vector3,
       state.clock.elapsedTime,
-      Math.min(rawDelta, 1 / 30),
+      step,
     );
   });
 

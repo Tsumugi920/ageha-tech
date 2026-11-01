@@ -23,9 +23,11 @@ import {
   GALLERY_ARTWORKS,
   SIGN_POST,
   TRAIL_BEACONS,
+  PLAZA_MOUTHS,
   getGroundHeight,
   getZoneName,
   softBoundaryPush,
+  mainIslandSurfaceY,
 } from "../lib/world/layout.ts";
 import {
   STATIC_COLLIDERS,
@@ -33,8 +35,9 @@ import {
   INTERACTABLES,
   resolveCylinderPush,
 } from "../lib/world/colliders.ts";
-import { TIER_PARAMS, pickInitialTier, MOBILE_MODIFIERS } from "../lib/world/performance.ts";
+import { TIER_PARAMS, pickInitialTier, pickTierOverride, MOBILE_MODIFIERS } from "../lib/world/performance.ts";
 import { CAMERA_LIMITS, PLAYER_PHYSICS, INTERACTION } from "../lib/world/constants.ts";
+import { resolveCollisionVelocity } from "../lib/world/playerMotion.ts";
 
 const dist2D = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
 
@@ -47,8 +50,8 @@ test("主岛尺度与出生点：椭圆 36×28（半轴 18/13），出生点在�
   assert.equal(MAIN_ISLAND.coneDepth, 14);
   assert.deepEqual(
     { x: SPAWN_POINT.x, z: SPAWN_POINT.z },
-    { x: 0, z: 10 },
-    "出生点应在 (0, 0, +10)（主岛南缘）",
+    { x: 6.5, z: 7 },
+    "出生点应在 (6.5, 0, +7)（主岛东南观景位，正对北径）",
   );
   const ex = SPAWN_POINT.x / MAIN_ISLAND.semiAxisX;
   const ez = SPAWN_POINT.z / MAIN_ISLAND.semiAxisZ;
@@ -56,15 +59,25 @@ test("主岛尺度与出生点：椭圆 36×28（半轴 18/13），出生点在�
   assert.ok(getGroundHeight(SPAWN_POINT.x, SPAWN_POINT.z) !== null, "出生点可行走");
 });
 
-test("蝶枢（世界核心）位于主岛中心上空 (0,6,0)，环绕观赏不可进入", () => {
+test("蝶枢（世界核心）位于主岛中心上空 (0,7,0)：悬空禁入，但地面可从下方穿过", () => {
   assert.deepEqual(
     { x: BUTTERFLY_CORE.center.x, y: BUTTERFLY_CORE.center.y, z: BUTTERFLY_CORE.center.z },
-    { x: 0, y: 6, z: 0 },
+    { x: 0, y: 7, z: 0 },
   );
-  // 碰撞体含蝶枢禁入圆柱（半径 ≥3，玩家不可穿入）
   const coreCollider = STATIC_COLLIDERS.find((c) => c.id === "collider-butterfly-core");
   assert.ok(coreCollider, "静态碰撞体应含蝶枢");
   assert.ok(coreCollider.radius >= 3, "蝶枢禁入半径应 ≥3");
+  // R3：碰撞只覆盖悬空翼组——出生点 → 北径的主通道从核心正下方穿过
+  assert.ok((coreCollider.yMin ?? 0) >= 5, "蝶枢碰撞应只罩悬空部分");
+  assert.equal(
+    resolveCylinderPush(1, 0, PLAYER_PHYSICS.bodyRadius, 0.35),
+    null,
+    "地面高度不应与蝶枢碰撞",
+  );
+  assert.ok(
+    resolveCylinderPush(1, 0, PLAYER_PHYSICS.bodyRadius, 6),
+    "悬空高度仍应被蝶枢碰撞挡住",
+  );
 });
 
 /* ------------------------------ 三条蝶径 ------------------------------ */
@@ -198,6 +211,11 @@ test("交互登记覆盖三项目 slug 与彩蛋类型，交互半径符合蓝�
     INTERACTABLES.some((item) => item.type === "core"),
     "应登记蝶枢（core）交互体",
   );
+  const relay = INTERACTABLES.find((item) => item.type === "relay");
+  assert.ok(relay, "应登记北径信标（relay）交互体");
+  assert.equal(relay.id, "north-relay");
+  assert.equal(relay.label, "北径信标");
+  assert.equal(relay.radius, INTERACTION.promptDistance);
 });
 
 test("碰撞与遮挡：静态碰撞体含三屿主体，相机遮挡体非空，圆柱推出有效", () => {
@@ -217,12 +235,83 @@ test("碰撞与遮挡：静态碰撞体含三屿主体，相机遮挡体非空�
   assert.ok(pushed.x > 3, `推出后应在圆柱外（x=${pushed.x.toFixed(2)}）`);
   // 远离碰撞体不推出
   assert.equal(resolveCylinderPush(20, 20, PLAYER_PHYSICS.bodyRadius), null);
+
+  // P1 北径触发信标：作为实体登记，且不侵入径头行走中心
+  const relay = STATIC_COLLIDERS.find((c) => c.id === "collider-north-relay");
+  assert.ok(relay, "北径触发信标应登记静态碰撞体");
+  const trailHead = TRAILS[0].samples[0];
+  const relayDistance = Math.hypot(relay.centerX - trailHead.x, relay.centerZ - trailHead.z);
+  assert.ok(
+    relayDistance >= relay.radius + PLAYER_PHYSICS.bodyRadius,
+    `北径径头不应被触发信标推出（实际 ${relayDistance.toFixed(2)}）`,
+  );
+  assert.equal(
+    resolveCylinderPush(trailHead.x, trailHead.z, PLAYER_PHYSICS.bodyRadius, 0.35),
+    null,
+    "北径径头应保持可通行",
+  );
+
+  // P0 速度解算（位置断言保留在上方）：外法线 = 推出位置 − 原位置。
+  // 撞向障碍的向内分量必须移除；背离与切向分量必须保留。
+  const fromX = 1;
+  const fromZ = 0;
+  const toward = resolveCollisionVelocity(
+    -2,
+    0,
+    fromX,
+    fromZ,
+    pushed.x,
+    pushed.z,
+  );
+  assert.ok(
+    Math.abs(toward.x) < 1e-9 && Math.abs(toward.z) < 1e-9,
+    "撞向蝶枢的径向速度应被消除",
+  );
+  const away = resolveCollisionVelocity(2, 0, fromX, fromZ, pushed.x, pushed.z);
+  assert.deepEqual(away, { x: 2, z: 0 }, "背离障碍的速度应保留");
+  const slide = resolveCollisionVelocity(0, 2, fromX, fromZ, pushed.x, pushed.z);
+  assert.deepEqual(slide, { x: 0, z: 2 }, "沿障碍侧面的切向速度应保留");
+  const diagonal = resolveCollisionVelocity(
+    -2,
+    2,
+    fromX,
+    fromZ,
+    pushed.x,
+    pushed.z,
+  );
+  assert.ok(Math.abs(diagonal.x) < 1e-9, "斜向接触的向内分量应移除");
+  assert.ok(Math.abs(diagonal.z - 2) < 1e-9, "斜向接触的切向分量应保留");
+});
+
+test("CS 观测环相机遮挡：环体与斜撑进入相机遮挡清单，R7 回望主岛的穿越机位被覆盖", () => {
+  const cs = PROJECT_ISLES.find((isle) => isle.slug === "cs-skin-invest");
+  assert.ok(cs, "应存在 CS 项目屿");
+  const ring = CAMERA_OCCLUDERS.find(
+    (occluder) => occluder.id === "occluder-isle-cs-observatory-ring",
+  );
+  assert.ok(ring, "应登记 CS 抬升观测环的相机遮挡体");
+  // 环圈半径 6.35 + 斜撑底座外缘约 6.8，遮挡盒须覆盖整个横向轮廓
+  assert.ok(ring.minX <= cs.center.x - 6.8 && ring.maxX >= cs.center.x + 6.8);
+  assert.ok(ring.minZ <= cs.center.z - 6.8 && ring.maxZ >= cs.center.z + 6.8);
+  // 环心 4.9 + 倾斜约 ±2.2；斜撑顶到岛面上方约 6.6
+  assert.ok(ring.minY <= cs.center.y + 2.6);
+  assert.ok(ring.maxY >= cs.center.y + 6.6);
+  // R7 final/05-side 的真实相机状态：取景目标在环体外，相机在环体内——
+  // 既有「视点→相机」raycast 会命中遮挡盒并把相机前移，不再穿入斜撑 / 竖屏。
+  const reproCamera = { x: -60.9575, y: 13.8109, z: 32.6455 };
+  const reproLook = { x: -52.3916, y: 9.45, z: 27.719 };
+  const inside = (point) =>
+    point.x >= ring.minX && point.x <= ring.maxX &&
+    point.y >= ring.minY && point.y <= ring.maxY &&
+    point.z >= ring.minZ && point.z <= ring.maxZ;
+  assert.ok(inside(reproCamera), "R7 遮挡机位的相机应在遮挡盒内");
+  assert.ok(!inside(reproLook), "取景目标应在遮挡盒外，射线才会命中盒体");
 });
 
 /* ------------------------------ 远景与茧居所 ------------------------------ */
 
-test("远景浮岛群：环带 r=120~220（世界数据 7 座上限），全部不可达", () => {
-  assert.ok(DISTANT_ISLES.length >= 5 && DISTANT_ISLES.length <= 7, "远景岛应 5~7 座");
+test("远景浮岛群：环带 r=120~220（世界数据 5 座，服从构图不抢地标），全部不可达", () => {
+  assert.ok(DISTANT_ISLES.length >= 4 && DISTANT_ISLES.length <= 6, "远景岛应 4~6 座");
   for (const isle of DISTANT_ISLES) {
     const d = Math.hypot(isle.x, isle.z);
     assert.ok(d >= 120 && d <= 220, `远景岛应在 120~220 环带（实际 ${d.toFixed(0)}）`);
@@ -286,21 +375,27 @@ test("茧居所旋径：主岛西北缘 → 盘旋下沉 → 平台，全程可�
       `平台点 (${dx},${dz}) 应可行走且在茧居所层（实际 ${g}）`,
     );
   }
-  // 多层地形：茧居所层不被头顶蝶径 A 吸走，蝶径层也不被茧居所接住
-  const trailAOverlap = { x: 2.4, z: -20 }; // 蝶径 A 在此上方 ~0.5 高度经过
+  // 多层地形（R3）：旋径已移出北径正下方——
+  // 平台上空不再被深层旋径「吸附」，北径面也不被茧居所接住
   assert.equal(
-    getGroundHeight(trailAOverlap.x, trailAOverlap.z, -18),
+    getGroundHeight(CHRYSALIS_NOOK.center.x, CHRYSALIS_NOOK.center.z, -18),
     -18,
-    "茧居所层查询应返回平台高度（头顶蝶径不参与）",
+    "茧居所层查询应返回平台高度",
   );
+  assert.equal(
+    getGroundHeight(CHRYSALIS_NOOK.center.x, CHRYSALIS_NOOK.center.z, 0.4),
+    null,
+    "茧居所正上方应为空域（不会被深层表面吸附）",
+  );
+  const trailAMid = TRAILS[0].samples[Math.floor(TRAILS[0].samples.length / 2)];
   assert.ok(
-    getGroundHeight(trailAOverlap.x, trailAOverlap.z, 0.4) !== null,
-    "蝶径层查询应保持可行走",
+    getGroundHeight(trailAMid.x, trailAMid.z, trailAMid.y) !== null,
+    "北径中段查询应保持可行走",
   );
   assert.notEqual(
-    getGroundHeight(trailAOverlap.x, trailAOverlap.z, 0.4),
+    getGroundHeight(trailAMid.x, trailAMid.z, trailAMid.y),
     -18,
-    "蝶径层不应被吸到茧居所层",
+    "北径层不应被吸到茧居所层",
   );
   // 区域名：平台报「茧居所」，下行段报「旋径」，主岛面仍报主岛
   assert.equal(
@@ -423,19 +518,17 @@ test("三屿结构碰撞体逐屿登记：Moss 穹舱按偏移落位（蝶径到
 
 /* ------------------------------ 相机与运动参数 ------------------------------ */
 
-test("初始构图（第一眼世界观）：机位 / 视点 / FOV 与蓝图 §7 一致", () => {
-  assert.deepEqual(
-    CAMERA_LIMITS.initialPosition,
-    { x: 0, y: 4.6, z: 18.5 },
-  );
-  assert.deepEqual(
-    CAMERA_LIMITS.initialLookAt,
-    { x: 0, y: 3.2, z: -12 },
-  );
-  assert.equal(CAMERA_LIMITS.fovDesktop, 55);
-  assert.equal(CAMERA_LIMITS.fovMobile, 60);
+test("初始构图（P1）：14m 中近景，初始机位 = 出生点跟随解算值，与移动状态零跳变", () => {
+  assert.deepEqual(CAMERA_LIMITS.initialPosition, { x: 12.44, y: 3.96, z: 16.7 });
+  assert.deepEqual(CAMERA_LIMITS.initialLookAt, { x: 5.25, y: 1.45, z: 4.95 });
+  assert.equal(CAMERA_LIMITS.initialYaw, 0.55, "初始视线西北向，蝶枢与 AgehaOS 分居两侧");
+  assert.equal(CAMERA_LIMITS.initialPitch, 0.18, "P1 初始俯角降低，角色与北径同屏可读");
+  assert.equal(CAMERA_LIMITS.initialDistanceIndex, 1, "P1 默认 14m 中近景");
+  assert.equal(CAMERA_LIMITS.lookAhead, 2.4, "取景目标前探 2.4m（看前方探索区）");
+  assert.equal(CAMERA_LIMITS.fovDesktop, 58);
+  assert.equal(CAMERA_LIMITS.fovMobile, 64);
   assert.equal(CAMERA_LIMITS.far, 500);
-  assert.deepEqual([...CAMERA_LIMITS.distances], [6, 9, 13], "滚轮三档距离");
+  assert.deepEqual([...CAMERA_LIMITS.distances], [8, 14, 20], "滚轮三档距离");
 });
 
 test("运动学参数与蓝图 §6.2 一致", () => {
@@ -459,6 +552,13 @@ test("性能档位表三档齐全且参数合理（阶段 4 AdaptiveQuality 的�
   // 初始选档：桌面高 / 移动中
   assert.equal(pickInitialTier(false).tier, "high");
   assert.equal(pickInitialTier(true).tier, MOBILE_MODIFIERS.defaultTier);
+  // R4 验收覆盖：?tier=low|medium|high 固定档位
+  assert.equal(pickTierOverride("low")?.tier, "low");
+  assert.equal(pickTierOverride("medium")?.tier, "medium");
+  assert.equal(pickTierOverride("high")?.tier, "high");
+  assert.equal(pickTierOverride("ultra"), null);
+  assert.ok(TIER_PARAMS.low.dprMax < 1, "低档应允许 sub-1 渲染比例");
+  assert.ok(TIER_PARAMS.medium.dprMax <= 1.25, "中档 DPR 上限应 ≤1.25（手机高 DPR 压缩）");
 });
 
 /* --------------------- 阶段 3：品牌三件套 / 画廊 / 石碑与导向标 --------------------- */
@@ -504,6 +604,31 @@ test("主岛石碑落位：在主岛椭圆面内、距出生点 ≥3（不挡初
   assert.equal(resolveCylinderPush(SPAWN_POINT.x, SPAWN_POINT.z, PLAYER_PHYSICS.bodyRadius), null, "出生点不得被石碑推出");
 });
 
+test("广场四向入口：与扇面铺装共用坐标，位于压平区且互不重叠", () => {
+  assert.deepEqual(
+    PLAZA_MOUTHS.map((mouth) => mouth.id),
+    ["trail-a", "trail-c", "trail-m", "spawn"],
+    "应恰好四个入口：三条蝶径 + 出生点迎宾步道",
+  );
+  for (const mouth of PLAZA_MOUTHS) {
+    const radius = Math.hypot(mouth.x, mouth.z);
+    assert.ok(radius > 5.5 && radius < 6.2, `${mouth.id} 入口应在广场外缘（实际 r=${radius.toFixed(2)}）`);
+    const ground = getGroundHeight(mouth.x, mouth.z);
+    assert.ok(ground !== null, `${mouth.id} 入口应可行走`);
+    assert.ok(ground <= 0.05, `${mouth.id} 入口应落在广场压平区（地面 y=${ground}）`);
+  }
+  for (let i = 0; i < PLAZA_MOUTHS.length; i += 1) {
+    for (let j = i + 1; j < PLAZA_MOUTHS.length; j += 1) {
+      const a = PLAZA_MOUTHS[i];
+      const b = PLAZA_MOUTHS[j];
+      assert.ok(
+        dist2D(a.x, a.z, b.x, b.z) >= 2.8,
+        `${a.id} 与 ${b.id} 的入口不得重叠`,
+      );
+    }
+  }
+});
+
 test("三径导向标：每径一座、在主岛内、距径中线 ≥1.9（不占可行走带）", () => {
   assert.equal(TRAIL_BEACONS.length, 3, "应有三座导向标（每径一座）");
   const trailIds = new Set(TRAILS.map((t) => t.id));
@@ -544,4 +669,91 @@ test("三径导向标：每径一座、在主岛内、距径中线 ≥1.9（不�
     [...TRAIL_BEACONS.map((b) => b.accentSlug)].sort(),
     ["agehaos", "cs-skin-invest", "moss-world"],
   );
+});
+
+test("R11 主岛四区地貌：分区性格可辨，径带 / 压平区 / 分层安全余量保持", () => {
+  // ---- 1. 西岭高地：主峰 ≥2.0、西北肩脊 ≥1.0（R11 抬升） ----
+  const ridgePeak = mainIslandSurfaceY(-11.2, 2.2);
+  assert.ok(ridgePeak >= 2.0, `西岭主峰 ${ridgePeak.toFixed(2)} 应 ≥2.0`);
+  const ridgeShoulder = mainIslandSurfaceY(-14.2, -1.2);
+  assert.ok(ridgeShoulder >= 1.0, `西岭肩脊 ${ridgeShoulder.toFixed(2)} 应 ≥1.0`);
+
+  // ---- 2. 东北丘原：圆丘 ≥0.7 ----
+  const hummock = mainIslandSurfaceY(5.2, -10.2);
+  assert.ok(hummock >= 0.7, `东北圆丘 ${hummock.toFixed(2)} 应 ≥0.7`);
+
+  // ---- 3. 东缘冰碛带：脊线 ≥1.2（东丘 + 斜向冰碛脊叠加） ----
+  const moraine = mainIslandSurfaceY(11.8, -7.2);
+  assert.ok(moraine >= 1.2, `冰碛脊线 ${moraine.toFixed(2)} 应 ≥1.2`);
+
+  // ---- 4. 南麓浅洼：洼心低于北侧坡地（地貌有低伏，不是单一向高） ----
+  const hollow = mainIslandSurfaceY(-6.6, 8.1);
+  const hollowRim = mainIslandSurfaceY(-6.6, 5.4);
+  assert.ok(
+    hollow + 0.12 <= hollowRim,
+    `西南洼地 ${hollow.toFixed(2)} 应明显低于坡缘 ${hollowRim.toFixed(2)}`,
+  );
+
+  // ---- 5. 主岛面内连续可行走，全场最大高度 ≤3.0（+4/−6 分层过滤余量） ----
+  let maxHeight = 0;
+  for (let gx = -17; gx <= 17; gx += 1) {
+    for (let gz = -12.5; gz <= 12.5; gz += 1) {
+      const ex = gx / MAIN_ISLAND.semiAxisX;
+      const ez = gz / MAIN_ISLAND.semiAxisZ;
+      if (ex * ex + ez * ez > 0.88 * 0.88) continue;
+      const g = getGroundHeight(gx, gz);
+      assert.ok(g !== null, `(${gx},${gz}) 主岛面内不应为空域`);
+      maxHeight = Math.max(maxHeight, g ?? 0);
+    }
+  }
+  assert.ok(maxHeight <= 3.0, `主岛最大地面 ${maxHeight.toFixed(2)} 应 ≤3.0`);
+
+  // ---- 6. 径带 ±1.4m 内保持压平（可行走带与路缘衔接稳定） ----
+  for (const trail of TRAILS) {
+    for (let i = 4; i < trail.samples.length; i += 8) {
+      const a = trail.samples[i - 1];
+      const b = trail.samples[i];
+      const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+      // 岛内段才检测（离岛段贴海面，不适用主岛高度场）
+      const ex = a.x / MAIN_ISLAND.semiAxisX;
+      const ez = a.z / MAIN_ISLAND.semiAxisZ;
+      if (ex * ex + ez * ez > 0.85 * 0.85) continue;
+      // 垂直于路径方向的单位向量
+      const nx = -(b.z - a.z) / len;
+      const nz = (b.x - a.x) / len;
+      for (const side of [-1, 1]) {
+        const px = a.x + nx * 1.4 * side;
+        const pz = a.z + nz * 1.4 * side;
+        const pex = px / MAIN_ISLAND.semiAxisX;
+        const pez = pz / MAIN_ISLAND.semiAxisZ;
+        if (pex * pex + pez * pez > 0.99) continue;
+        const g = mainIslandSurfaceY(px, pz);
+        assert.ok(
+          g <= 0.06,
+          `${trail.id} 径带 (i=${i}, side=${side}) 路缘地面 ${g.toFixed(3)} 应 ≤0.06`,
+        );
+      }
+    }
+  }
+
+  // ---- 7. 导向标落点地面 ≤0.3（信标贴地视觉锚定余量） ----
+  for (const beacon of TRAIL_BEACONS) {
+    const g = mainIslandSurfaceY(beacon.x, beacon.z);
+    assert.ok(g <= 0.3, `${beacon.id} 落点地面 ${g.toFixed(2)} 应 ≤0.3`);
+  }
+
+  // ---- 8. 初始构图视点地面漂移护栏（P1 机位常量依赖该点接近 0） ----
+  const lookGround = mainIslandSurfaceY(5.25, 4.95);
+  assert.ok(
+    lookGround <= 0.15,
+    `初始视点 (5.25,4.95) 地面 ${lookGround.toFixed(3)} 应 ≤0.15`,
+  );
+
+  // ---- 9. 冰晶池浅台与广场入口不变（既有压平区不被 R11 侵蚀） ----
+  const basin = mainIslandSurfaceY(8, -2);
+  assert.ok(Math.abs(basin - 0.3) < 0.02, `冰晶池浅台 ${basin.toFixed(3)} 应保持 0.3`);
+  for (const mouth of PLAZA_MOUTHS) {
+    const g = getGroundHeight(mouth.x, mouth.z);
+    assert.ok(g !== null && g <= 0.05, `${mouth.id} 入口应落在广场压平区`);
+  }
 });

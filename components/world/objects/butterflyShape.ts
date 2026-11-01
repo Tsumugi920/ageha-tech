@@ -1,9 +1,13 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  CatmullRomCurve3,
   Color,
+  ExtrudeGeometry,
   Shape,
   ShapeGeometry,
+  TubeGeometry,
+  Vector3,
 } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { WORLD_COLORS } from "@/lib/world/constants";
@@ -142,4 +146,168 @@ export function createWingPairGeometry(
   merged.scale(scale, scale, scale);
   merged.computeVertexNormals();
   return paintCrystalGradient(merged);
+}
+
+/**
+ * 完整蝶形单网格（R4 导览标 / 门架共用）：四片翼合并为一块平面几何，
+ * 带品牌三色顶点色。用于小尺寸标志性图形，避免用 4 个 mesh 拼标识。
+ */
+export function createButterflyGlyphGeometry(
+  wingspan: number,
+  curveSegments = 8,
+): BufferGeometry {
+  const shapes = createButterflyWingShapes();
+  const parts = [
+    new ShapeGeometry(shapes.upperLeft, curveSegments),
+    new ShapeGeometry(shapes.upperRight, curveSegments),
+    new ShapeGeometry(shapes.lowerLeft, curveSegments),
+    new ShapeGeometry(shapes.lowerRight, curveSegments),
+  ];
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((part) => part.dispose());
+  if (!merged) throw new Error("蝶形标志几何合并失败");
+  const scale = wingspan / BUTTERFLY_UNIT_SPAN;
+  merged.scale(scale, scale, scale);
+  merged.computeVertexNormals();
+  return paintCrystalGradient(merged);
+}
+
+/**
+ * 单侧翼对的实体几何（R4 蝶枢专用）：
+ * - 厚度改为「世界单位」口径（约 12cm），不再随翼展放大成 1m 厚板；
+ * - 顶点沿翼展方向前弯，形成真实曲面，侧看不再是纸片；
+ * - 独立的前后翼轮廓，保留品牌三色顶点色。
+ * 调用方负责 dispose。
+ */
+export function createWingPairSolidGeometry(
+  side: "left" | "right",
+  wingspan: number,
+  thickness = 0.12,
+  curveSegments = 6,
+): BufferGeometry {
+  // 中央雕塑独用轮廓，不影响小型蝴蝶与标识的共用 Shape。
+  const x = (value: number) => (side === "left" ? px(value) : -px(value));
+  const upperShape = new Shape();
+  upperShape.moveTo(x(22.6), py(19.6));
+  upperShape.bezierCurveTo(x(18.6), py(12.8), x(10.1), py(7.0), x(6.0), py(8.35));
+  upperShape.bezierCurveTo(x(4.55), py(9.55), x(5.6), py(14.1), x(7.1), py(17.0));
+  upperShape.bezierCurveTo(x(7.8), py(18.5), x(8.55), py(18.25), x(9.25), py(19.25));
+  upperShape.bezierCurveTo(x(10.35), py(20.8), x(12.0), py(20.2), x(13.4), py(21.1));
+  upperShape.bezierCurveTo(x(16.3), py(22.8), x(20.0), py(23.35), x(22.6), py(23.2));
+  upperShape.bezierCurveTo(x(23.05), py(22.1), x(23.0), py(20.6), x(22.6), py(19.6));
+  upperShape.closePath();
+
+  const lowerShape = new Shape();
+  lowerShape.moveTo(x(22.8), py(25.4));
+  lowerShape.bezierCurveTo(x(19.4), py(23.45), x(14.1), py(24.6), x(12.0), py(28.0));
+  lowerShape.bezierCurveTo(x(10.1), py(30.8), x(10.8), py(32.8), x(13.0), py(33.45));
+  lowerShape.bezierCurveTo(x(13.8), py(33.7), x(14.0), py(36.1), x(15.3), py(36.85));
+  lowerShape.bezierCurveTo(x(16.0), py(37.2), x(16.2), py(35.6), x(17.1), py(35.4));
+  lowerShape.bezierCurveTo(x(20.4), py(34.9), x(22.5), py(31.2), x(23.4), py(28.2));
+  lowerShape.bezierCurveTo(x(23.6), py(26.75), x(23.2), py(25.9), x(22.8), py(25.4));
+  lowerShape.closePath();
+
+  const scale = wingspan / BUTTERFLY_UNIT_SPAN;
+  const depth = thickness / scale;
+  const bevel = 0.032 / scale;
+  const options = {
+    depth,
+    steps: 1,
+    curveSegments,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    bevelSize: bevel,
+    bevelThickness: bevel * 0.7,
+  } as const;
+  // 把固定采样预算集中在长前缘和翼尖，避免用增加面数换取圆滑。
+  const sampleWing = (shape: Shape, segments: readonly number[]) =>
+    new Shape(
+      shape.curves.flatMap((curve, index) =>
+        curve.getPoints(Math.max(2, Math.round(segments[index] * curveSegments / 6))).slice(0, -1),
+      ),
+    );
+  const upper = new ExtrudeGeometry(sampleWing(upperShape, [12, 10, 4, 4, 4, 2]), options);
+  const lower = new ExtrudeGeometry(sampleWing(lowerShape, [9, 8, 7, 5, 5, 2]), options);
+  lower.translate(0, 0, -0.045 / scale);
+  const merged = mergeGeometries([upper, lower], false);
+  upper.dispose();
+  lower.dispose();
+  if (!merged) {
+    throw new Error(`实体翼对几何合并失败（side=${side}）`);
+  }
+  merged.translate(0, 0, -depth / 2);
+  merged.scale(scale, scale, scale);
+
+  // 沿翼展前弯：翼根平、翼尖前探，形成可读的立体翼面
+  const halfSpan = wingspan / 2;
+  const position = merged.getAttribute("position") as BufferAttribute;
+  for (let i = 0; i < position.count; i += 1) {
+    const x = position.getX(i);
+    const normalized = Math.min(1, Math.abs(x) / halfSpan);
+    position.setZ(
+      i,
+      position.getZ(i) + halfSpan * 0.05 * Math.pow(normalized, 1.7),
+    );
+  }
+  merged.computeVertexNormals();
+  merged.computeBoundingSphere();
+  return paintCrystalGradient(merged);
+}
+
+/**
+ * 翼脉（R4）：每条翼 4 根抬起的管状脉络，沿曲面贴合。
+ * 合并为单几何（每侧 1 个 draw call），金属冷光材质。
+ */
+export function createWingVeinsGeometry(
+  side: "left" | "right",
+  wingspan: number,
+): BufferGeometry {
+  const span = wingspan / BUTTERFLY_UNIT_SPAN;
+  const sign = side === "left" ? -1 : 1;
+  const paths: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+    [
+      [0.03, 0.075],
+      [0.18, 0.22],
+      [0.345, 0.29],
+    ],
+    [
+      [0.03, 0.045],
+      [0.16, 0.115],
+      [0.3, 0.105],
+    ],
+    [
+      [0.025, -0.055],
+      [0.13, -0.085],
+      [0.235, -0.14],
+    ],
+    [
+      [0.025, -0.055],
+      [0.11, -0.17],
+      [0.175, -0.245],
+    ],
+  ];
+  const tubes = paths.map((path, index) => {
+    const points = path.map(([x, y]) => {
+      const worldX = sign * x * span;
+      const normalized = Math.min(1, Math.abs(worldX) / (wingspan / 2));
+      return new Vector3(
+        worldX,
+        y * span,
+        0.072 + (index >= 2 ? -0.045 : 0) + (wingspan / 2) * 0.05 * Math.pow(normalized, 1.7),
+      );
+    });
+    const curve = new CatmullRomCurve3(points);
+    return new TubeGeometry(
+      curve,
+      10,
+      (index === 0 ? 0.0045 : 0.0032) * span,
+      4,
+      false,
+    );
+  });
+  const merged = mergeGeometries(tubes, false);
+  tubes.forEach((tube) => tube.dispose());
+  if (!merged) throw new Error(`翼脉几何合并失败（side=${side}）`);
+  merged.computeBoundingSphere();
+  return merged;
 }

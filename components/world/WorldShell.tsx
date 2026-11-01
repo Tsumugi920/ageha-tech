@@ -14,6 +14,7 @@ import {
   WorldUIProvider,
   useWorldUI,
 } from "./WorldUIContext";
+import { WorldAudioProvider } from "./systems/WorldAudio";
 import { LoadingScreen, WorldBrand } from "./loading/LoadingScreen";
 import { HudOverlay } from "./ui/HudOverlay";
 import { IntroToast } from "./ui/IntroToast";
@@ -99,7 +100,7 @@ const getMobileLikeSnapshot = () => {
 const getMobileLikeServerSnapshot = () => false;
 
 function WorldShellInner() {
-  const { phase, setPhase, isMobileLike, contextLost } = useWorldUI();
+  const { phase, setPhase, isMobileLike, contextLost, panel, closePanel } = useWorldUI();
   // 世界快捷键（M 导航 / H 说明 / Esc 关闭 / 1·2·3 传送）——就绪后启用
   useWorldShortcuts(phase === "ready");
   const webgl = useSyncExternalStore(
@@ -117,7 +118,8 @@ function WorldShellInner() {
   useEffect(() => {
     let cancelled = false;
     probeResizeObserverBroken().then((broken) => {
-      if (!cancelled) setRoPolyfill(broken ? FallbackResizeObserver : null);
+      // 用函数式返回：类构造器直接作为参数会被 React 当成 updater 调用
+      if (!cancelled) setRoPolyfill(() => (broken ? FallbackResizeObserver : null));
     });
     return () => {
       cancelled = true;
@@ -140,7 +142,12 @@ function WorldShellInner() {
   const engineReady = webgl === true && phase !== "loading";
 
   return (
-    <div id="world-root" className="world-root" data-world-phase={phase}>
+    <div
+      id="world-root"
+      className="world-root"
+      data-world-phase={phase}
+      data-panel-open={panel !== null}
+    >
       {webgl === false ? (
         <FallbackProjects />
       ) : roPolyfill === undefined ? null : (
@@ -160,6 +167,14 @@ function WorldShellInner() {
 
       {phase === "ready" ? (
         <>
+          {panel ? (
+            <button
+              type="button"
+              className="world-panel-backdrop"
+              aria-label="关闭面板，返回世界"
+              onClick={closePanel}
+            />
+          ) : null}
           <HudOverlay />
           <IntroToast />
           {/* 三面板互斥（详情 / 导航 / 说明），世界与运动全程保持不重置 */}
@@ -202,8 +217,10 @@ export function WorldShell() {
   );
 
   return (
-    <WorldUIProvider isMobileLike={isMobileLike}>
-      <WorldShellInner />
-    </WorldUIProvider>
+    <WorldAudioProvider>
+      <WorldUIProvider isMobileLike={isMobileLike}>
+        <WorldShellInner />
+      </WorldUIProvider>
+    </WorldAudioProvider>
   );
 }

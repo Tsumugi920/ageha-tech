@@ -3,22 +3,38 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { PLAYER_PHYSICS } from "@/lib/world/constants";
+import { PLAYER_PHYSICS, CAMERA_LIMITS } from "@/lib/world/constants";
 import {
   SPAWN_POINT,
   getGroundHeight,
   softBoundaryPush,
 } from "@/lib/world/layout";
 import { resolveCylinderPush } from "@/lib/world/colliders";
+import {
+  MOTION_TIMESTEP,
+  axesToWorld,
+  combineMoveAxes,
+  createStepAccumulator,
+  resolveCollisionVelocity,
+  stepVelocity,
+} from "@/lib/world/playerMotion";
+import {
+  clearMoveInput,
+  createKeyboardMoveInput,
+  isMovementKey,
+  isSprintKey,
+  syncKeyboardInput,
+} from "@/lib/world/playerInput";
 import { cameraState, inputState } from "./inputState";
 
 /**
- * 浮游信灯控制器（蓝图 §6）：输入聚合（键盘 / inputState 共享态）、
- * 运动学（加速度 / 摩擦 / 冲刺）、解析面贴地（critically-damped spring）、
- * 圆柱碰撞推出、软边界气流推回。
+ * 浮游信灯控制器（蓝图 §6）：输入聚合（键盘物理键 / 摇杆共享态）、
+ * 固定步长运动学（加速度 / 摩擦 / 冲刺）、解析面贴地
+ * （critically-damped spring）、圆柱碰撞推出与速度解算、软边界气流推回。
  *
  * 全部高频量走 refs + useFrame，零逐帧 React 状态更新；
- * 键盘监听在 useEffect cleanup 注销。
+ * 键盘监听在 useEffect cleanup 注销。低帧率按固定步长补步（保留经过
+ * 时间），失焦 / 页面隐藏清空全部输入并丢弃恢复帧的超长 delta。
  */
 export type PlayerApi = {
   /** 信灯位置（贴地悬浮高度 = 地面 + 0.35） */
@@ -33,17 +49,6 @@ export type PlayerApi = {
   springY: React.RefObject<number>;
 };
 
-const HOLD_KEYS = new Set([
-  "KeyW",
-  "KeyA",
-  "KeyS",
-  "KeyD",
-  "ArrowUp",
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
-]);
-
 export function usePlayerController(isMobile: boolean): PlayerApi {
   const pos = useRef<Vector3>(new Vector3(SPAWN_POINT.x, SPAWN_POINT.y, SPAWN_POINT.z));
   const vel = useRef<Vector3>(new Vector3(0, 0, 0));
@@ -51,6 +56,9 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
   const speed = useRef<number>(0);
   // 弹簧高度（贴地悬浮的平滑跟随，避免台阶感跳变）
   const springY = useRef<number>(SPAWN_POINT.y);
+  const keyboardRef = useRef(createKeyboardMoveInput());
+  const stepClock = useRef(createStepAccumulator());
+  const skipNextDelta = useRef(false);
 
   const api = useMemo<PlayerApi>(
     () => ({ pos, vel, heading, speed, springY }),
@@ -58,110 +66,84 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
   );
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent, down: boolean) => {
+    const keyboard = keyboardRef.current;
+
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
-      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
-      switch (event.code) {
-        case "KeyW":
-        case "ArrowUp":
-          inputState.move.y = down ? 1 : 0;
-          break;
-        case "KeyS":
-        case "ArrowDown":
-          inputState.move.y = down ? -1 : 0;
-          break;
-        case "KeyA":
-        case "ArrowLeft":
-          inputState.move.x = down ? -1 : 0;
-          break;
-        case "KeyD":
-        case "ArrowRight":
-          inputState.move.x = down ? 1 : 0;
-          break;
-        case "ShiftLeft":
-        case "ShiftRight":
-          inputState.sprint = down;
-          break;
-        case "KeyE":
-          if (down && !event.repeat) inputState.interactToken += 1;
-          break;
-        case "KeyR":
-          if (down && !event.repeat) inputState.wantRespawn = true;
-          break;
-        default:
-          return;
+      const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+
+      if (isMovementKey(event.code) || isSprintKey(event.code)) {
+        if (typing) return;
+        keyboard.setKey(event.code, true);
+        syncKeyboardInput(inputState, keyboard);
+        if (isMovementKey(event.code)) event.preventDefault();
+        return;
       }
-      if (HOLD_KEYS.has(event.code)) event.preventDefault();
+      if (typing) return;
+      if (event.code === "KeyE") {
+        if (!event.repeat) inputState.interactToken += 1;
+      } else if (event.code === "KeyR") {
+        if (!event.repeat) inputState.wantRespawn = true;
+      }
     };
-    const onKeyDown = (event: KeyboardEvent) => onKey(event, true);
-    const onKeyUp = (event: KeyboardEvent) => onKey(event, false);
-    const onBlur = () => {
-      // 窗口失焦清空按键态，防止「卡键」持续加速
-      inputState.move.x = 0;
-      inputState.move.y = 0;
-      inputState.sprint = false;
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+      // 焦点可能在按住期间移入输入框：已按下的移动键仍须释放，防止卡键
+      if (typing && !keyboard.has(event.code)) return;
+      if (keyboard.setKey(event.code, false)) {
+        syncKeyboardInput(inputState, keyboard);
+        if (isMovementKey(event.code)) event.preventDefault();
+      }
     };
+
+    const resetTransient = () => {
+      keyboard.clear();
+      clearMoveInput(inputState);
+      stepClock.current.reset();
+      // 恢复后的第一帧 rawDelta 可能包含后台停留时间，整帧丢弃
+      skipNextDelta.current = true;
+    };
+
+    const onBlur = () => resetTransient();
+    const onVisibilityChange = () => {
+      if (document.hidden) resetTransient();
+    };
+
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      keyboard.clear();
     };
   }, []);
 
-  useFrame((_, rawDelta) => {
-    const delta = Math.min(rawDelta, 1 / 30);
+  // 单个固定步长：输入 → 速度 → 软边界 → 碰撞推出 + 速度解算 → 贴地 → 朝向
+  const advance = (delta: number) => {
     const p = pos.current;
     const v = vel.current;
 
-    // ---- 传送飞行中：让位给 TeleportSystem（位置/朝向由运镜接管） ----
-    if (inputState.teleportActive) {
-      v.set(0, 0, 0);
-      speed.current = 0;
-      return;
-    }
-
-    // HUD「返回起点」：软重置（位置 / 速度 / 弹簧高度复位，相机自然跟随）
-    if (inputState.wantRespawn) {
-      inputState.wantRespawn = false;
-      p.set(SPAWN_POINT.x, SPAWN_POINT.y, SPAWN_POINT.z);
-      v.set(0, 0, 0);
-      springY.current = SPAWN_POINT.y;
-    }
-
-    // ---- 输入合成（键盘 + 摇杆，相机系） ----
-    const ix = inputState.move.x + inputState.joystick.x;
-    const iy = inputState.move.y + inputState.joystick.y;
-    const mag = Math.min(1, Math.hypot(ix, iy));
-    const yaw = cameraState.yaw;
-    const fwdX = -Math.sin(yaw);
-    const fwdZ = -Math.cos(yaw);
-    const rgtX = Math.cos(yaw);
-    const rgtZ = -Math.sin(yaw);
-
-    if (mag > 0.001) {
-      const wx = (fwdX * iy + rgtX * ix) / Math.max(1e-5, Math.hypot(ix, iy));
-      const wz = (fwdZ * iy + rgtZ * ix) / Math.max(1e-5, Math.hypot(ix, iy));
-      v.x += wx * PLAYER_PHYSICS.acceleration * delta;
-      v.z += wz * PLAYER_PHYSICS.acceleration * delta;
-    } else {
-      const damp = Math.pow(PLAYER_PHYSICS.dampingBase, PLAYER_PHYSICS.dampingScale * delta);
-      v.x *= damp;
-      v.z *= damp;
-    }
-
-    const maxSpeed =
-      PLAYER_PHYSICS.maxSpeed *
-      (inputState.sprint ? PLAYER_PHYSICS.sprintMultiplier : 1) *
-      (isMobile ? PLAYER_PHYSICS.mobileSpeedScale : 1);
-    const sp = Math.hypot(v.x, v.z);
-    if (sp > maxSpeed) {
-      v.x = (v.x / sp) * maxSpeed;
-      v.z = (v.z / sp) * maxSpeed;
-    }
+    const axes = combineMoveAxes(
+      inputState.move.x,
+      inputState.move.y,
+      inputState.joystick.x,
+      inputState.joystick.y,
+    );
+    const move = axesToWorld(axes, cameraState.yaw);
+    const nextVelocity = stepVelocity(v.x, v.z, move, {
+      delta,
+      sprint: inputState.sprint,
+      mobile: isMobile,
+    });
+    v.x = nextVelocity.x;
+    v.z = nextVelocity.z;
 
     // ---- 软边界（§2.3）：候选位置离开可行走面 → 气流推回 + 二分贴边
     // 查询带参考高度（多层地形：茧居所在蝶径 A 正下方，见 layout.ts）
@@ -196,19 +178,26 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
       p.z = candZ;
     }
 
-    // ---- 静态碰撞体推出（蝶枢 / 三屿结构圆柱） ----
-    const pushed = resolveCylinderPush(p.x, p.z, PLAYER_PHYSICS.bodyRadius);
+    // ---- 静态碰撞体推出（蝶枢 / 三屿结构圆柱；悬空装置按身位高度过滤） ----
+    const pushed = resolveCylinderPush(
+      p.x,
+      p.z,
+      PLAYER_PHYSICS.bodyRadius,
+      springY.current,
+    );
     if (pushed) {
-      const nx = p.x - pushed.x;
-      const nz = p.z - pushed.z;
-      const nLen = Math.hypot(nx, nz) || 1;
-      const nxn = nx / nLen;
-      const nzn = nz / nLen;
-      const into = v.x * nxn + v.z * nzn;
-      if (into < 0) {
-        v.x -= into * nxn;
-        v.z -= into * nzn;
-      }
+      // 外法线 = 推出位置 − 原位置；移除朝向障碍的向内速度分量，
+      // 保留背离与切向分量（贴着障碍滑行 / 顶住时不再被吸回）。
+      const resolved = resolveCollisionVelocity(
+        v.x,
+        v.z,
+        p.x,
+        p.z,
+        pushed.x,
+        pushed.z,
+      );
+      v.x = resolved.x;
+      v.z = resolved.z;
       p.x = pushed.x;
       p.z = pushed.z;
     }
@@ -217,19 +206,61 @@ export function usePlayerController(isMobile: boolean): PlayerApi {
     const ground = getGroundHeight(p.x, p.z, springY.current);
     if (ground !== null) {
       const targetY = ground + PLAYER_PHYSICS.hoverHeight;
-      springY.current += (targetY - springY.current) * (1 - Math.exp(-PLAYER_PHYSICS.verticalLambda * delta));
+      springY.current +=
+        (targetY - springY.current) *
+        (1 - Math.exp(-PLAYER_PHYSICS.verticalLambda * delta));
       p.y = springY.current;
     }
 
-    // ---- 朝向与速度记录 ----
-    speed.current = Math.hypot(v.x, v.z);
-    if (speed.current > 0.6) {
-      const target = Math.atan2(-v.x / speed.current, -v.z / speed.current);
+    // ---- 朝向 ----
+    const speedNow = Math.hypot(v.x, v.z);
+    if (speedNow > 0.6) {
+      const target = Math.atan2(-v.x / speedNow, -v.z / speedNow);
       let diff = target - heading.current;
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       heading.current += diff * Math.min(1, 10 * delta);
     }
+  };
+
+  useFrame((_, rawDelta) => {
+    const v = vel.current;
+
+    // ---- 传送飞行中：让位给 TeleportSystem（位置/朝向由运镜接管） ----
+    if (inputState.teleportActive) {
+      v.set(0, 0, 0);
+      speed.current = 0;
+      stepClock.current.reset();
+      return;
+    }
+
+    // HUD「返回起点」：软重置位置 / 速度 / 弹簧高度，并恢复初始构图方向
+    // （否则从任意项目屿按 R 会保留上一个地标的视角，落地后不知面向何处）。
+    if (inputState.wantRespawn) {
+      inputState.wantRespawn = false;
+      const p = pos.current;
+      p.set(SPAWN_POINT.x, SPAWN_POINT.y, SPAWN_POINT.z);
+      v.set(0, 0, 0);
+      springY.current = SPAWN_POINT.y;
+      cameraState.yaw = CAMERA_LIMITS.initialYaw;
+      cameraState.pitch = CAMERA_LIMITS.initialPitch;
+      cameraState.distanceIndex = CAMERA_LIMITS.initialDistanceIndex;
+      heading.current = 0;
+      stepClock.current.reset();
+    }
+
+    // 失焦 / 隐藏后恢复：丢弃第一帧的超长 delta，不补跑后台时间
+    if (skipNextDelta.current) {
+      skipNextDelta.current = false;
+      stepClock.current.reset();
+    } else {
+      const steps = stepClock.current.add(rawDelta);
+      for (let i = 0; i < steps; i += 1) {
+        advance(MOTION_TIMESTEP.step);
+      }
+    }
+
+    speed.current = Math.hypot(v.x, v.z);
   });
 
   return api;
