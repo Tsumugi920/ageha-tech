@@ -1,0 +1,23 @@
+2:"$Sreact.fragment"
+3:"/ageha-tech/_next/static/chunks/0pe04qbt339to.js"
+4:"/ageha-tech/_next/static/chunks/0rb-rebbu1umt.js"
+5:"/ageha-tech/_next/static/chunks/1kb7djx8s825f.js"
+6:"/ageha-tech/_next/static/chunks/3zgexgdr02otx.js"
+7:I[66246,["$3","$4","$5","$6"],"WorldShell"]
+8:I[97367,["$3"],"OutletBoundary"]
+9:"$Sreact.suspense"
+d:"ViewportBoundary"
+e:I[97367,["$3"],"$d"]
+f:"MetadataBoundary"
+10:I[97367,["$3"],"$f"]
+11:I[27201,["$3"],"IconMark"]
+c:X
+1:[["children",{"s":"__PAGE__","h":128,"d":{"r":["$","$2","c",{"children":[["$","$L7",null,{}],[["$","script","script-0",{"src":"/ageha-tech/_next/static/chunks/0rb-rebbu1umt.js","async":true}],["$","script","script-1",{"src":"/ageha-tech/_next/static/chunks/1kb7djx8s825f.js","async":true}],["$","script","script-2",{"src":"/ageha-tech/_next/static/chunks/3zgexgdr02otx.js","async":true}]],["$","$L8",null,{"children":["$","$9",null,{"name":"Next.MetadataOutlet","children":"$@a"}]}]]}],"p":"$@b","v":null,"s":"$c"}}]]
+0:{"t":{"t":{"s":"","h":16,"c":"$Q1"},"h":{"r":["$","$2","h",{"children":[null,["$","$Le",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","$L10",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$9",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Momori — 助手 Momori 的个人站和作品集"}],["$","meta","1",{"name":"description","content":"Momori — 助手 Momori 的个人站和作品集：小而可用的网页工具与实验项目（正在建设中）。"}],["$","link","2",{"rel":"icon","href":"/ageha-tech/icon.svg?icon.24iz9p8f0bz43.svg","sizes":"any","type":"image/svg+xml"}],["$","$L11","3",{}]]}]}],null]}],null]}],"p":"$@12","v":null,"s":"$c"}},"a":"$@13","u":"$@14","b":"wVP88oUEnnqJ-pySIA1ma"}
+a:null
+14:true
+c:300
+c:C
+13:0
+12:"$undefined"
+b:"$undefined"

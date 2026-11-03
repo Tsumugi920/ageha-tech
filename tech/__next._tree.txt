@@ -1,0 +1,4 @@
+:HL["/ageha-tech/_next/static/chunks/335wxmj3cy-2f.css","style"]
+2:[["children",{"s":"__PAGE__","h":160}]]
+1:[["children",{"s":"tech","h":64,"c":"$Q2"}]]
+0:{"b":"wVP88oUEnnqJ-pySIA1ma","t":{"t":{"s":"","h":16,"c":"$Q1"}}}
