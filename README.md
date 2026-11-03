@@ -65,6 +65,17 @@ R4 的性能复测方法（含 R3 5.3 FPS 假象的根因）、多端实测数�
 已知限制见 [docs/r4-report.md](docs/r4-report.md)。P5 生产构建最终回归（视口 /
 性能 / 无障碍 / 失败路径 / 路由）见 [docs/p5-final-report.md](docs/p5-final-report.md)。
 
+当前工作区已完成 R12.1 自然地形与 R12.2 验收收尾：证据补强、首页构图、
+北径铺装试点，以及三径实走、详情/传送/茧居所和性能回归。
+本轮实测、真实截图、完整日志与限制见 [docs/r122-d-report.md](docs/r122-d-report.md)；
+R4 / P5 数据作为历史记录保留，不代表当前版本的性能。
+
+R12.3-A 已定位 Three 警告并完成晶簇冗余转换、阴影模式的最小兼容修复；
+桌面重复采样及保留的依赖提示见 [docs/r123-a-report.md](docs/r123-a-report.md)。
+
+R12.3-B 完成六株小型树的露干修正与连续冠层样例；真实前后图、
+性能复验和保留的雪埋边界见 [docs/r123-b-report.md](docs/r123-b-report.md)。
+
 ## 技术栈
 
 | 类别 | 选型 |
@@ -94,16 +105,17 @@ npm run build
 # 4. 生产模式启动（需先 npm run build）
 npm run start
 
-# 5. 代码检查
-npm run lint
+# 5. 源码检查（排除本地验收产物中的临时浏览器文件）
+npm run lint -- --ignore-pattern '.r12-shots/**'
 
-# 6. 测试套件（node --test，21 个测试文件；R11 施工中用例数会变化）
+# 6. 测试套件（node --test，当前 313 项）
 npm test
 ```
 
-以上命令均来自 `package.json` 的 `scripts` 字段。P5 快照最后一次全量为
-245 通过 0 失败、lint 0 告警、构建成功；当前工作区仍有并发 R11 地形细化，
-最终门禁需在 R11 完成后复跑。
+以上命令均来自 `package.json` 的 `scripts` 字段。R12.2-D 当前全量为
+308 通过、0 失败；TypeScript、上述源码 lint 和生产构建通过，生成 12 个页面。
+浏览器验证脚本为 `scripts/verify-r122-d.mjs`，生产服务与独立 CDP 浏览器的
+启动条件、产物路径和复现方式见本轮报告。
 
 ## 目录结构
 

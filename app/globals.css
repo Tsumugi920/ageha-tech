@@ -547,8 +547,7 @@ body:has(#world-root) > footer {
 .world-hud__zone {
   position: absolute;
   top: 6.5rem;
-  left: 50%;
-  transform: translateX(-50%);
+  right: max(var(--site-gutter), calc((100vw - var(--container-max)) / 2));
   padding: 0.4rem 1.1rem;
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.62);
@@ -559,7 +558,8 @@ body:has(#world-root) > footer {
   font-weight: 600;
   color: var(--color-text-primary);
   white-space: nowrap;
-  animation: world-zone-in 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  /* 靠边区域牌不使用 world-zone-in 的横向居中位移。 */
+  animation: world-toast-in 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* 档位自适应一次性提示（§12.2：升降档 4s 后自动消失；与 zone 同语言小一号） */
@@ -1186,14 +1186,17 @@ body:has(#world-root) > footer {
 .world-nameplate--quiet {
   padding: 0.35rem 0.8rem;
   background: rgba(255, 255, 255, 0.82);
+  width: min(14rem, calc(100vw - 2rem));
+  white-space: normal;
+  text-align: center;
 }
 
 .world-nameplate--quiet .world-nameplate__name {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .world-nameplate--quiet .world-nameplate__status {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 /* ---- WebGL 降级项目浏览 ---- */
@@ -2046,6 +2049,14 @@ body:has(#world-root) > footer {
 
   .world-hud__quick-status {
     font-size: 0.6875rem;
+  }
+}
+
+/* 矮横屏的穹舱控件从导航避让线往下排，保留原有触控尺寸。 */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 400px) {
+  .world-hud__prompt[data-project="moss-world"] {
+    top: var(--world-nav-clear, 5.75rem);
+    bottom: auto;
   }
 }
 

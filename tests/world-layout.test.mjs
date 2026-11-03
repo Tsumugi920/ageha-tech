@@ -519,8 +519,8 @@ test("三屿结构碰撞体逐屿登记：Moss 穹舱按偏移落位（蝶径到
 /* ------------------------------ 相机与运动参数 ------------------------------ */
 
 test("初始构图（P1）：14m 中近景，初始机位 = 出生点跟随解算值，与移动状态零跳变", () => {
-  assert.deepEqual(CAMERA_LIMITS.initialPosition, { x: 12.44, y: 3.96, z: 16.7 });
-  assert.deepEqual(CAMERA_LIMITS.initialLookAt, { x: 5.25, y: 1.45, z: 4.95 });
+  assert.deepEqual(CAMERA_LIMITS.initialPosition, { x: 12.44, y: 5.56, z: 16.7 });
+  assert.deepEqual(CAMERA_LIMITS.initialLookAt, { x: 5.25, y: 3.05, z: 4.95 });
   assert.equal(CAMERA_LIMITS.initialYaw, 0.55, "初始视线西北向，蝶枢与 AgehaOS 分居两侧");
   assert.equal(CAMERA_LIMITS.initialPitch, 0.18, "P1 初始俯角降低，角色与北径同屏可读");
   assert.equal(CAMERA_LIMITS.initialDistanceIndex, 1, "P1 默认 14m 中近景");

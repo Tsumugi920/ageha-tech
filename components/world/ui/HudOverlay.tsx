@@ -16,7 +16,7 @@ import { useWorldAudio } from "../systems/WorldAudio";
 
 /**
  * HUD 常态层（R3 精简）：
- * - 顶中区域名牌、交互提示条、左下操作提示、右下工具栏；
+ * - 右上区域名牌、交互提示条、左下操作提示、右下工具栏；
  * - 项目屿列表改为「按需展开」的小抽屉，不再常驻遮挡场景；
  *   默认只保留项目屿 / 导航 / 说明三个按钮；
  * - 桌面端保留项目列表与返回起点两个次级入口，移动端收敛到导航面板。
@@ -62,7 +62,7 @@ export function HudOverlay() {
 
   return (
     <div className="world-hud">
-      {/* 顶中：当前区域名牌（进入区域淡入） */}
+      {/* 右上：当前区域名牌（进入区域淡入，避开中央地标） */}
       {zone ? (
         <p key={zone} className="world-hud__zone" role="status">
           {zone}
@@ -85,7 +85,7 @@ export function HudOverlay() {
 
       {/* 中下：交互提示条（有目标时；点击打开详情面板；触屏文案不带键盘按键） */}
       {prompt ? (
-        <div className="world-hud__prompt">
+        <div className="world-hud__prompt" data-project={prompt.kind === "project" ? prompt.slug : undefined}>
           {prompt.kind === "project" ? (
             <ExperienceStrip
               slug={prompt.slug}

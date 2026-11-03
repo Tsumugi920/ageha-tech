@@ -7,6 +7,7 @@ import { CAMERA_LIMITS } from "@/lib/world/constants";
 import { CAMERA_OCCLUDERS } from "@/lib/world/colliders";
 import { PROJECT_ISLES, getGroundHeight } from "@/lib/world/layout";
 import { cameraState, inputState } from "./inputState";
+import { aimFollowCamera } from "./cameraFraming";
 import type { PlayerApi } from "./usePlayerController";
 
 /**
@@ -266,7 +267,7 @@ export function FollowCamera({
         (1 - smoothstep(8, 34, distance)) * (0.3 + facing * 0.7);
       // 以地标上部为参考点，平滑抬视点；不改变玩家可控的 yaw/pitch
       const targetLookY = isle.center.y + focus.lookHeight;
-      focusLift = Math.max(focusLift, (targetLookY - (p.y + 1.1)) * strength * 0.8);
+      focusLift = Math.max(focusLift, (targetLookY - (p.y + CAMERA_LIMITS.lookHeight)) * strength * 0.8);
       focusBack = Math.max(focusBack, focus.back * strength);
     }
 
@@ -281,7 +282,7 @@ export function FollowCamera({
 
     desiredLook.current.set(
       p.x + fwdX * CAMERA_LIMITS.lookAhead,
-      p.y + 1.1 + focusLift,
+      p.y + CAMERA_LIMITS.lookHeight + focusLift,
       p.z + fwdZ * CAMERA_LIMITS.lookAhead,
     );
 
@@ -341,7 +342,7 @@ export function FollowCamera({
       MathUtils.damp(lookCurrent.current.y, desiredLook.current.y, lookLambda, delta),
       MathUtils.damp(lookCurrent.current.z, desiredLook.current.z, lookLambda, delta),
     );
-    camera.lookAt(lookCurrent.current);
+    aimFollowCamera(camera, lookCurrent.current, p);
   });
 
   return null;

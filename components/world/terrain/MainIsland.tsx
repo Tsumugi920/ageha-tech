@@ -3,18 +3,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   AdditiveBlending,
-  BufferAttribute,
   type BufferGeometry,
   CatmullRomCurve3,
   Color,
-  ConeGeometry,
   DoubleSide,
   InstancedMesh,
   Object3D,
   RingGeometry,
   Vector3,
 } from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   MAIN_ISLAND,
   PLAZA_MOUTHS,
@@ -29,7 +26,9 @@ import {
   createCrystalSprayGeometry,
   createIslandTopGeometry,
   createLayeredIslandGeometry,
+  mainIslandMicroRelief,
 } from "./islandGeometry";
+import { PINE_FORMS, buildPineFoliage, type PineForm } from "./floraGeometry";
 import { ISLAND_PATH_POLYLINES } from "./Trails";
 import {
   CrystalGlowMaterial,
@@ -78,12 +77,11 @@ function supportAt(x: number, z: number, radius: number): number {
 /* ------------------------------ 布点（确定性） ------------------------------ */
 
 /**
- * 布点原则（R9）：四组岩簇各守一个区域边缘，簇内允许一块主石 + 一块伴石，
- * 簇与簇之间留出雪面；不再沿岛缘均匀撒点。
- * - 西岭岩簇（C 径以北）/ 东北花园岩簇（冰池北岸）/ 北径东侧岩簇 /
- *   A 径外侧与西南观景位各一块；
- * - 每块岩的足迹与旁边树干、灌木、径带至少留 0.4m 净距（R8 西岭的
- *   「树干插进岩石」在此修正）；
+ * 布点原则（R9 → R12.1-C）：四组岩簇各守一个区域边缘，簇内允许一块主石
+ * + 一块伴石，簇与簇之间留出雪面；不再沿岛缘均匀撒点。
+ * R12.1-C（C 阶段）：补入「平板岩」与「直立石」两种极端轮廓变体，并把
+ * 部分大石加深沉埋——岩石贴地性更好，轮廓不再全是「圆钝卵石」。
+ * - 每块岩的足迹与旁边树干、灌木、径带至少留 0.4m 净距；
  * - 体量大的岩块压到中景，初始画面前景只保留低伏小石。
  */
 type BoulderSpot = {
@@ -93,8 +91,8 @@ type BoulderSpot = {
   squash: number;
   rot: number;
   shade: number;
-  /** 五种种子几何：主岩 / 宽扁岩 / 斜棱岩 / 小卵石 / 风蚀岩 */
-  variant: 0 | 1 | 2 | 3 | 4;
+  /** 七种种子几何：主岩 / 宽扁岩 / 斜棱岩 / 小卵石 / 风蚀岩 / 平板岩 / 直立石 */
+  variant: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   /** 水平两轴各自的拉伸，避免所有石头只是整体放大 */
   stretchX?: number;
   stretchZ?: number;
@@ -118,17 +116,21 @@ const BOULDERS: readonly BoulderSpot[] = [
   // 西南观景位低伏岩块（与冰冠乔木 / 晶簇成组）
   { x: -7.4, z: 9.7, scale: 0.4, squash: 0.54, rot: 1.9, shade: 1, variant: 2, stretchX: 0.92, stretchZ: 1.1, tiltX: 0.05, tiltZ: -0.02 },
   // ---- R11 地貌组合扩补：岩石跟随新高地落位（背风面 / 坡折 / 脊下） ----
-  // 西岭露岩丘南麓：主石坐露岩丘 (−8.6,−0.6) 背风侧
   { x: -8.9, z: -2.1, scale: 0.74, squash: 0.68, rot: 3.4, shade: 0, variant: 1, stretchX: 1.14, stretchZ: 0.9, tiltX: -0.05, tiltZ: 0.04 },
-  // 西岭肩脊东坡：中石压坡折
   { x: -12.9, z: 0.6, scale: 0.58, squash: 0.62, rot: 5.2, shade: 2, variant: 3, stretchX: 1.05, stretchZ: 0.95, tiltX: 0.04, tiltZ: -0.05 },
-  // 东北圆丘凹地：低伏石收住丘缘
   { x: -2.6, z: -9.9, scale: 0.55, squash: 0.6, rot: 1.5, shade: 1, variant: 2, stretchX: 0.95, stretchZ: 1.08, tiltX: 0.03, tiltZ: 0.04 },
-  // 冰碛带脊线两侧：一主一伴顺碛脊走向排布
   { x: 12.6, z: -6.4, scale: 0.66, squash: 0.64, rot: 0.6, shade: 0, variant: 4, stretchX: 1.18, stretchZ: 0.88, tiltX: -0.04, tiltZ: 0.05 },
   { x: 9.6, z: -7.7, scale: 0.46, squash: 0.58, rot: 4.0, shade: 2, variant: 0, stretchX: 0.9, stretchZ: 1.1, tiltX: 0.05, tiltZ: -0.03 },
-  // 西南洼地东缘：洼地边缘的低界石
   { x: -4.6, z: 9.9, scale: 0.44, squash: 0.56, rot: 2.4, shade: 1, variant: 3, stretchX: 1.02, stretchZ: 0.96, tiltX: -0.03, tiltZ: 0.03 },
+  // ---- R12.1-C（C 阶段）：平板岩 / 直立石——极端轮廓补充轮廓语汇 ----
+  // 冰池北岸平板岩：低伏长条石压住池岸转角
+  { x: 10.4, z: 1.6, scale: 0.5, squash: 0.4, rot: 2.8, shade: 2, variant: 5, stretchX: 1.55, stretchZ: 0.9, tiltX: -0.03, tiltZ: 0.04 },
+  // 冰碛脊上的断裂平板：顺碛脊走向
+  { x: 11.0, z: -8.2, scale: 0.46, squash: 0.42, rot: 0.9, shade: 0, variant: 5, stretchX: 1.4, stretchZ: 0.95, tiltX: 0.05, tiltZ: -0.03 },
+  // 西南观景位直立石：与雪台 / 晶簇成组的竖向参照
+  { x: -5.9, z: 10.3, scale: 0.52, squash: 1.42, rot: 3.7, shade: 0, variant: 6, stretchX: 0.82, stretchZ: 0.9, tiltX: 0.04, tiltZ: -0.03 },
+  // 东北丘原凹地直立石：与圆丘轮廓呼应
+  { x: -1.7, z: -8.9, scale: 0.48, squash: 1.32, rot: 1.9, shade: 2, variant: 6, stretchX: 0.85, stretchZ: 0.88, tiltX: -0.04, tiltZ: 0.04 },
 ];
 
 /**
@@ -172,6 +174,31 @@ const RIM_ICICLES = Array.from({ length: 21 }, (_, i) => {
   };
 });
 
+/**
+ * 地表冰块群（R12.1-C，C 阶段）：三簇低矮冰壳块——冰碛脊北缘 / 东北
+ * 凹地 / 南麓浅雪盆缘。与晶簇语言同源但更哑光（不发光的主冰色 + 微弱
+ * 冰光），沉埋半档贴地；纯视觉，不参与碰撞，也不算「到处散落的装饰」
+ * （三处都贴着既有的地貌焦点）。
+ */
+const ICE_BLOCKS: ReadonlyArray<{
+  x: number;
+  z: number;
+  scale: number;
+  sy: number;
+  rot: number;
+}> = [
+  // 冰碛脊北缘：两块一大一小，顺脊线
+  { x: 8.9, z: -8.8, scale: 0.34, sy: 0.72, rot: 0.7 },
+  { x: 9.7, z: -9.5, scale: 0.22, sy: 0.9, rot: 2.4 },
+  // 东北凹地：三块错落（与直立石 / 岩簇同区）
+  { x: -3.1, z: -8.2, scale: 0.3, sy: 0.66, rot: 1.3 },
+  { x: -2.3, z: -7.5, scale: 0.2, sy: 0.95, rot: 3.9 },
+  { x: -3.8, z: -7.3, scale: 0.16, sy: 0.8, rot: 5.2 },
+  // 南麓浅雪盆缘：两块（与 tuft / 灌木同区）
+  { x: -0.9, z: 10.3, scale: 0.28, sy: 0.7, rot: 2.1 },
+  { x: -0.1, z: 10.9, scale: 0.19, sy: 0.85, rot: 4.6 },
+];
+
 /** 南缘观景台弧（theta 弧度，椭圆参数角） */
 const DECK_START = Math.PI / 2 - 0.58;
 const DECK_LENGTH = 1.16;
@@ -192,17 +219,20 @@ const DRIFTS: ReadonlyArray<{
   // ---- R11：跟随新地貌补两处——东北丘原凹地的背风积雪 + 观景台内侧浅雪盆的盆缘雪埂 ----
   { x: -4.4, z: -9.4, rot: 0.7, scale: [1.8, 0.11, 0.9], offset: [0.7, -0.04, 0.3], sub: [0.78, 0.08, 0.42] },
   { x: 7.6, z: 9.4, rot: -0.5, scale: [1.7, 0.1, 0.85], offset: [-0.6, -0.04, 0.35], sub: [0.72, 0.08, 0.4] },
+  // ---- R12.1-D（D 阶段）：南麓开阔雪原的风积雪埂——配合顶面微起伏，
+  // 把南侧「大片均匀地表」补上低伏走向（不进广场 / 出生视线走廊） ----
+  { x: 2.8, z: 7.8, rot: 0.9, scale: [1.9, 0.11, 0.9], offset: [-0.8, -0.04, 0.3], sub: [0.8, 0.08, 0.44] },
+  { x: 5.8, z: 10.8, rot: -0.35, scale: [1.75, 0.1, 0.85], offset: [0.7, -0.04, 0.32], sub: [0.76, 0.08, 0.42] },
+  { x: -8.4, z: 7.8, rot: 0.5, scale: [1.8, 0.1, 0.88], offset: [0.75, -0.04, 0.3], sub: [0.78, 0.08, 0.42] },
+  { x: 15.2, z: 3.4, rot: 1.25, scale: [1.6, 0.1, 0.8], offset: [-0.65, -0.04, 0.3], sub: [0.72, 0.08, 0.4] },
 ];
 
 /**
- * 针叶树三种形态（R5.1）：
- * - spire 霜松：4 层窄锥，顶端积雪，做林地竖向主调；
- * - broad 雪杉：3 层宽锥，压住林地外缘；
- * - wind 斜冠松：5 层逐层偏移的窄冠，给同种树一组不一样的风蚀轮廓。
- * 每株在形态之外再叠加独立的宽/高比例与轻微倾斜，避免同形树只靠等比
- * 缩放区分；顶端雪色直接烘进冠层几何，不再外挂会「悬空」的雪帽。
+ * 针叶树布点（R12.1-B）：形态语言重建为四种轮廓（floraGeometry.ts）——
+ * spire 高耸塔形 / broad 宽冠伞形 / wind 风蚀斜冠 / tuft 紧凑矮锥。
+ * 布点延续 R9 的分组原则（林簇与岩石 / 水景 / 道路入口成组），R12.1-B
+ * 追加：路缘与南麓的小型装饰树（tuft），低矮不遮挡动线。
  */
-type PineForm = "spire" | "broad" | "wind";
 type PineSpot = {
   x: number;
   z: number;
@@ -219,116 +249,43 @@ type PineSpot = {
 
 /**
  * R9 布点：三组林，各自与一组岩石 / 水景 / 道路入口成组。
- * - 西岭林：退到 C 径以北的岛脊，树冠不再与西岭岩石穿插；
+ * - 西岭林：spire 主簇立岛脊（R12.1-B 改高耸塔形），broad/wind 收林缘；
  * - 东池林：退到冰池北岸，作为花园背景，不压住广场与 M 径；
  * - 北径林：两株分列北径东侧，与两块岩石一起形成门洞，不占道路中线。
  */
 const PINES: readonly PineSpot[] = [
-  { x: -14.6, z: -0.6, scale: 1.05, rot: 0.2, form: "spire", height: 1.1, width: 0.94, lean: 0.02 },
-  { x: -13.5, z: 1.6, scale: 0.78, rot: 1.7, form: "broad", height: 0.94, width: 1.05, lean: -0.03 },
-  { x: -15.1, z: 2.5, scale: 0.62, rot: 2.9, form: "wind", height: 0.98, width: 0.9, lean: 0.06 },
-  { x: 12.6, z: -4.4, scale: 0.95, rot: -0.4, form: "spire", height: 0.96, width: 1.02, lean: -0.025 },
-  { x: 13.8, z: -2.7, scale: 0.78, rot: 1.2, form: "broad", height: 0.94, width: 1.04, lean: 0.02 },
+  // 西岭主簇：一株高耸 spire 做竖向主调（R12.1-B 塔形轮廓），高宽比拉开
+  { x: -14.6, z: -0.6, scale: 1.02, rot: 0.2, form: "spire", height: 1.14, width: 0.9, lean: 0.02 },
+  { x: -13.5, z: 1.6, scale: 0.8, rot: 1.7, form: "broad", height: 0.96, width: 1.08, lean: -0.03 },
+  { x: -15.1, z: 2.5, scale: 0.64, rot: 2.9, form: "wind", height: 0.98, width: 0.9, lean: 0.06 },
+  // 东池林：broad 宽冠做背景，wind 斜冠收边
+  { x: 12.6, z: -4.4, scale: 0.92, rot: -0.4, form: "spire", height: 0.98, width: 1.0, lean: -0.025 },
+  { x: 13.8, z: -2.7, scale: 0.82, rot: 1.2, form: "broad", height: 0.94, width: 1.08, lean: 0.02 },
   { x: 12.9, z: -0.8, scale: 0.64, rot: 2.6, form: "wind", height: 1.04, width: 0.88, lean: 0.04 },
-  { x: 0.6, z: -10.2, scale: 0.8, rot: 0.9, form: "spire", height: 1.12, width: 0.9, lean: -0.02 },
-  { x: -3.2, z: -11.2, scale: 0.68, rot: 2.2, form: "broad", height: 0.92, width: 1.08, lean: 0.01 },
+  // 北径门洞
+  { x: 0.6, z: -10.2, scale: 0.84, rot: 0.9, form: "spire", height: 1.1, width: 0.9, lean: -0.02 },
+  { x: -3.2, z: -11.2, scale: 0.7, rot: 2.2, form: "broad", height: 0.92, width: 1.08, lean: 0.01 },
   // ---- R11：植被跟随四区地貌补植（背风凹地成簇，不排成行） ----
   // 西岭露岩丘背风侧（东南麓）：一高一矮压住坡折
-  { x: -8.2, z: -3.4, scale: 0.88, rot: 3.8, form: "spire", height: 1.04, width: 0.92, lean: 0.03 },
+  { x: -8.2, z: -3.4, scale: 0.9, rot: 3.8, form: "spire", height: 1.06, width: 0.9, lean: 0.03 },
   { x: -7.6, z: -4.3, scale: 0.6, rot: 5.0, form: "wind", height: 0.96, width: 0.9, lean: -0.04 },
   // 西岭肩脊南洼：单株 broad 收边
-  { x: -12.2, z: 2.1, scale: 0.7, rot: 0.7, form: "broad", height: 0.9, width: 1.06, lean: 0.02 },
+  { x: -12.2, z: 2.1, scale: 0.72, rot: 0.7, form: "broad", height: 0.9, width: 1.06, lean: 0.02 },
   // 东北丘原与冰碛带各补一株，接住两片高地的林线
-  { x: 2.6, z: -10.6, scale: 0.74, rot: 1.9, form: "spire", height: 1.06, width: 0.94, lean: -0.03 },
+  { x: 2.6, z: -10.6, scale: 0.76, rot: 1.9, form: "spire", height: 1.06, width: 0.94, lean: -0.03 },
   { x: 10.2, z: -8.4, scale: 0.66, rot: 4.4, form: "wind", height: 1.0, width: 0.9, lean: 0.05 },
-  // ---- R12.0-C（G11）：南麓补植——此前南/东南开阔雪原完全没有树，
-  // 分布南北失衡。两株落在浅雪盆缘与东南凹谷（背风凹地成簇的延续），
-  // 避开出生视线走廊 / 观景台铺装带 / 迎宾步道与 M 径接近段
+  // ---- R12.0-C（G11）：南麓补植——避开出生视线走廊 / 观景台铺装带 ----
   { x: 1.4, z: 10.9, scale: 0.62, rot: 2.1, form: "wind", height: 1.0, width: 0.9, lean: 0.05 },
   { x: 9.4, z: 8.4, scale: 0.78, rot: 0.8, form: "broad", height: 0.94, width: 1.05, lean: -0.02 },
+  // ---- R12.1-B（B 阶段）：小型装饰树（tuft）——路缘 / 洼地缘的低矮点缀，
+  // 每处一株不排成行，避让径带 / 广场 / 出生点 / 导览碑（tests 钉定） ----
+  { x: -4.6, z: 8.7, scale: 0.9, rot: 1.1, form: "tuft", height: 0.9, width: 1.0 },
+  { x: 3.4, z: 9.8, scale: 0.8, rot: 4.0, form: "tuft", height: 0.85, width: 1.05 },
+  { x: -9.8, z: -6.6, scale: 0.85, rot: 2.6, form: "tuft", height: 0.95, width: 0.95 },
+  { x: 6.2, z: -10.2, scale: 0.75, rot: 0.4, form: "tuft", height: 0.9, width: 1.0 },
+  { x: 14.8, z: 1.4, scale: 0.8, rot: 3.2, form: "tuft", height: 0.85, width: 1.0 },
+  { x: -11.9, z: 4.4, scale: 0.7, rot: 5.3, form: "tuft", height: 0.85, width: 1.0 },
 ] as const;
-
-type PineTier = {
-  radius: number;
-  height: number;
-  y: number;
-  dx: number;
-  dz: number;
-  sides: number;
-  color: string;
-  /** 各层绕自身轴的旋转，打散同形冠层的棱线对齐 */
-  twist?: number;
-};
-
-const PINE_FORMS: Record<PineForm, { tiers: readonly PineTier[] }> = {
-  // R12.0-C（G11）：冠层色整体提亮半档并向青灰-冰绿偏移——远处树冠
-  // 不再读成一排深青剪影，与雪原的明度关系更近
-  spire: {
-    tiers: [
-      { radius: 0.66, height: 1.36, y: 0.93, dx: 0.02, dz: 0.01, sides: 7, color: "#457788", twist: 0.15 },
-      { radius: 0.53, height: 1.12, y: 1.62, dx: -0.03, dz: 0.02, sides: 7, color: "#56909F", twist: 0.55 },
-      { radius: 0.4, height: 0.92, y: 2.24, dx: 0.03, dz: -0.01, sides: 6, color: "#6AA8B4", twist: 0.95 },
-      { radius: 0.26, height: 0.66, y: 2.79, dx: -0.01, dz: 0.01, sides: 6, color: "#93C6CE", twist: 1.2 },
-    ],
-  },
-  broad: {
-    tiers: [
-      { radius: 0.94, height: 1.16, y: 0.78, dx: 0.02, dz: 0, sides: 8, color: "#518294", twist: 0.2 },
-      { radius: 0.75, height: 0.96, y: 1.43, dx: -0.03, dz: 0.02, sides: 7, color: "#649DA9", twist: 0.7 },
-      { radius: 0.53, height: 0.78, y: 1.99, dx: 0.01, dz: -0.01, sides: 6, color: "#9FCED7", twist: 1.1 },
-    ],
-  },
-  wind: {
-    tiers: [
-      { radius: 0.56, height: 1.18, y: 0.94, dx: 0.06, dz: 0.01, sides: 6, color: "#44798B", twist: 0.1 },
-      { radius: 0.46, height: 1.0, y: 1.6, dx: 0.13, dz: -0.02, sides: 6, color: "#5794A3", twist: 0.6 },
-      { radius: 0.36, height: 0.88, y: 2.18, dx: 0.22, dz: 0.02, sides: 5, color: "#6FACB8", twist: 1.0 },
-      { radius: 0.25, height: 0.66, y: 2.72, dx: 0.3, dz: -0.01, sides: 5, color: "#8AC0C8", twist: 1.4 },
-      { radius: 0.14, height: 0.42, y: 3.12, dx: 0.36, dz: 0.01, sides: 5, color: "#A0CCD4", twist: 1.7 },
-    ],
-  },
-};
-
-/**
- * 同一形态的层叠锥冠烘成一份几何（顶点色区分层高），单次实例化。
- * R12.0-C（G11）：积雪从「只有顶层」扩到上两层——顶层全强度、
- * 次顶层半强度，中距离树冠也能读出积雪层次，不再只是深色锥体。
- */
-function buildPineFoliage(form: (typeof PINE_FORMS)[PineForm]): BufferGeometry {
-  const snow = new Color("#EDF8FE");
-  const parts = form.tiers.map((tier, tierIndex) => {
-    const cone = new ConeGeometry(tier.radius, tier.height, tier.sides, 1).toNonIndexed();
-    cone.rotateY(tier.twist ?? 0);
-    cone.translate(tier.dx, tier.y, tier.dz);
-    const base = new Color(tier.color);
-    const tierFromTop = form.tiers.length - 1 - tierIndex;
-    const frostStrength = tierFromTop === 0 ? 0.82 : tierFromTop === 1 ? 0.4 : 0;
-    const count = cone.getAttribute("position").count;
-    const colors = new Float32Array(count * 3);
-    for (let i = 0; i < count; i += 1) {
-      let color = base;
-      if (frostStrength > 0) {
-        const y = cone.getAttribute("position").getY(i) - tier.y;
-        const t = Math.max(0, Math.min(1, y / tier.height + 0.5));
-        const frost = t < 0.55 ? 0 : (t - 0.55) / 0.45;
-        color = base
-          .clone()
-          .lerp(snow, frost * frost * (3 - 2 * frost) * frostStrength);
-      }
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-    }
-    cone.setAttribute("color", new BufferAttribute(colors, 3));
-    return cone;
-  });
-  const merged = mergeGeometries(parts, false);
-  parts.forEach((part) => part.dispose());
-  if (!merged) throw new Error("针叶树冠几何合并失败");
-  merged.computeVertexNormals();
-  merged.computeBoundingSphere();
-  return merged;
-}
 
 type ArborBlob = readonly [number, number, number, number];
 type ArborSpot = {
@@ -758,6 +715,28 @@ function buildPackedField(): (x: number, z: number) => number {
   };
 }
 
+/**
+ * R12.1-D：视觉微起伏的避让掩码（0~1）。广场 / 出生点 / 冰池 / 蝶径 /
+ * 岛缘铺装带全部归零——雪垄只出现在开阔雪原，可行走与交互空间的地表
+ * 保持解析高度（碰撞 / 导航不受视觉层影响）。
+ * 压实度场提升为模块级单例（顶点级调用不应重建折线段表）。
+ */
+const PACKED_FIELD = buildPackedField();
+
+function microMaskAt(x: number, z: number): number {
+  const smooth01 = (a: number, b: number, v: number) => {
+    const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+  return (
+    smooth01(6.4, 8.4, Math.hypot(x, z)) *
+    smooth01(1.8, 3.2, Math.hypot(x - SPAWN_POINT.x, z - SPAWN_POINT.z)) *
+    smooth01(3.0, 4.4, Math.hypot(x - 8, z + 2)) *
+    (1 - smooth01(0.84, 0.92, Math.hypot(x / MAIN_ISLAND.semiAxisX, z / MAIN_ISLAND.semiAxisZ))) *
+    (1 - PACKED_FIELD(x, z))
+  );
+}
+
 export function MainIsland() {
   const rockGeometry = useMemo(
     () =>
@@ -775,11 +754,17 @@ export function MainIsland() {
         strataTilt: 0.085,
         buttressCount: 7,
         buttressDepth: 0.075,
-        layerJitter: 0.028,
+        // R12.1-A：层错 0.028→0.034——配合 islandGeometry 的逐层振幅节奏
+        // 与局部岩突 / 断面场，层与层的厚薄跳变更可读
+        layerJitter: 0.034,
         // R12.0-B（G4）：3 条宽幅竖向破口——下半部环带在 3 处被彻底打断，
         // 岩壁从「层叠圆环」变成「被撕开的浮岩」；仅作用于 depthRatio>0.3
         breachCount: 3,
         breachDepth: 0.15,
+        // R12.1-A：局部岩突 4 处 + 窄幅断面 3 处——方位与深度带确定性分布，
+        // 打破层带的整圈同步起伏（顶环 / 雪檐接缝不受影响）
+        outcropCount: 4,
+        notchCount: 3,
       }),
     [],
   );
@@ -793,7 +778,11 @@ export function MainIsland() {
         seed: 2.17,
         segments: 144,
         rings: 42,
-        heightAt: (_theta, _r, x, z) => reliefAt(x, z),
+        // R12.1-D：解析碰撞场 + 视觉风雪垄（mainIslandMicroRelief）。
+        // 微起伏用「避让掩码」收在开阔雪原——广场 / 出生 / 冰池 / 径带 /
+        // 岛缘铺装带全部归零，碰撞与导航高度场不变（纯视觉层）。
+        heightAt: (_theta, _r, x, z) =>
+          reliefAt(x, z) + microMaskAt(x, z) * mainIslandMicroRelief(x, z),
         // 雪檐加深并随角度变化，檐底过渡到岩色；地表按坡度分区染色
         rimDepth: 0.62,
         rimScallop: 0.026,
@@ -801,8 +790,11 @@ export function MainIsland() {
         // 让雪原的明暗分区可读，而不是一整片过曝的白
         slopeTint: 0.62,
         rimRockBlend: 0.85,
+        // R12.1-D：陡坡露岩 / 洼地结冰——地表「岩 / 雪 / 冰」三区可读
+        rockSlopeTint: 0.4,
+        hollowIceTint: 0.34,
         // R10.1：沿路网的压实雪带——地表 / 道路边缘 / 野雪三档可读
-        zoneAt: buildPackedField(),
+        zoneAt: PACKED_FIELD,
       }),
     [],
   );
@@ -908,6 +900,9 @@ export function MainIsland() {
 
       {/* 岩缘扶壁 → 冰棱檐：保留岛侧体积，不再用深色巨石堵住前景 */}
       <RimFringe />
+
+      {/* R12.1-C 地表冰块群：冰碛脊 / 东北凹地 / 南麓盆缘的低矮冰壳 */}
+      <IceBlocks />
 
       {/* R11 贴壁岩 + 岛裙碎石：侧影的不规则风化层（可行走面之下） */}
       <WallRocks />
@@ -1530,10 +1525,47 @@ function RimFringe() {
 }
 
 /**
- * 岩簇场（R5.1）：五种种子轮廓 + 每簇一主两伴。
+ * 地表冰块群（R12.1-C）：单次实例化的低矮冰壳块，贴地沉埋、朝向各异；
+ * 材质与晶簇同语言但压低发光（intensity 0.1），读作「风积雪里的冰壳」。
+ */
+function IceBlocks() {
+  const ref = useRef<InstancedMesh>(null);
+  const dummy = useMemo(() => new Object3D(), []);
+
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    ICE_BLOCKS.forEach((block, i) => {
+      const y = supportAt(block.x, block.z, block.scale);
+      dummy.position.set(block.x, y + block.scale * block.sy * 0.28, block.z);
+      dummy.rotation.set(0.06, block.rot, -0.05);
+      dummy.scale.set(block.scale, block.scale * block.sy, block.scale * 0.82);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [dummy]);
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, ICE_BLOCKS.length]} castShadow>
+      <dodecahedronGeometry args={[1, 0]} />
+      <CrystalGlowMaterial
+        color="#CFEFFB"
+        glow="#8AD8F2"
+        intensity={0.1}
+        roughness={0.3}
+      />
+    </instancedMesh>
+  );
+}
+
+/**
+ * 岩簇场（R5.1 → R12.1-C）：七种种子轮廓 + 每簇一主两伴。
  * 大石保留 detail=1 的可读切面，小卵石用 detail=0，面数不升反降；
- * 每块岩石再叠加横向拉伸与双轴倾斜，10 块石头分 5 个 draw call。
+ * 每块岩石再叠加横向拉伸与双轴倾斜，19 块石头分 7 个 draw call。
  * 雪帽沿用一份低面数几何，但随岩石足迹缩放、下沉，避免「浮在顶上」。
+ * R12.1-C：variant 5 平板岩（强风化扁平轮廓）/ variant 6 直立石
+ * （竖向节理轮廓）用独立种子，与旧五种共同消除「同一种石头」的重复感。
  */
 const BOULDER_VARIANTS = [
   { seed: 7.3, jaggedness: 0.28, detail: 1 },
@@ -1541,6 +1573,8 @@ const BOULDER_VARIANTS = [
   { seed: 11.7, jaggedness: 0.24, detail: 1 },
   { seed: 4.6, jaggedness: 0.32, detail: 0 },
   { seed: 15.2, jaggedness: 0.26, detail: 0 },
+  { seed: 19.4, jaggedness: 0.38, detail: 0 },
+  { seed: 23.8, jaggedness: 0.3, detail: 1 },
 ] as const;
 
 function BoulderField() {
@@ -1588,7 +1622,7 @@ function BoulderField() {
 
   useLayoutEffect(() => {
     const caps = capRef.current;
-    const counters = [0, 0, 0, 0, 0];
+    const counters = [0, 0, 0, 0, 0, 0, 0];
     BOULDERS.forEach((spot, i) => {
       const y = supportAt(spot.x, spot.z, spot.scale * 0.5);
       const rocks = rockRefs.current[spot.variant];
@@ -1598,8 +1632,20 @@ function BoulderField() {
       const tiltX = spot.tiltX ?? 0;
       const tiltZ = spot.tiltZ ?? 0;
       counters[spot.variant] += 1;
-      dummy.position.set(spot.x, y + 0.16 * spot.scale, spot.z);
-      dummy.rotation.set(tiltX, spot.rot, tiltZ);
+      // R12.1-C：坡度贴合——按地表梯度把岩石向坡向微倾（≤0.12rad），
+      // 坡上的石头「顺坡而立」；大石再多沉埋半档，足迹融进雪面
+      const slopeEps = 0.9;
+      const gradX =
+        (reliefAt(spot.x + slopeEps, spot.z) - reliefAt(spot.x - slopeEps, spot.z)) /
+        (2 * slopeEps);
+      const gradZ =
+        (reliefAt(spot.x, spot.z + slopeEps) - reliefAt(spot.x, spot.z - slopeEps)) /
+        (2 * slopeEps);
+      const slopeTiltX = Math.max(-0.12, Math.min(0.12, gradZ * 0.5));
+      const slopeTiltZ = Math.max(-0.12, Math.min(0.12, -gradX * 0.5));
+      const sink = spot.scale >= 0.6 ? 0.1 : 0.04;
+      dummy.position.set(spot.x, y + 0.16 * spot.scale - sink, spot.z);
+      dummy.rotation.set(tiltX + slopeTiltX, spot.rot, tiltZ + slopeTiltZ);
       dummy.scale.set(
         spot.scale * stretchX,
         spot.scale * spot.squash,
@@ -1713,17 +1759,19 @@ function CrystalGarden() {
 }
 
 /**
- * 植被三语言（R5.1）：
- * - 霜松 / 雪杉 / 斜冠松：三种冠形，株间再叠加宽高比例与根部倾斜；
+ * 植被语言（R5.1 → R12.1-B）：
+ * - 四种针叶轮廓（floraGeometry）：spire 塔形 / broad 伞形 / wind 斜冠 /
+ *   tuft 连续幼松冠，株间再叠加宽高比例、根部倾斜与地表梯度微倾；
  * - 冰冠乔木：细干 + 数量/位置各异的冰白云冠；
  * - 冰灌木：低矮球冠，只压在岩簇脚边做尺度参照。
- * 树顶雪色烘进冠层几何，不再额外挂雪帽；全场景植被共 6 draw call。
+ * 树顶雪色烘进冠层几何，不再额外挂雪帽。
  */
 function FrostGroves() {
   const foliageRefs = useRef<Record<PineForm, InstancedMesh | null>>({
     spire: null,
     broad: null,
     wind: null,
+    tuft: null,
   });
   const trunkRef = useRef<InstancedMesh>(null);
   const arborTrunkRef = useRef<InstancedMesh>(null);
@@ -1732,7 +1780,7 @@ function FrostGroves() {
   const dummy = useMemo(() => new Object3D(), []);
   const pineCount = PINES.length;
   const formCounts = useMemo(() => {
-    const counts: Record<PineForm, number> = { spire: 0, broad: 0, wind: 0 };
+    const counts: Record<PineForm, number> = { spire: 0, broad: 0, wind: 0, tuft: 0 };
     PINES.forEach((tree) => {
       counts[tree.form] += 1;
     });
@@ -1758,6 +1806,7 @@ function FrostGroves() {
       spire: buildPineFoliage(PINE_FORMS.spire),
       broad: buildPineFoliage(PINE_FORMS.broad),
       wind: buildPineFoliage(PINE_FORMS.wind),
+      tuft: buildPineFoliage(PINE_FORMS.tuft),
     }),
     [],
   );
@@ -1769,27 +1818,41 @@ function FrostGroves() {
   );
 
   useLayoutEffect(() => {
-    const counters: Record<PineForm, number> = { spire: 0, broad: 0, wind: 0 };
+    const counters: Record<PineForm, number> = { spire: 0, broad: 0, wind: 0, tuft: 0 };
     PINES.forEach((tree, i) => {
       const widthBase = tree.scale * (tree.width ?? 1);
       const y = supportAt(tree.x, tree.z, widthBase * 0.28);
       const width = widthBase;
       const height = tree.scale * (tree.height ?? 1);
       const lean = tree.lean ?? 0;
+      // R12.1-B：坡度自然贴合——按地表梯度向低处微倾（≤0.1rad），
+      // 坡上的树冠与坡面走向一致，不再全部垂直立于坡地
+      const slopeEps = 0.9;
+      const gradX =
+        (reliefAt(tree.x + slopeEps, tree.z) - reliefAt(tree.x - slopeEps, tree.z)) /
+        (2 * slopeEps);
+      const gradZ =
+        (reliefAt(tree.x, tree.z + slopeEps) - reliefAt(tree.x, tree.z - slopeEps)) /
+        (2 * slopeEps);
+      // rotation.x 正 = 树冠向 +z 倾；rotation.z 正 = 向 −x 倾
+      const slopeTiltX = Math.max(-0.1, Math.min(0.1, gradZ * 0.45));
+      const slopeTiltZ = Math.max(-0.1, Math.min(0.1, -gradX * 0.45));
       const index = counters[tree.form];
       counters[tree.form] += 1;
 
       if (trunkRef.current) {
-        dummy.position.set(tree.x, y + 0.575 * height, tree.z);
-        dummy.rotation.set(0, tree.rot, lean);
-        dummy.scale.set(width, height, width);
+        const trunkHeight = PINE_FORMS[tree.form].trunkHeight ?? 1.15;
+        const trunkBase = PINE_FORMS[tree.form].trunkBase ?? 0;
+        dummy.position.set(tree.x, y + (trunkBase + trunkHeight / 2) * height, tree.z);
+        dummy.rotation.set(slopeTiltX, tree.rot, lean + slopeTiltZ);
+        dummy.scale.set(width, height * (trunkHeight / 1.15), width);
         dummy.updateMatrix();
         trunkRef.current.setMatrixAt(i, dummy.matrix);
       }
       const foliage = foliageRefs.current[tree.form];
       if (foliage) {
         dummy.position.set(tree.x, y, tree.z);
-        dummy.rotation.set(0, tree.rot, lean);
+        dummy.rotation.set(slopeTiltX, tree.rot, lean + slopeTiltZ);
         dummy.scale.set(width, height, width);
         dummy.updateMatrix();
         foliage.setMatrixAt(index, dummy.matrix);

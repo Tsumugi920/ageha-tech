@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useCallback, useEffect } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { ACESFilmicToneMapping } from "three";
+import { ACESFilmicToneMapping, PCFShadowMap } from "three";
 import {
   CAMERA_LIMITS,
   WORLD_COLORS,
@@ -41,6 +41,7 @@ import {
 import { ContextGuard } from "./systems/ContextGuard";
 import { resetInputState } from "./systems/inputState";
 import { WorldDiagnostics } from "./systems/WorldDiagnostics";
+import { trackRendererResources } from "./systems/textureLifecycle";
 import { SunLight } from "./systems/SunLight";
 import type { ResizeObserverCtor } from "./systems/resizePolyfill";
 
@@ -81,7 +82,7 @@ export default function WorldCanvas({
   return (
     <Canvas
       className="world-canvas"
-      shadows={initialTier.shadows !== false}
+      shadows={{ enabled: initialTier.shadows !== false, type: PCFShadowMap }}
       dpr={[Math.min(1, initialTier.dprMax), initialTier.dprMax]}
       resize={resizePolyfill ? { polyfill: resizePolyfill } : undefined}
       camera={{
@@ -131,6 +132,13 @@ function VisibilityPause() {
     };
   }, [setFrameloop]);
 
+  return null;
+}
+
+/** Attach before the first render so shared shader defaults are also released on exit. */
+function RendererResourceCleanup() {
+  const gl = useThree((state) => state.gl);
+  useLayoutEffect(() => trackRendererResources(gl), [gl]);
   return null;
 }
 
@@ -222,6 +230,7 @@ function SceneContent({
       <ShadowToggle />
       <ContextGuard />
       <VisibilityPause />
+      <RendererResourceCleanup />
 
       {/* 环境反射：程序化 PMREM（零外部 HDR；金属 / 玻璃的冰蓝反射来源） */}
       <SceneEnvironment />

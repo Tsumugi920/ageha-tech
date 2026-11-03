@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
-import { Color, Group, InstancedMesh, Object3D } from "three";
+import { Color, Group, InstancedMesh, Object3D, Vector3 } from "three";
 import { site } from "@/lib/site";
 import { PROJECT_ISLES, SIGN_POST, TRAIL_BEACONS, TRAILS, mainIslandSurfaceY } from "@/lib/world/layout";
 import { WORLD_COLORS } from "@/lib/world/constants";
@@ -11,6 +11,8 @@ import { MOTION } from "../systems/worldMotion";
 import { usePrefersReducedMotion } from "../systems/usePrefersReducedMotion";
 import { createWingPairGeometry } from "./butterflyShape";
 import { CrystalGlowMaterial, DeepMetalMaterial, FrostRockMaterial } from "../terrain/materials";
+
+const PLATE_HEIGHT = 3;
 
 /**
  * 主岛导览碑 + 三径路标（R2 重做）。
@@ -27,6 +29,8 @@ import { CrystalGlowMaterial, DeepMetalMaterial, FrostRockMaterial } from "../te
 export function SignPost() {
   const reducedMotion = usePrefersReducedMotion();
   const camera = useThree((state) => state.camera);
+  const size = useThree((state) => state.size);
+  const plateProjection = useMemo(() => new Vector3(), []);
   const markRef = useRef<Group>(null);
   const plateRef = useRef<HTMLDivElement>(null);
   const beaconBaseRef = useRef<InstancedMesh>(null);
@@ -126,14 +130,23 @@ export function SignPost() {
     uiFrameRef.current += 1;
     const distance = Math.hypot(
       camera.position.x - SIGN_POST.x,
-      camera.position.y - SIGN_POST.y - 2.8,
+      camera.position.y - SIGN_POST.y - PLATE_HEIGHT,
       camera.position.z - SIGN_POST.z,
     );
     // 品牌说明牌只在走近导览碑时出现：初始远景由顶部导航承担品牌识别，
     // 避免画面中心同时出现导航品牌、世界名牌与蝶枢三个焦点。
     // DOM 写入降到 ~10Hz，避免逐帧 style 计算。
     if (plateRef.current && uiFrameRef.current % 6 === 0) {
-      const opacity = Math.max(0, Math.min(1, (13 - distance) / 4));
+      // 世界锚点出界时收起辅助名牌，避免回望时只剩半截文字。
+      plateProjection.set(SIGN_POST.x, SIGN_POST.y + PLATE_HEIGHT, SIGN_POST.z).project(camera);
+      const x = (plateProjection.x + 1) * size.width / 2;
+      const y = (1 - plateProjection.y) * size.height / 2;
+      const halfWidth = plateRef.current.offsetWidth / 2;
+      const halfHeight = plateRef.current.offsetHeight / 2;
+      const inFrame = plateProjection.z > -1 && plateProjection.z < 1 &&
+        x - halfWidth >= 16 && x + halfWidth <= size.width - 16 &&
+        y - halfHeight >= 94 && y + halfHeight <= size.height - 16;
+      const opacity = inFrame ? Math.max(0, Math.min(1, (13 - distance) / 4)) : 0;
       plateRef.current.style.opacity = opacity.toFixed(3);
       plateRef.current.style.visibility =
         opacity < 0.02 ? "hidden" : "visible";
@@ -212,9 +225,8 @@ export function SignPost() {
         </group>
         {/* 品牌句：世界内单点品牌表达（DOM 层，系统字体） */}
         <Html
-          position={[0, 2.05, 0]}
+          position={[0, PLATE_HEIGHT, 0]}
           center
-          distanceFactor={14}
           zIndexRange={[20, 0]}
           style={{ pointerEvents: "none" }}
         >

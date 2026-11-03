@@ -73,7 +73,12 @@ test("R10 沟槽强度场与岩层顶点色耦合：材质跟着几何位移场�
     /Math\.cos\(\s*theta \* buttressCount \+ seed \* 1\.7 \+ depthRatio \* 0\.55/,
     "沟槽着色应与几何位移场同公式（theta*buttressCount + seed*1.7 + depthRatio*0.55）",
   );
-  assert.match(src, /rockColor\(avgY, depth, shade, theta, organic, gully\)/, "rockColor 应接收沟槽强度");
+  // R12.1-A 起 rockColor 追加第 7 参 seed（层理明度分片），沟槽耦合不变
+  assert.match(
+    src,
+    /rockColor\(avgY, depth, shade, theta, organic, gully(, seed)?\)/,
+    "rockColor 应接收沟槽强度",
+  );
 });
 
 test("R10 地表 / 雪面哑光口径：主岛顶面、项目屿顶面、雪台帽抑制过曝高光", () => {
@@ -121,11 +126,14 @@ test("R10 道路去描边口径：路缘为灰蓝石材（低金属度），旧�
   }
   // R11.1：路缘/铺面允许在 color 与 roughness 之间携带 emissive 属性
   // （悬空段底面自发光），属性解析改为宽松捕获再逐项校验
-  const curbs = [...trails.matchAll(/meshStandardMaterial\s+color="(#[0-9A-Fa-f]{6})"([^>]*)side=\{DoubleSide\}/g)].map(
+  // R12.2-C 北径使用顶点积雪色；解析条件分支时以最小粗糙度 / 最大金属度守护。
+  const curbs = [...trails.matchAll(/meshStandardMaterial\s+color=(?:"(#[0-9A-Fa-f]{6})"|\{[^}]+\})([^>]*)side=\{DoubleSide\}/g)].map(
     (match) => {
       const attrs = match[2];
-      const roughness = Number(attrs.match(/roughness=\{(0\.\d+)\}/)?.[1] ?? NaN);
-      const metalness = Number(attrs.match(/metalness=\{(0\.\d+)\}/)?.[1] ?? NaN);
+      const roughnessValues = attrs.match(/roughness=\{([^}]+)\}/)?.[1].match(/0\.\d+/g) ?? ["NaN"];
+      const metalnessValues = attrs.match(/metalness=\{([^}]+)\}/)?.[1].match(/0\.\d+/g) ?? ["NaN"];
+      const roughness = Math.min(...roughnessValues.map(Number));
+      const metalness = Math.max(...metalnessValues.map(Number));
       return { color: match[1], roughness, metalness };
     },
   );
@@ -137,7 +145,7 @@ test("R10 道路去描边口径：路缘为灰蓝石材（低金属度），旧�
     "蝶径与接近铺装的路缘都应为低金属度石材（metalness ≤0.06、roughness ≥0.7）",
   );
   assert.ok(!trails.includes("opacity={0.34}"), "侧缘白线透明度应收敛（0.34 描边感过强）");
-  assert.match(trails, /opacity=\{0\.26\}/, "侧缘白线应使用 0.26 低透明度");
+  assert.match(trails, /opacity=\{(?:0\.26|approach\.north \? 0\.16 : 0\.26)\}/, "侧缘白线保持 0.26，北径试点可降低到 0.16");
 });
 
 test("R10.1 路旁压实雪带：着色与路面几何同源（单源路网折线）", () => {
@@ -153,7 +161,18 @@ test("R10.1 路旁压实雪带：着色与路面几何同源（单源路网折�
     /import \{ ISLAND_PATH_POLYLINES \} from "\.\/Trails"/,
     "MainIsland 应消费 Trails 导出的路网折线（不允许复制第二份控制点）",
   );
-  assert.match(mainIsland, /zoneAt: buildPackedField\(\)/, "主岛顶面应启用压实度分区着色");
+  // R12.1-D 起压实度场提升为模块级单例 PACKED_FIELD（顶点级调用不重建
+  // 折线段表）——单源不变：单例仍由 buildPackedField 构造
+  assert.match(
+    mainIsland,
+    /zoneAt: (buildPackedField\(\)|PACKED_FIELD)/,
+    "主岛顶面应启用压实度分区着色",
+  );
+  assert.match(
+    mainIsland,
+    /const PACKED_FIELD = buildPackedField\(\)/,
+    "压实度场应保持单源（模块级单例由 buildPackedField 构造）",
+  );
   const island = readProjectFile(ISLAND_GEOMETRY);
   assert.match(island, /const SNOW_PACKED = new Color\("#[0-9A-Fa-f]{6}"\)/, "压实雪色应登记为常量");
   assert.match(island, /zoneAt\?: \(x: number, z: number\) => number/, "顶面几何应暴露 zoneAt 分区入口");

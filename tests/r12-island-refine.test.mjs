@@ -26,7 +26,7 @@ const MAIN_ROCK = {
   strataTilt: 0.085,
   buttressCount: 7,
   buttressDepth: 0.075,
-  layerJitter: 0.028,
+  layerJitter: 0.034,
 };
 
 test("R12.0-B 破口场：顶环与上檐完全不受破口影响（雪檐接缝保护）", () => {

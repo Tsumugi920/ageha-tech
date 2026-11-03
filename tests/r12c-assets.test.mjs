@@ -87,14 +87,17 @@ test("R12.0-C 源码守护 G9：门架冰晶帽 + 横梁提亮 + 踏板裙边/�
 });
 
 test("R12.0-C 源码守护 G11：松树色相提亮 + 双层积雪 + 冰冠冠团舒展", () => {
-  const mainIsland = readFileSync("components/world/terrain/MainIsland.tsx", "utf8");
-  assert.match(mainIsland, /#457788/, "spire 底层冠色应向青灰-冰绿提亮");
-  assert.doesNotMatch(mainIsland, /#3F6E84/, "旧深青底层冠色应移除");
+  // R12.1-B 起树形数据抽离到 floraGeometry.ts（纯 TS 可测），守护随迁
+  const flora = readFileSync("components/world/terrain/floraGeometry.ts", "utf8");
+  assert.match(flora, /#457788/, "spire 底层冠色应向青灰-冰绿提亮");
+  assert.doesNotMatch(flora, /#3F6E84/, "旧深青底层冠色应移除");
   assert.match(
-    mainIsland,
+    flora,
     /tierFromTop === 1 \? 0\.4/,
     "次顶层应有半强度积雪（中距离可读）",
   );
+
+  const mainIsland = readFileSync("components/world/terrain/MainIsland.tsx", "utf8");
   assert.match(
     mainIsland,
     /\[0\.1, 2\.52, -0\.3, 0\.34\]/,

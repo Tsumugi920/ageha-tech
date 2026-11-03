@@ -120,14 +120,16 @@ export function AdaptiveQuality({
   const { tier, setTier } = useQuality();
   const { notifyQuality } = useWorldUI();
   const setDpr = useThree((state) => state.setDpr);
+  const currentDpr = useThree((state) => state.viewport.dpr);
   const ceiling = isMobileLike ? "medium" : "high";
 
-  // DPR 随档位动态生效（初始值由 Canvas dpr prop 声明，此后由本 effect 接管）
+  // DPR 随档位动态生效；父层重渲或 resize 可能重置 Canvas 初始区间，
+  // 因此也观察实际 DPR，确保当前动态档位持续生效。
   useEffect(() => {
     const devicePixelRatio =
       typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
     setDpr(Math.min(devicePixelRatio, tier.dprMax));
-  }, [tier, setDpr]);
+  }, [tier, setDpr, currentDpr]);
 
   // 帧循环读当前档位：用 ref 同步（避免渲染期写 ref）
   const tierRef = useRef(tier);

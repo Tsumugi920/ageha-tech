@@ -14,6 +14,7 @@ import {
   OctahedronGeometry,
   Vector3,
 } from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
   PLAZA_MOUTHS,
   PROJECT_ISLES,
@@ -32,7 +33,7 @@ import {
 import { WORLD_COLORS } from "@/lib/world/constants";
 import { createButterflyGlyphGeometry } from "../objects/butterflyShape";
 import { CrystalGlowMaterial, DeepMetalMaterial, GlassPaneMaterial } from "./materials";
-import { buildRibbonGeometry } from "./ribbonGeometry";
+import { addApproachSnowColor, buildRibbonGeometry } from "./ribbonGeometry";
 
 /**
  * 鳞粉蝶径（R2 重做）：从「等距小方块 + 贴地光带」改为
@@ -217,16 +218,44 @@ export function Trails() {
           ? TRAILS.find((item) => item.id === approach.trailId)
           : undefined;
         const samples = buildApproachSamples(approach.controls);
+        const north = approach.id === "approach-a";
+        const curbL = buildRibbonGeometry(samples, 0.18, 0.058, -(APPROACH_WIDTH / 2 + 0.03), mainIslandSurfaceY);
+        const curbR = buildRibbonGeometry(samples, 0.18, 0.058, APPROACH_WIDTH / 2 + 0.03, mainIslandSurfaceY);
+        if (north) {
+          addApproachSnowColor(curbL, 0);
+          addApproachSnowColor(curbR, 1);
+        }
+        // 同段横缝也贴合横坡，避免路面修正后留下悬空的直杆。
+        const joints = north ? (() => {
+          const parts = [];
+          for (let i = 2; i < samples.length - 1; i += 4) {
+            const s = samples[i];
+            const prev = samples[i - 1];
+            const next = samples[i + 1];
+            const length = Math.hypot(next.x - prev.x, next.z - prev.z);
+            const dx = (next.x - prev.x) / length * 0.03;
+            const dz = (next.z - prev.z) / length * 0.03;
+            parts.push(buildRibbonGeometry([
+              { x: s.x - dx, y: s.y, z: s.z - dz },
+              { x: s.x + dx, y: s.y, z: s.z + dz },
+            ], APPROACH_WIDTH * 0.82, 0.064, 0, mainIslandSurfaceY, 8));
+          }
+          const merged = mergeGeometries(parts, false);
+          parts.forEach((part) => part.dispose());
+          return merged;
+        })() : null;
         return {
           id: approach.id,
+          north,
+          joints,
           accent: trail ? accentFor(trail) : WORLD_COLORS.trailGlow,
           samples,
           // 贴合横坡：广场 → 径头的铺装不再在坡面上悬空或切进雪里。
           // 路缘不用整幅宽垫层（在起伏地形上会盖住较窄的路面），
           // 改为两条贴外侧的窄边石，保证路面始终读得出来。
-          curbL: buildRibbonGeometry(samples, 0.18, 0.058, -(APPROACH_WIDTH / 2 + 0.03), mainIslandSurfaceY),
-          curbR: buildRibbonGeometry(samples, 0.18, 0.058, APPROACH_WIDTH / 2 + 0.03, mainIslandSurfaceY),
-          pavement: buildRibbonGeometry(samples, APPROACH_WIDTH, 0.055, 0, mainIslandSurfaceY),
+          curbL,
+          curbR,
+          pavement: buildRibbonGeometry(samples, APPROACH_WIDTH, 0.055, 0, mainIslandSurfaceY, north ? 8 : 1),
           line: buildRibbonGeometry(samples, 0.14, 0.07, 0, mainIslandSurfaceY),
           edgeL: buildRibbonGeometry(samples, 0.055, 0.065, -(APPROACH_WIDTH / 2 - 0.16), mainIslandSurfaceY),
           edgeR: buildRibbonGeometry(samples, 0.055, 0.065, APPROACH_WIDTH / 2 - 0.16, mainIslandSurfaceY),
@@ -255,6 +284,7 @@ export function Trails() {
         a.line.dispose();
         a.edgeL.dispose();
         a.edgeR.dispose();
+        a.joints?.dispose();
       });
       slabGeometry.dispose();
       postGeometry.dispose();
@@ -301,6 +331,7 @@ export function Trails() {
     // 接近铺装 / 迎宾步道的横向铺装缝：与蝶径同材质，主岛上的路面
     // 读成同一条石路，而不是广场外侧一块无接缝的白板。
     for (const approach of approaches) {
+      if (approach.north) continue;
       for (let i = 2; i < approach.samples.length - 1; i += 4) {
         const s = approach.samples[i];
         const prev = approach.samples[i - 1];
@@ -506,12 +537,17 @@ export function Trails() {
                   边界仍明确，但不再读成画在雪地上的深色描边。
                   R11.1：宽度 0.18→0.15、色再向石材靠一档（#5F82A0），
                   路缘只做「石路收边」而不是深色包边 */}
-              <meshStandardMaterial color="#5F82A0" roughness={0.76} metalness={0.05} side={DoubleSide} />
+              <meshStandardMaterial color={approach.north ? "#FFFFFF" : "#5F82A0"} vertexColors={approach.north} roughness={approach.north ? 0.9 : 0.76} metalness={0.05} side={DoubleSide} />
             </mesh>
           ))}
           <mesh name={`${approach.id}-pavement`} geometry={approach.pavement} receiveShadow>
-            <meshStandardMaterial color="#B6CEDF" roughness={0.6} metalness={0.04} side={DoubleSide} />
+            <meshStandardMaterial color="#B6CEDF" roughness={approach.north ? 0.84 : 0.6} metalness={approach.north ? 0.02 : 0.04} side={DoubleSide} />
           </mesh>
+          {approach.joints ? (
+            <mesh name={`${approach.id}-joints`} geometry={approach.joints}>
+              <meshStandardMaterial color="#9FB9CF" roughness={0.88} side={DoubleSide} />
+            </mesh>
+          ) : null}
           <mesh name={`${approach.id}-line`} geometry={approach.line}>
             <meshBasicMaterial
               color={approach.accent}
@@ -526,7 +562,7 @@ export function Trails() {
               <meshBasicMaterial
                 color="#EAF9FF"
                 transparent
-                opacity={0.26}
+                opacity={approach.north ? 0.16 : 0.26}
                 depthWrite={false}
                 side={DoubleSide}
               />

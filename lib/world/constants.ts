@@ -61,10 +61,12 @@ export const CAMERA_LIMITS = {
    * 世界坐标初始机位（与 spawn + initialYaw/Pitch/Distance 推导值一致，
    * 仅用于 Canvas 首帧；第一帧起由 FollowCamera 接管，二者无跳变）。
    */
-  initialPosition: { x: 12.44, y: 3.96, z: 16.7 },
-  initialLookAt: { x: 5.25, y: 1.45, z: 4.95 },
+  initialPosition: { x: 12.44, y: 5.56, z: 16.7 },
+  initialLookAt: { x: 5.25, y: 3.05, z: 4.95 },
   /** 跟随视点前探距离（角色的前方探索区，而不是只看角色背影） */
   lookAhead: 2.4,
+  /** R12.2-B：统一抬高视点，给蝴蝶翼尖留出导航安全区；首帧与跟随共用。 */
+  lookHeight: 2.7,
   /** 轨道观察范围（§6.2：水平 ±120°、垂直 +8°~+60°） */
   yawRange: (Math.PI * 2) / 3,
   pitchMin: 0.14,

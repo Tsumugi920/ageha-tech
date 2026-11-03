@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry } from "three";
+import { BufferAttribute, BufferGeometry, Color } from "three";
 
 /**
  * 丝带几何工具（蝶径光带 / 旋径暗带共用）：
@@ -11,9 +11,11 @@ export function buildRibbonGeometry(
   yOffset: number,
   offset = 0,
   heightAt?: (x: number, z: number) => number,
+  acrossSegments = 1,
 ): BufferGeometry {
   const count = samples.length;
-  const positions = new Float32Array(count * 2 * 3);
+  const stride = acrossSegments + 1;
+  const positions = new Float32Array(count * stride * 3);
   const indices: number[] = [];
   for (let i = 0; i < count; i += 1) {
     const prev = samples[Math.max(0, i - 1)];
@@ -28,21 +30,20 @@ export function buildRibbonGeometry(
     const nx = tz;
     const nz = -tx;
     const s = samples[i];
-    const leftX = s.x + nx * (offset - width / 2);
-    const leftZ = s.z + nz * (offset - width / 2);
-    const rightX = s.x + nx * (offset + width / 2);
-    const rightZ = s.z + nz * (offset + width / 2);
-    // heightAt：让丝带两侧各自贴合横坡（接近广场的铺装不再悬空 / 切雪）
-    positions[i * 6] = leftX;
-    positions[i * 6 + 1] = (heightAt ? heightAt(leftX, leftZ) : s.y) + yOffset;
-    positions[i * 6 + 2] = leftZ;
-    positions[i * 6 + 3] = rightX;
-    positions[i * 6 + 4] = (heightAt ? heightAt(rightX, rightZ) : s.y) + yOffset;
-    positions[i * 6 + 5] = rightZ;
-    if (i < count - 1) {
-      const a = i * 2;
-      // 逆时针绕序使法线朝上（原绕序朝下，贴地薄面会被自身阴影压暗）
-      indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    // 默认仍为左右两列；北径试点额外采样横坡，避免跨过凹地的直线弦悬空。
+    for (let j = 0; j <= acrossSegments; j += 1) {
+      const lateral = offset + width * (j / acrossSegments - 0.5);
+      const x = s.x + nx * lateral;
+      const z = s.z + nz * lateral;
+      const index = (i * stride + j) * 3;
+      positions[index] = x;
+      positions[index + 1] = (heightAt ? heightAt(x, z) : s.y) + yOffset;
+      positions[index + 2] = z;
+      if (i < count - 1 && j < acrossSegments) {
+        const a = i * stride + j;
+        // 逆时针绕序保持法线朝上。
+        indices.push(a, a + stride, a + 1, a + 1, a + stride, a + stride + 1);
+      }
     }
   }
   const geometry = new BufferGeometry();
@@ -52,4 +53,24 @@ export function buildRibbonGeometry(
   // （R9 前缺失 normal 属性，接近铺装在平地上会呈现不受光的深色块。）
   geometry.computeVertexNormals();
   return geometry;
+}
+
+/** 北径接近铺装的路缘积雪色：保留几何，外侧更浅，两端恢复原石色。 */
+export function addApproachSnowColor(geometry: BufferGeometry, outerColumn: 0 | 1): void {
+  const count = geometry.getAttribute("position").count;
+  const colors = new Float32Array(count * 3);
+  const stone = new Color("#5F82A0");
+  const snow = new Color("#D5E6F1");
+  const color = new Color();
+  const smooth = (a: number, b: number, value: number) => {
+    const t = Math.max(0, Math.min(1, (value - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+  for (let i = 0; i < count; i += 1) {
+    const t = Math.floor(i / 2) / (count / 2 - 1);
+    const cover = smooth(0.1, 0.3, t) * (1 - smooth(0.8, 0.98, t));
+    color.copy(stone).lerp(snow, cover * (i % 2 === outerColumn ? 0.85 : 0.18));
+    color.toArray(colors, i * 3);
+  }
+  geometry.setAttribute("color", new BufferAttribute(colors, 3));
 }

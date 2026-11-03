@@ -654,8 +654,8 @@ test("性能：WorldCanvas 初始档限 DPR 与阴影 + QualityProvider 动态�
   );
   assert.match(
     canvas,
-    /shadows=\{initialTier\.shadows !== false\}/,
-    "初始阴影应随初始档开关（three 0.186 已移除 PCFSoft，用默认 PCF）",
+    /shadows=\{\{ enabled: initialTier\.shadows !== false, type: PCFShadowMap \}\}/,
+    "初始阴影应随初始档开关并显式使用 PCF（避开 R3F 的 PCFSoft 默认值）",
   );
   assert.match(
     canvas,

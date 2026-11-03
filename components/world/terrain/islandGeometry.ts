@@ -55,6 +55,13 @@ export type IslandGeometryOptions = {
   /** R12.0-B：破口向内切削深度（半径比例；默认 0.13） */
   breachDepth?: number;
   /**
+   * R12.1-A：局部岩突组数（0 = 关闭，默认 4）。在确定性 (方位 × 深度带)
+   * 上做宽幅外凸——岩壁读出局部岩嘴，层带不再整圈同步起伏。
+   */
+  outcropCount?: number;
+  /** R12.1-A：窄幅断面组数（0 = 关闭，默认 3），方位与沟槽错开 */
+  notchCount?: number;
+  /**
    * R12.0-D（G1）：大气透视烘焙（0~1）。>0 时全部顶点色向雾色调
    * （ATMOSPHERE_TONE）过渡——远景浮岛在真实雾（near 120 / far 380）
    * 只覆盖 ~12% 的距离上仍以深色剪影出现；把「大气衰减」预烘进
@@ -83,6 +90,17 @@ export type IslandTopOptions = IslandGeometryOptions & {
    * 只影响颜色，不参与碰撞与高度。
    */
   zoneAt?: (x: number, z: number) => number;
+  /**
+   * R12.1-D（D 阶段）：陡坡露岩染色强度（0 = 关闭）。坡度 >0.5 的坡面
+   * 向岩色过渡——雪原上的陡坎 / 坡折露出下伏岩层，地表分区可读性增强。
+   * 只影响颜色，不改变高度与碰撞。
+   */
+  rockSlopeTint?: number;
+  /**
+   * R12.1-D（D 阶段）：洼地结冰染色强度（0 = 关闭）。凹陷处（hollow>0.06）
+   * 向冰壳色过渡——低洼雪盆读作「风积雪下的冰面」，与冰池语言呼应。
+   */
+  hollowIceTint?: number;
 };
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -162,6 +180,74 @@ export function islandBreachField(
     lip = Math.max(lip, lipBand * (0.55 + 0.45 * lipPulse));
   }
   return { cut: cut * vertical, lip: lip * vertical };
+}
+
+/**
+ * R12.1-A：局部岩突 / 断面场（0~1）。破口负责「把环带撕开」，本场负责
+ * 「局部凸起与凹陷」——在少数确定性 (方位 × 深度带) 上放 4 处外凸岩突
+ * 与 3 处窄幅断面，打破层带沿环向均匀起伏的节奏：
+ *
+ * - bulge：宽幅（±0.26~0.4 rad）平滑外凸，只在各自的深度带内进出——
+ *   岩壁读出「局部凸出的岩嘴」，而不是整圈同步的波浪；
+ * - notch：窄幅（±0.09~0.16 rad）深切，方位与沟槽错开——读出「断面」；
+ * - depthRatio < 0.14 或 > 0.84 全部归零：顶环与雪檐接缝不受影响，
+ *   底部尖端保持收束。
+ */
+export function islandOutcropField(
+  theta: number,
+  depthRatio: number,
+  seed: number,
+  ringIndex = 0,
+  outcropCount = 4,
+  notchCount = 3,
+): { bulge: number; notch: number } {
+  const vertical =
+    smoothstep(0.14, 0.2, depthRatio) *
+    (1 - smoothstep(0.84, 0.9, depthRatio));
+  if (vertical <= 0) return { bulge: 0, notch: 0 };
+  let bulge = 0;
+  let notch = 0;
+  for (let k = 0; k < outcropCount; k += 1) {
+    const center =
+      k * (Math.PI / 2) +
+      (hash01(k + 11, seed, 3.9) - 0.5) * 1.1 +
+      seed * 0.6;
+    // 深度带：每处岩突只在一个 band 内进出（半厚 0.13~0.21）
+    const bandCenter = 0.24 + 0.36 * hash01(k + 5, seed, 6.1);
+    const bandHalf = 0.13 + 0.08 * hash01(k + 9, seed, 2.3);
+    const depthEnv =
+      smoothstep(bandCenter + bandHalf, bandCenter, depthRatio) *
+      smoothstep(bandCenter - bandHalf, bandCenter, depthRatio);
+    if (depthEnv <= 0) continue;
+    let offset = theta - center;
+    while (offset > Math.PI) offset -= Math.PI * 2;
+    while (offset < -Math.PI) offset += Math.PI * 2;
+    const halfWidth = 0.26 + 0.14 * hash01(k + 13, seed, 4.7);
+    const angEnv = smoothstep(halfWidth, halfWidth * 0.25, Math.abs(offset));
+    const pulse = 0.7 + 0.3 * Math.sin(ringIndex * 1.3 + k * 2.2 + seed);
+    bulge = Math.max(bulge, angEnv * depthEnv * pulse);
+  }
+  for (let k = 0; k < notchCount; k += 1) {
+    const center =
+      (k * Math.PI * 2) / 3 +
+      0.9 +
+      (hash01(k + 17, seed, 7.7) - 0.5) * 1.4 +
+      seed * 0.22;
+    const bandCenter = 0.3 + 0.4 * hash01(k + 21, seed, 1.3);
+    const bandHalf = 0.16 + 0.1 * hash01(k + 23, seed, 5.9);
+    const depthEnv =
+      smoothstep(bandCenter + bandHalf, bandCenter, depthRatio) *
+      smoothstep(bandCenter - bandHalf, bandCenter, depthRatio);
+    if (depthEnv <= 0) continue;
+    let offset = theta - center;
+    while (offset > Math.PI) offset -= Math.PI * 2;
+    while (offset < -Math.PI) offset += Math.PI * 2;
+    const halfWidth = 0.09 + 0.07 * hash01(k + 27, seed, 3.1);
+    const angEnv = smoothstep(halfWidth, 0, Math.abs(offset));
+    const pulse = 0.72 + 0.28 * Math.sin(ringIndex * 0.9 + k * 3.1 - seed);
+    notch = Math.max(notch, angEnv * depthEnv * pulse);
+  }
+  return { bulge: bulge * vertical, notch: notch * vertical };
 }
 
 /**
@@ -311,6 +397,7 @@ function rockColor(
   theta: number,
   organic: boolean,
   gully = 0,
+  seed = 0,
 ): Color {
   // R11.2：色带边界立体化——warp 从平面角向波升级为「角向 × 高度」
   // 双变量场（振幅 0.034/0.02 → 0.085/0.045 + 高度耦合项），层与层的
@@ -329,14 +416,22 @@ function rockColor(
   else if (t < 0.66) color.copy(ROCK_MID).lerp(ROCK_DEEP, (t - 0.28) / 0.38);
   else color.copy(ROCK_DEEP).lerp(ROCK_ABYSS, (t - 0.66) / 0.34);
   // 沉积纹：主波 + 次谐波，随角度弯曲且强弱不均——层理读成
-  // 「起伏的岩层界线」而不是一圈圈等高亮环（R11：振幅 0.028→0.038+0.016，
-  // 配合侧影不规则化，岩层界线在远景也能读出错落）
+  // 「起伏的岩层界线」而不是一圈圈等高亮环（R12.1-A：振幅再提半档，
+  // 配合层理明度台阶，界线在远景也读得出错落）
   const band = organic
-    ? Math.sin((-y * 1.05 + Math.sin(theta * 2.2) * 1.6) * 3.1) * 0.038 +
-      Math.sin((-y * 2.3 + theta * 1.3) * 2.2) * 0.016
+    ? Math.sin((-y * 1.05 + Math.sin(theta * 2.2) * 1.6) * 3.1) * 0.046 +
+      Math.sin((-y * 2.3 + theta * 1.3) * 2.2) * 0.02
     : 0;
   // R10：面级明暗差 0.2→0.26，低多边形切面在逆光下也读得出体积
   color.multiplyScalar(0.9 + shade * 0.26 + band);
+  if (organic) {
+    // R12.1-A：层理明度台阶——把深度坐标按 0.055·depth 分片，每片做
+    // 确定性明度 / 色相偏移（±8%），配合几何层错，相邻层的分界读出
+    // 「跳变」而不是连续渐变；大面积深蓝区域因此被纵向打散
+    const slabIndex = Math.floor(-y / (depth * 0.055));
+    color.multiplyScalar(0.92 + 0.16 * hash01(slabIndex, seed, 8.8));
+    color.offsetHSL((hash01(slabIndex, seed, 4.2) - 0.5) * 0.014, 0, 0);
+  }
   if (gully > 0) {
     // R11.1：沟槽压暗 0.34→0.30，配合主岛冷光提亮 0.08→0.11——
     // 背光面读得出层理，不再整片沉进深蓝
@@ -368,6 +463,8 @@ export function createLayeredIslandGeometry({
   layerJitter = 0.014,
   breachCount = 0,
   breachDepth = 0.13,
+  outcropCount = 4,
+  notchCount = 3,
   atmosphereFade = 0,
 }: IslandGeometryOptions): BufferGeometry {
   const positions: number[] = [];
@@ -397,6 +494,14 @@ export function createLayeredIslandGeometry({
           Math.sin(theta * 3.7 - seed * 0.9 + ringIndex * 0.53) * 0.019 +
           Math.sin(theta * 5.9 + seed * 2.1 - ringIndex * 0.29) * 0.009
         : 0;
+      // R12.1-A：逐层起伏节奏——每层的轮廓波振幅独立调制（约 0.55~1.45），
+      // 相邻层的粗糙 / 平静交替出现，打破「每层共用同一波形」的重复感
+      const layerAmp = Math.max(
+        0.55,
+        1 +
+          0.45 * Math.sin(ringIndex * 1.13 + seed * 2.3) +
+          0.25 * Math.sin(ringIndex * 0.47 - seed * 0.8),
+      );
       const perturbation =
         1 +
         jaggedness *
@@ -404,7 +509,7 @@ export function createLayeredIslandGeometry({
           (0.45 + depthRatio * 0.9) +
         // R11：轮廓波随深度加速增强（0.85→1.5）——顶部一圈保持收在雪檐
         // 之下，中深部侧影获得更明显的不规则缩进 / 外凸，摆脱圆盘轮廓
-        lobe * (0.38 + depthRatio * 1.5);
+        lobe * (0.38 + depthRatio * 1.5) * layerAmp;
       // 侵蚀沟槽：奇数条、深浅交替、随深度轻微扭转
       const groove =
         buttressCount > 0
@@ -433,12 +538,27 @@ export function createLayeredIslandGeometry({
           : { cut: 0, lip: 0 };
       const breachInset = breachDepth * breach.cut;
       const breachLip = breachDepth * 0.3 * breach.lip;
+      // R12.1-A：局部岩突 / 断面——少数 (方位 × 深度带) 上的平滑外凸与
+      // 窄幅深切（相对半径 ±6~8%），岩壁不再只有整圈同步的起伏
+      const outcrop =
+        organic && (outcropCount > 0 || notchCount > 0)
+          ? islandOutcropField(theta, depthRatio, seed, ringIndex, outcropCount, notchCount)
+          : { bulge: 0, notch: 0 };
+      const outcropDelta = 0.075 * outcrop.bulge - 0.06 * outcrop.notch;
+      // R12.1-A：底部收束不对称——最下 2~3 层随角向渐进内收（风蚀龙骨），
+      // 底尖不再是均匀漏斗；幅度 ≤7.5%，只影响轮廓节奏不改深度
+      const keel =
+        smoothstep(0.86, 1, depthRatio) *
+        (0.045 * (0.5 + 0.5 * Math.sin(theta * 2.3 + seed * 1.1)) +
+          0.03 * Math.sin(theta * 5.1 - seed * 0.7));
       const radius =
         layer.radius *
         layerGauge *
         perturbation *
         (1 - Math.max(0, groove)) *
-        (1 - breachInset + breachLip);
+        (1 - breachInset + breachLip) *
+        (1 + outcropDelta) *
+        (1 - keel);
       vertices.push({
         x: Math.cos(theta) * radiusX * radius,
         z: Math.sin(theta) * radiusZ * radius,
@@ -545,9 +665,27 @@ export function createLayeredIslandGeometry({
     const ny = abz * acx - abx * acz;
     const nz = abx * acy - aby * acx;
     const normalY = ny / (Math.hypot(nx, ny, nz) || 1);
-    const color = rockColor(avgY, depth, shade, theta, organic, gully);
+    const color = rockColor(avgY, depth, shade, theta, organic, gully, seed);
     if (breachCut > 0) {
       color.lerp(GROOVE_SHADOW, Math.min(0.5, breachCut * 0.45));
+    }
+    // R12.1-A：岩突受光 / 断面压暗——颜色跟随局部凸凹场，岩壁读出
+    // 「局部岩嘴的高光与断面的阴影」，而不是等宽的层间渐变
+    if (organic) {
+      const relief = islandOutcropField(
+        theta,
+        clamp01(-avgY / depth),
+        seed,
+        Math.round(clamp01(-avgY / depth) * (layerCount - 1)),
+        outcropCount,
+        notchCount,
+      );
+      const outcropRelief = relief.bulge - relief.notch;
+      if (outcropRelief > 0) {
+        color.lerp(ROCK_ORGANIC_LIFT, Math.min(0.14, outcropRelief * 0.14));
+      } else if (outcropRelief < 0) {
+        color.lerp(GROOVE_SHADOW, Math.min(0.3, -outcropRelief * 0.34));
+      }
     }
     // R10.1：岩檐积雪的「角向占有率」——旧版每一段外凸岩檐都均匀积雪，
     // 一圈圈亮环正是「规则塑料层」观感的来源之一；现在雪只在部分弧段
@@ -643,6 +781,8 @@ export function createIslandTopGeometry({
   slopeTint = 0,
   rimRockBlend = 0,
   zoneAt,
+  rockSlopeTint = 0,
+  hollowIceTint = 0,
   atmosphereFade = 0,
 }: IslandTopOptions): BufferGeometry {
   const positions: number[] = [];
@@ -732,19 +872,21 @@ export function createIslandTopGeometry({
       let slope = 0;
       let sunFacing = 0;
       let hollow = 0;
-      if (slopeTint > 0 && heightAt && !isLip) {
-        const eps = 0.55;
-        const h0 = heightAt(theta, radius, x, z);
-        const hL = heightAt(theta, radius, x - eps, z);
-        const hR = heightAt(theta, radius, x + eps, z);
-        const hB = heightAt(theta, radius, x, z - eps);
-        const hF = heightAt(theta, radius, x, z + eps);
-        const gx = (hR - hL) / (2 * eps);
-        const gz = (hF - hB) / (2 * eps);
-        slope = clamp01(Math.hypot(gx, gz) * 0.85);
-        // 与主光水平方向 (+x, -z) 的一致度：正 = 迎光，负 = 背光
-        sunFacing = Math.max(-1, Math.min(1, -gx * 0.866 + gz * 0.5));
-        hollow = (hL + hR + hB + hF) / 4 - h0;
+      if (slopeTint > 0 || rockSlopeTint > 0 || hollowIceTint > 0) {
+        if (heightAt && !isLip) {
+          const eps = 0.55;
+          const h0 = heightAt(theta, radius, x, z);
+          const hL = heightAt(theta, radius, x - eps, z);
+          const hR = heightAt(theta, radius, x + eps, z);
+          const hB = heightAt(theta, radius, x, z - eps);
+          const hF = heightAt(theta, radius, x, z + eps);
+          const gx = (hR - hL) / (2 * eps);
+          const gz = (hF - hB) / (2 * eps);
+          slope = clamp01(Math.hypot(gx, gz) * 0.85);
+          // 与主光水平方向 (+x, -z) 的一致度：正 = 迎光，负 = 背光
+          sunFacing = Math.max(-1, Math.min(1, -gx * 0.866 + gz * 0.5));
+          hollow = (hL + hR + hB + hF) / 4 - h0;
+        }
       }
       const color = new Color();
       if (isLip) {
@@ -800,6 +942,14 @@ export function createIslandTopGeometry({
           if (t > 0.85) {
             color.lerp(SNOW_RIM, (t - 0.85) * slopeTint * 1.6);
           }
+        }
+        // R12.1-D：陡坡露岩 / 洼地结冰——坡折处露出下伏岩色、低洼处结
+        // 冰壳，地表的「岩 / 雪 / 冰」三区在颜色层可读（不改高度）
+        if (rockSlopeTint > 0 && slope > 0.45) {
+          color.lerp(RIM_ROCK, clamp01((slope - 0.45) / 0.4) * rockSlopeTint);
+        }
+        if (hollowIceTint > 0 && hollow > 0.06) {
+          color.lerp(ICE_PATCH, clamp01((hollow - 0.06) * 2.2) * hollowIceTint);
         }
         // R10.1：路旁压实雪带——zoneAt 返回距路网的压实度（0~1），
         // 沿道路把雪压出「路缘 → 压实雪壳 → 野雪」的可读过渡；
@@ -861,6 +1011,27 @@ export function mainIslandRelief(
     0.05 * Math.cos(theta * 8.3 - 1.2) * smoothstep(0.58, 0.96, r);
   height *= 1 - smoothstep(0.93, 1, r);
   return Math.max(-0.02, height);
+}
+
+/**
+ * R12.1-D（D 阶段）：主岛顶面风积雪垄微起伏（纯视觉，幅值 ≤0.17m）。
+ *
+ * 与 lib/world/layout 的 mainIslandSurfaceY（碰撞同源场）**叠加**使用，
+ * 只加在地形顶面几何上——玩家脚下的解析高度场不变，碰撞 / 导航 /
+ * 移动手感零影响；开阔雪原因此获得可读的雪垄走向与长阴影。
+ * 正值为主（雪垄），负值钳到 ≥−0.035——物件以解析面落位，只允许
+ * 「视觉面略高于物件底」的雪埋，不允许视觉面低于物件底造成悬空。
+ */
+export function mainIslandMicroRelief(x: number, z: number): number {
+  // 两组斜向风雪垄（走向交叉，避免平行条纹）+ 一组细碎风纹
+  const ridgeA =
+    Math.sin(x * 0.42 + z * 0.31 + 1.7) * Math.sin(z * 0.52 - x * 0.18 - 0.6);
+  const ridgeB =
+    Math.sin(x * 0.71 - z * 0.47 + 0.4) * Math.sin(z * 0.66 + x * 0.24 + 1.1);
+  const fine =
+    Math.sin(x * 1.6 + z * 1.1 + 2.2) * Math.sin(z * 1.4 - x * 0.9 + 0.5);
+  const height = 0.085 * ridgeA + 0.06 * ridgeB + 0.018 * fine;
+  return Math.max(-0.035, height);
 }
 
 /**
@@ -992,7 +1163,7 @@ export function createCrystalSprayGeometry(
       1,
     ).toNonIndexed();
     body.translate(0, shard.height / 2, 0);
-    const tip = new OctahedronGeometry(shard.radius * 0.9, 0).toNonIndexed();
+    const tip = new OctahedronGeometry(shard.radius * 0.9, 0);
     tip.scale(0.9, 1.3, 0.9);
     tip.translate(0, shard.height + shard.radius * 0.95, 0);
     const merged = mergeGeometries([body, tip], false);

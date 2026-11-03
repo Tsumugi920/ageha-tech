@@ -349,11 +349,20 @@ export function WorldAudioProvider({ children }: { children: ReactNode }) {
         if (!cancelled && ok) setStarted(true);
       });
     };
-    window.addEventListener("pointerdown", unlock);
+    // Touch and pen activate the page on release. Mouse activates on press.
+    const unlockMouse = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") unlock();
+    };
+    const unlockTouch = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") unlock();
+    };
+    window.addEventListener("pointerdown", unlockMouse);
+    window.addEventListener("pointerup", unlockTouch);
     window.addEventListener("keydown", unlock);
     return () => {
       cancelled = true;
-      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("pointerdown", unlockMouse);
+      window.removeEventListener("pointerup", unlockTouch);
       window.removeEventListener("keydown", unlock);
     };
   }, [engine]);
