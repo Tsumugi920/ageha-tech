@@ -50,7 +50,7 @@ test("lib/site.ts 的联系方式：GitHub 为白名单真实账号，其余渠�
     if (href) {
       assert.match(
         href,
-        /^https:\/\/github\.com\/Ageha6912\/?$/,
+        /^https:\/\/github\.com\/Tsumugi920\/?$/,
         `${label} 的链接应在真实账号白名单内`,
       );
       assert.notEqual(value, "待配置", `${label} 携带链接时应填真实账号`);
@@ -60,13 +60,13 @@ test("lib/site.ts 的联系方式：GitHub 为白名单真实账号，其余渠�
   }
   assert.ok(
     siteConfig.includes('label: "GitHub"') && siteConfig.includes("Ageha6912"),
-    "GitHub 应为站长真实账号 Ageha6912",
+    "GitHub 应为助手真实账号 Tsumugi920",
   );
 
   // 品牌、身份与品牌短句就位
-  assert.match(siteConfig, /name:\s*"Ageha\.tech"/);
-  assert.match(siteConfig, /identity:\s*"INDEPENDENT DIGITAL CREATOR"/);
-  assert.match(siteConfig, /brandLine:\s*"Building digital things with curiosity\."/);
+  assert.match(siteConfig, /name:\s*"Momori"/);
+  assert.match(siteConfig, /identity:\s*"MOMORI · PERSONAL SITE"/);
+  assert.match(siteConfig, /brandLine:\s*"Small useful web tools, made and kept by Momori\."/);
 });
 
 test("app/page.tsx 渲染 WorldShell，lib/world 数据模块与关键世界组件就位", () => {
@@ -116,14 +116,11 @@ test(".gitignore 覆盖 node_modules、.next、废案、素材、截图与 tsbui
   }
 });
 
-test("public/images/ 下六张素材已就位且非空（参考素材 + 三张项目真实截图）", () => {
+test("public/images/ 下三张素材已就位且非空（参考素材）", () => {
   const requiredImages = [
     "hero-clean.png",
     "hero-full.png",
     "about-photo.png",
-    "agehaos-desktop.jpg",
-    "cs-market-portfolio.png",
-    "moss-world-terrarium.png",
   ];
   for (const image of requiredImages) {
     const imagePath = path.join(projectRoot, "public", "images", image);

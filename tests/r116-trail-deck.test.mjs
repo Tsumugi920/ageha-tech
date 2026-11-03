@@ -34,8 +34,8 @@ import {
 
 const trailC = TRAILS.find((t) => t.id === "trail-c");
 assert.ok(trailC, "TRAILS 应包含 trail-c");
-const isleCS = PROJECT_ISLES.find((isle) => isle.id === "isle-cs");
-assert.ok(isleCS, "PROJECT_ISLES 应包含 isle-cs");
+const isleCS = PROJECT_ISLES.find((isle) => isle.id === "isle-calendar");
+assert.ok(isleCS, "PROJECT_ISLES 应包含 isle-calendar");
 
 const dist2D = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
 

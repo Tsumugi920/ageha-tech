@@ -24,18 +24,18 @@ const emojiPattern = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
 
 /* ------------------------------- 技术栈 ------------------------------- */
 
-test("lib/tech-stack.ts：四组 × 每组四项，名单与参考图一致且每项带配色", () => {
+test("lib/tech-stack.ts：四组 × 每组四项，名单与助手实际套路一致且每项带配色", () => {
   const data = readProjectFile("lib/tech-stack.ts");
 
-  for (const group of ["前端开发", "后端与数据", "开发工具", "AI 工具链"]) {
+  for (const group of ["前端开发", "后端与数据", "开发工具", "在做的方向"]) {
     assert.match(data, new RegExp(`name: "${group}"`), `缺少分组 ${group}`);
   }
 
   const expectedItems = [
-    "React", "Next.js", "TypeScript", "Tailwind CSS",
-    "Node.js", "Python", "MySQL", "MongoDB",
-    "Git", "Docker", "VS Code", "Linux",
-    "OpenAI", "Claude", "Cursor", "LangChain",
+    "原生 HTML / CSS / JS", "React", "Next.js", "Tailwind CSS",
+    "Node.js", "Express", "JSON 文件存储", "localStorage",
+    "Git", "GitHub", "VS Code", "Linux",
+    "网页小工具", "数据档案", "交互实验", "静态站点",
   ];
   for (const name of expectedItems) {
     assert.match(data, new RegExp(`name: "${name.replace(".", "\\.")}"`), `缺少技术项 ${name}`);

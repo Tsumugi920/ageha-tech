@@ -14,7 +14,7 @@ import type { PlayerApi } from "../systems/usePlayerController";
 import { createWingPairGeometry } from "./butterflyShape";
 
 /**
- * 引导蝶 Ageha（蓝图 §5.2，导航角色）：
+ * 引导蝶（蓝图 §5.2，导航角色）：
  * - 沿「当前未探索」的蝶径往返巡飞（到访屿后会话内记档，三径尽后绕
  *   主岛环飞）；玩家静止 >8s 时飞至玩家前方悬停示意前进方向；
  * - 翅根扇动 ±40°、8Hz，飞行幅度强 / 悬停柔（阻尼正弦）；

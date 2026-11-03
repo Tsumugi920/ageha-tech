@@ -6,7 +6,7 @@ import { JourneySection } from "@/components/home/JourneySection";
 export const metadata: Metadata = {
   title: "关于我",
   description:
-    "关于 Ageha：独立开发者，热爱技术，专注于构建有意义的数字产品 —— 自我介绍、兴趣方向、个人理念与探索路径。",
+    "关于 Momori：助手在做小而可用的网页工具和实验项目 —— 自我介绍、兴趣方向、个人理念与探索路径。",
 };
 
 /**
@@ -20,7 +20,7 @@ export default function AboutPage() {
         <PageHeader
           eyebrow="About"
           title="关于我"
-          description="我热爱技术，专注于构建有意义的数字产品；这一页汇总我的自我介绍、兴趣方向与探索路径。"
+          description="我做小而可用的网页工具和实验项目；这一页汇总自我介绍、兴趣方向与探索路径。"
           back={{ href: "/", label: "返回首页" }}
         />
       </div>

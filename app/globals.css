@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =============================================================
-   Ageha.tech 明亮主题 · 冰蓝天空玻璃拟态 设计令牌
+   Momori 明亮主题 · 冰蓝天空玻璃拟态 设计令牌
    Tailwind v4 @theme：以下变量编译后即 :root 自定义属性，
    值与设计稿令牌逐字一致，并同步生成 bg-* / text-* / shadow-* 等工具类。
    3D 世界（lib/world/constants.ts WORLD_COLORS）与此处令牌同源对齐。

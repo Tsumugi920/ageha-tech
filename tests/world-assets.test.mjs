@@ -127,12 +127,8 @@ test("lib/world 为纯 TS 数据层（无 three 依赖），public/world 产物�
 /** prepare-world-assets.mjs 的产物契约：目标路径 → 体积上限（字节） */
 const WORLD_ASSET_PRODUCTS = [
   { target: "public/world/butterfly-sprite-512.png", budget: 60 * 1024 },
-  { target: "public/world/screens/agehaos-1600.jpg", budget: 350 * 1024 },
-  { target: "public/world/screens/cs-portfolio-1280.webp", budget: 300 * 1024 },
-  { target: "public/world/screens/moss-terrarium-1280.webp", budget: 300 * 1024 },
   { target: "public/world/gallery/hero-clean-1024.webp", budget: 250 * 1024 },
   { target: "public/world/gallery/hero-full-1024.webp", budget: 250 * 1024 },
-  { target: "public/world/gallery/concept-art-1024.webp", budget: 250 * 1024 },
 ];
 
 test("prepare-world-assets.mjs 就位：内置 sharp、幂等重跑、含来源清单注释", () => {

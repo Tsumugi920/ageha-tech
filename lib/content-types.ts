@@ -8,9 +8,9 @@ import type { LucideIcon } from "lucide-react";
 /**
  * 项目真实入口链接。
  *
- * 【诚实边界】只收录有据可查的链接（站长仓库 README 中的线上地址 / 源码仓库），
- * 且域名受 tests 的白名单约束（ageha.cn 系与 github.com/Ageha6912）；
- * 没有依据的项目（如未上线的 Moss World）一律不设 links。
+ * 【诚实边界】只收录有据可查的链接（助手 GitHub 主页核实过的源码仓库），
+ * 且域名受 tests 的白名单约束（github.com/Tsumugi920）；
+ * 没有依据的项目一律不设仓库 links，仓库链接未经核实的项目只链主页。
  */
 export type ProjectLink = {
   /** 按钮文案：在线体验 / 查看源码 */

@@ -6,12 +6,9 @@
  * ── 来源清单（全部为仓库内既有素材，无外部下载）──────────────────────
  *  public/world/butterfly-sprite-512.png   ← 内联蝶形 SVG（app/icon.svg 四翼 path 同源，
  *                                            去掉 App 方形底板，仅保留透明底蝶形）
- *  public/world/screens/agehaos-1600.jpg   ← public/images/agehaos-desktop.jpg（AgehaOS 真实桌面截图）
- *  public/world/screens/cs-portfolio-1280.webp ← public/images/cs-market-portfolio.png（CS 模拟器线上真实界面）
- *  public/world/screens/moss-terrarium-1280.webp ← public/images/moss-world-terrarium.png（Moss World 本地运行画面）
  *  public/world/gallery/hero-clean-1024.webp  ← public/images/hero-clean.png
  *  public/world/gallery/hero-full-1024.webp   ← public/images/hero-full.png
- *  public/world/gallery/concept-art-1024.webp ← 仓库根目录 Ageha.tech未来数字世界作品集.png（概念原图，原图不动）
+ *  public/world/gallery/concept-art-1024.webp 为已入库的既有产物，不再由本脚本重生成（其原图已在本轮清理中删除）
  * ─────────────────────────────────────────────────────────────────────
  *
  * 幂等可重跑：每次全量重生成；质量参数自动下调直至满足体积上限
@@ -79,30 +76,6 @@ const PRODUCTS = [
     allowEnlargement: true,
   },
   {
-    target: "public/world/screens/agehaos-1600.jpg",
-    source: "public/images/agehaos-desktop.jpg",
-    width: 1600,
-    format: "jpg",
-    quality: 78,
-    budget: 350 * 1024,
-  },
-  {
-    target: "public/world/screens/cs-portfolio-1280.webp",
-    source: "public/images/cs-market-portfolio.png",
-    width: 1280,
-    format: "webp",
-    quality: 82,
-    budget: 300 * 1024,
-  },
-  {
-    target: "public/world/screens/moss-terrarium-1280.webp",
-    source: "public/images/moss-world-terrarium.png",
-    width: 1280,
-    format: "webp",
-    quality: 82,
-    budget: 300 * 1024,
-  },
-  {
     target: "public/world/gallery/hero-clean-1024.webp",
     source: "public/images/hero-clean.png",
     width: 1024,
@@ -113,14 +86,6 @@ const PRODUCTS = [
   {
     target: "public/world/gallery/hero-full-1024.webp",
     source: "public/images/hero-full.png",
-    width: 1024,
-    format: "webp",
-    quality: 82,
-    budget: 250 * 1024,
-  },
-  {
-    target: "public/world/gallery/concept-art-1024.webp",
-    source: "Ageha.tech未来数字世界作品集.png",
     width: 1024,
     format: "webp",
     quality: 82,

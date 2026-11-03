@@ -13,19 +13,19 @@ export const EXPLORE_GOALS = [
     hint: "在主岛北径口按下 E 或点击信标",
   },
   {
-    id: "agehaos-experience",
-    title: "终端体验",
-    hint: "在 AgehaOS 切换任一演示界面",
+    id: "cs-major-experience",
+    title: "档案体验",
+    hint: "在 CS MAJOR ARCHIVE 屿切换任一演示选项",
   },
   {
-    id: "cs-experience",
-    title: "观测体验",
-    hint: "在 CS 观测屏切换任一视图",
+    id: "calendar-experience",
+    title: "日程体验",
+    hint: "在 calendar 屿切换任一演示选项",
   },
   {
-    id: "moss-experience",
-    title: "穹舱光照",
-    hint: "为 Moss 穹舱选择任一光照",
+    id: "blog-experience",
+    title: "博客体验",
+    hint: "在 blog-cms 屿切换任一演示选项",
   },
   {
     id: "nook-discovery",
@@ -54,9 +54,9 @@ export function getExploreGoal(id: ExploreGoalId): ExploreGoal {
 
 /** 项目体验 slug → 对应探索目标（只映射三个真实项目区） */
 const EXPERIENCE_GOAL: Readonly<Record<string, ExploreGoalId>> = {
-  agehaos: "agehaos-experience",
-  "cs-skin-invest": "cs-experience",
-  "moss-world": "moss-experience",
+  "cs-major-archive": "cs-major-experience",
+  calendar: "calendar-experience",
+  "blog-cms": "blog-experience",
 };
 
 export function goalIdForExperience(slug: string): ExploreGoalId | null {

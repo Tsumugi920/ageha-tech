@@ -25,9 +25,9 @@ test("世界品牌标题一字不差：h1 常驻 SSR，加载态大字 → 就�
   const brand = readProjectFile("components/world/loading/LoadingScreen.tsx");
 
   // 品牌标题与 tagline（tagline 与 metadata 同源 lib/site.ts:30）
-  assert.match(brand, /<h1 className="world-brand__title">Ageha\.tech<\/h1>/);
-  assert.match(readProjectFile("lib/site.ts"), /用技术构建更有趣的数字世界/);
-  assert.match(brand, /用技术构建更有趣的数字世界/);
+  assert.match(brand, /<h1 className="world-brand__title">Momori<\/h1>/);
+  assert.match(readProjectFile("lib/site.ts"), /助手 Momori 的个人站和作品集/);
+  assert.match(brand, /助手 Momori 的个人站和作品集/);
   // 同一 h1 节点经 CSS 过渡收缩为角标（§13.1：节点不卸载、文字不变）
   assert.match(brand, /world-brand--dock/);
   const css = readProjectFile("app/globals.css");
@@ -38,13 +38,12 @@ test("世界品牌标题一字不差：h1 常驻 SSR，加载态大字 → 就�
 test("IntroToast 文案一字不差：个人简介 / 双按钮 / 统计口径（自 Hero 逐字搬迁）", () => {
   const toast = readProjectFile("components/world/ui/IntroToast.tsx");
 
-  // 个人介绍（一字不差，含「有趣且优雅」高亮）
+  // 个人介绍（一字不差）
   assert.match(
     toast,
-    /我是 Ageha，一名独立开发者，热爱探索技术与设计的边界，致力于构建有价值、/,
+    /我是 Momori，在做小而可用的网页工具和实验项目，欢迎在群岛里逛逛/,
   );
-  assert.match(toast, /有趣且优雅/);
-  assert.match(toast, /的数字产品。/);
+  assert.match(toast, /我的作品/);
 
   // 按钮：主（/projects）+ 次（/about）
   assert.match(toast, /href="\/projects"/);
@@ -52,10 +51,10 @@ test("IntroToast 文案一字不差：个人简介 / 双按钮 / 统计口径（
   assert.match(toast, /href="\/about"/);
   assert.match(toast, /了解我/);
 
-  // 摘要统计（口径与站内可数内容对齐：3 个项目、16 项在用/在学技术，
+  // 摘要统计（口径与站内可数内容对齐：14 个收录作品、16 项在用/在学技术，
   // 数据级对齐校验见 contrast.test.mjs；∞ 为装饰性表达）
-  assert.match(toast, /3\+/);
-  assert.match(toast, /代表项目/);
+  assert.match(toast, /14\+/);
+  assert.match(toast, /收录作品/);
   assert.match(toast, /\{ value: "16", label: "在用\/在学技术" \}/);
   assert.match(toast, /∞/);
   assert.match(toast, /持续探索/);

@@ -1,7 +1,7 @@
 /**
  * P3 场景体验用的程序化演示屏（无外部图片资产）：
- * AgehaOS 的窗口/文件/设置三态，CS 观测屏的资产/持仓/成交三态。
- * 所有画面都带 DEMO/演示标识；真实项目截图仍作为默认屏与详情封面。
+ * 旧演示屏（原作者项目，已停用）：本改编中不再挂载，见 ProjectIsle 的 demoSlug 说明。
+ * 所有画面都带 DEMO/演示标识。
  */
 type DemoSlug = "agehaos" | "cs-skin-invest";
 
@@ -118,8 +118,8 @@ function base(ctx: CanvasRenderingContext2D, slug: DemoSlug): void {
   mono(
     ctx,
     slug === "agehaos"
-      ? "Ageha.tech · 作品集场景演示 / 非实时连接"
-      : "Ageha.tech · 作品集场景演示 / 演示数据，非实时行情",
+      ? "Momori · 作品集场景演示 / 非实时连接"
+      : "Momori · 作品集场景演示 / 演示数据，非实时画面",
     28,
     H - 19,
     11,

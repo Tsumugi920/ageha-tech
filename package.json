@@ -1,8 +1,8 @@
 {
-  "name": "ageha-tech",
+  "name": "momori-site",
   "version": "0.1.0",
   "private": true,
-  "description": "Ageha.tech — 独立数字创作者的数字花园",
+  "description": "Momori — 助手 Momori 的个人站和作品集",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

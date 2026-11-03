@@ -19,7 +19,7 @@ import { PROJECT_ISLES } from "../lib/world/layout.ts";
 
 test("三项目区各有 3 个不重复的场景体验选项", () => {
   const slugs = PROJECT_ISLES.map((isle) => isle.slug).sort();
-  assert.deepEqual(slugs, ["agehaos", "cs-skin-invest", "moss-world"]);
+  assert.deepEqual(slugs, ["blog-cms", "calendar", "cs-major-archive"]);
   for (const slug of slugs) {
     const options = getExperienceOptions(slug);
     assert.ok(options, `${slug} 应有体验选项`);
@@ -44,25 +44,23 @@ test("三项目区各有 3 个不重复的场景体验选项", () => {
   }
 });
 
-test("体验说明保持诚实边界：演示、非实时、非生态模拟", () => {
-  assert.match(EXPERIENCE_NOTES.agehaos, /演示/);
-  assert.match(EXPERIENCE_NOTES.agehaos, /非实时/);
-  assert.match(EXPERIENCE_NOTES["cs-skin-invest"], /演示数据/);
-  assert.match(EXPERIENCE_NOTES["cs-skin-invest"], /非实时/);
-  assert.match(EXPERIENCE_NOTES["moss-world"], /演示/);
-  assert.match(EXPERIENCE_NOTES["moss-world"], /非生态/);
+test("体验说明保持诚实边界：演示、非项目实时画面", () => {
+  for (const slug of ["cs-major-archive", "calendar", "blog-cms"]) {
+    assert.match(EXPERIENCE_NOTES[slug], /演示/);
+    assert.match(EXPERIENCE_NOTES[slug], /非项目实时画面/);
+  }
   for (const note of Object.values(EXPERIENCE_NOTES)) {
     assert.doesNotMatch(note, /(?<!非)实时(?:行情|连接)|完整生态/);
   }
 });
 
 test("体验选项校验：未知 slug / id 被拒绝，null 表示复位", () => {
-  assert.equal(isExperienceProjectSlug("agehaos"), true);
-  assert.equal(isExperienceProjectSlug("moss-world"), true);
+  assert.equal(isExperienceProjectSlug("cs-major-archive"), true);
+  assert.equal(isExperienceProjectSlug("blog-cms"), true);
   assert.equal(isExperienceProjectSlug("unknown"), false);
-  assert.equal(isValidExperienceOption("agehaos", "windows"), true);
-  assert.equal(isValidExperienceOption("agehaos", "unknown"), false);
-  assert.equal(isValidExperienceOption("unknown", "windows"), false);
-  assert.equal(isValidExperienceOption("moss-world", null), true);
-  assert.equal(EXPERIENCE_OPTIONS.agehaos[0].label, "窗口");
+  assert.equal(isValidExperienceOption("cs-major-archive", "champions"), true);
+  assert.equal(isValidExperienceOption("cs-major-archive", "unknown"), false);
+  assert.equal(isValidExperienceOption("unknown", "champions"), false);
+  assert.equal(isValidExperienceOption("blog-cms", null), true);
+  assert.equal(EXPERIENCE_OPTIONS["cs-major-archive"][0].label, "冠军堂");
 });

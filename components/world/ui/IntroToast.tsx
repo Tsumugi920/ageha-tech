@@ -6,14 +6,14 @@ import { useWorldUI } from "../WorldUIContext";
 
 /**
  * 首次引导卡 IntroToast（蓝图 §13.1 / §13.3；原 Hero 首屏文案的迁移新家）：
- * - 个人简介与「有趣且优雅」高亮、统计口径（3+ / 16 / ∞）、双按钮
+ * - 个人简介、统计口径（14+ / 16 / ∞）、双按钮
  *   （查看我的项目 / 了解我）自退役的 Hero.tsx 逐字搬迁（hero.test.mjs 契约）；
  * - 可关闭、可跳过、任意移动操作即隐；会话内关闭后不再自动弹出。
  * - R4：内容区与底部「开始探索」分离，移动端卡片限高 + 内部滚动，
  *   且整卡抬到摇杆 / 导航按钮之上；卡内滚动 / 点按不会误关。
  */
 const STATS = [
-  { value: "3+", label: "代表项目" },
+  { value: "14+", label: "收录作品" },
   { value: "16", label: "在用/在学技术" },
   { value: "∞", label: "持续探索" },
 ] as const;
@@ -74,9 +74,8 @@ export function IntroToast() {
 
       <div className="world-toast__scroll">
         <p className="world-toast__intro">
-          我是 Ageha，一名独立开发者，热爱探索技术与设计的边界，致力于构建有价值、
-          <span className="world-toast__accent">有趣且优雅</span>
-          的数字产品。
+          我是 Momori，在做小而可用的网页工具和实验项目，欢迎在群岛里逛逛
+          <span className="world-toast__accent">我的作品</span>。
         </p>
         <ul className="world-toast__stats" aria-label="站点统计">
           {STATS.map((stat) => (

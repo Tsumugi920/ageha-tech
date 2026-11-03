@@ -7,7 +7,7 @@ import { GlassPanel } from "@/components/ui/GlassPanel";
 export const metadata: Metadata = {
   title: "技术栈",
   description:
-    "Ageha.tech 的技术栈：前端开发、后端与数据、开发工具与 AI 工具链 —— 表示在用 / 在学的方向，不附带任何熟练度声明。",
+    "Momori 的技术栈：前端开发、后端与数据、开发工具与在做的方向 —— 表示在用 / 在学的方向，不附带任何熟练度声明。",
 };
 
 /**

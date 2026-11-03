@@ -19,6 +19,7 @@ import {
   DISTANT_ISLES,
   TELEPORT_SPOTS,
   ISLE_SCREENS,
+  findIsleScreen,
   GUIDE_BUTTERFLY,
   GALLERY_ARTWORKS,
   SIGN_POST,
@@ -181,7 +182,7 @@ function nearestWalkableDistance(x, z) {
 test("三屿坐标与去对称布局：三 slug 各异、互相间距 ≥100、高度三档不同", () => {
   assert.equal(PROJECT_ISLES.length, 3);
   const slugs = PROJECT_ISLES.map((isle) => isle.slug);
-  assert.deepEqual([...slugs].sort(), ["agehaos", "cs-skin-invest", "moss-world"]);
+  assert.deepEqual([...slugs].sort(), ["blog-cms", "calendar", "cs-major-archive"]);
   assert.equal(new Set(PROJECT_ISLES.map((i) => i.center.y)).size, 3, "三屿高度应三档（−3/+4/+8）");
   for (let i = 0; i < PROJECT_ISLES.length; i += 1) {
     for (let j = i + 1; j < PROJECT_ISLES.length; j += 1) {
@@ -191,16 +192,16 @@ test("三屿坐标与去对称布局：三 slug 各异、互相间距 ≥100、�
       assert.ok(d >= 100, `${PROJECT_ISLES[i].id} 与 ${PROJECT_ISLES[j].id} 间距应 ≥100（实际 ${d.toFixed(1)}）`);
     }
   }
-  // Moss 屿是全场景唯一下沉屿（−3）
-  const moss = PROJECT_ISLES.find((isle) => isle.slug === "moss-world");
-  assert.equal(moss.center.y, -3);
+  // 写作穹舱屿是全场景唯一下沉屿（−3）
+  const blog = PROJECT_ISLES.find((isle) => isle.slug === "blog-cms");
+  assert.equal(blog.center.y, -3);
 });
 
 test("交互登记覆盖三项目 slug 与彩蛋类型，交互半径符合蓝图", () => {
   const projectItems = INTERACTABLES.filter((item) => item.type === "project");
   assert.deepEqual(
     [...projectItems.map((item) => item.slug)].sort(),
-    ["agehaos", "cs-skin-invest", "moss-world"],
+    ["blog-cms", "calendar", "cs-major-archive"],
     "交互登记应覆盖三项目",
   );
   for (const item of INTERACTABLES) {
@@ -283,13 +284,13 @@ test("碰撞与遮挡：静态碰撞体含三屿主体，相机遮挡体非空�
   assert.ok(Math.abs(diagonal.z - 2) < 1e-9, "斜向接触的切向分量应保留");
 });
 
-test("CS 观测环相机遮挡：环体与斜撑进入相机遮挡清单，R7 回望主岛的穿越机位被覆盖", () => {
-  const cs = PROJECT_ISLES.find((isle) => isle.slug === "cs-skin-invest");
-  assert.ok(cs, "应存在 CS 项目屿");
+test("日程观测环相机遮挡：环体与斜撑进入相机遮挡清单，R7 回望主岛的穿越机位被覆盖", () => {
+  const cs = PROJECT_ISLES.find((isle) => isle.slug === "calendar");
+  assert.ok(cs, "应存在日程项目屿");
   const ring = CAMERA_OCCLUDERS.find(
     (occluder) => occluder.id === "occluder-isle-cs-observatory-ring",
   );
-  assert.ok(ring, "应登记 CS 抬升观测环的相机遮挡体");
+  assert.ok(ring, "应登记日程抬升观测环的相机遮挡体");
   // 环圈半径 6.35 + 斜撑底座外缘约 6.8，遮挡盒须覆盖整个横向轮廓
   assert.ok(ring.minX <= cs.center.x - 6.8 && ring.maxX >= cs.center.x + 6.8);
   assert.ok(ring.minZ <= cs.center.z - 6.8 && ring.maxZ >= cs.center.z + 6.8);
@@ -417,7 +418,7 @@ test("传送目标表：出生点 + 三屿 + 茧居所，落点全部可行走�
   const ids = TELEPORT_SPOTS.map((spot) => spot.id);
   assert.deepEqual(
     [...ids].sort(),
-    ["chrysalis-nook", "isle-agehaos", "isle-cs", "isle-moss", "spawn"],
+    ["chrysalis-nook", "isle-blog", "isle-calendar", "isle-cs-major", "spawn"],
     "传送目标应覆盖出生点 / 三屿 / 茧居所",
   );
 
@@ -462,27 +463,20 @@ test("传送目标表：出生点 + 三屿 + 茧居所，落点全部可行走�
 
 /* ------------------------------ 三屿屏幕贴图登记（§4 共同规范） ------------------------------ */
 
-test("三屿屏幕贴图登记齐全：三 slug 全覆盖，路径指向 §11.2 产物目录", () => {
-  assert.equal(ISLE_SCREENS.length, 3, "应恰好登记三块屏幕贴图");
-  assert.deepEqual(
-    [...ISLE_SCREENS.map((screen) => screen.slug)].sort(),
-    ["agehaos", "cs-skin-invest", "moss-world"],
-    "屏幕贴图登记应覆盖三项目 slug",
-  );
-  for (const screen of ISLE_SCREENS) {
-    assert.ok(
-      screen.path.startsWith("/world/screens/"),
-      `${screen.slug} 贴图应指向 public/world/screens/（实际 ${screen.path}）`,
-    );
-    assert.ok(screen.aspect > 0.5 && screen.aspect < 2.5, `${screen.slug} 宽高比应合理`);
-    assert.ok(
-      screen.mountDistance >= 40,
-      `${screen.slug} 按需挂载距离应 ≥40（§11.2）`,
+test("三屿屏幕贴图登记为空：本改编不复用旧项目截图，屿内屏幕为空屏占位", () => {
+  // 旧三张截图属于原作者项目，不作为 Momori 作品的屏幕贴图复用；
+  // 屿内屏幕渲染空屏占位（ProjectIsle 中 screenPath 为 null 时的 DimScreen）。
+  assert.equal(ISLE_SCREENS.length, 0, "本改编应不登记任何屏幕贴图");
+  for (const isle of PROJECT_ISLES) {
+    assert.equal(
+      findIsleScreen(isle.slug),
+      undefined,
+      `${isle.slug} 应无屏幕贴图登记`,
     );
   }
 });
 
-test("三屿结构碰撞体逐屿登记：Moss 穹舱按偏移落位（蝶径到达区不穿模）", () => {
+test("三屿结构碰撞体逐屿登记：写作穹舱按偏移落位（蝶径到达区不穿模）", () => {
   for (const isle of PROJECT_ISLES) {
     const collider = STATIC_COLLIDERS.find((c) => c.id === `collider-${isle.id}-structure`);
     assert.ok(collider, `应登记 ${isle.id} 结构碰撞体`);
@@ -501,17 +495,17 @@ test("三屿结构碰撞体逐屿登记：Moss 穹舱按偏移落位（蝶径到
       `${isle.id} 蝶径终点应在碰撞体外（终点距碰撞心 ${endDistance.toFixed(2)} < ${collider.radius + PLAYER_PHYSICS.bodyRadius}）`,
     );
   }
-  // Moss 交互锚点在穹舱碰撞体外（玩家能站到监测屏前触发提示）
-  const moss = PROJECT_ISLES.find((isle) => isle.slug === "moss-world");
-  const mossCollider = STATIC_COLLIDERS.find((c) => c.id === "collider-isle-moss-structure");
-  const anchor = INTERACTABLES.find((item) => item.slug === "moss-world");
+  // 写作穹舱交互锚点在穹舱碰撞体外（玩家能站到监测屏前触发提示）
+  const moss = PROJECT_ISLES.find((isle) => isle.slug === "blog-cms");
+  const mossCollider = STATIC_COLLIDERS.find((c) => c.id === "collider-isle-blog-structure");
+  const anchor = INTERACTABLES.find((item) => item.slug === "blog-cms");
   const anchorDistance = Math.hypot(
     mossCollider.centerX - anchor.x,
     mossCollider.centerZ - anchor.z,
   );
   assert.ok(
     anchorDistance >= mossCollider.radius + PLAYER_PHYSICS.bodyRadius,
-    `Moss 监测屏锚点应在穹舱碰撞体外（实际 ${anchorDistance.toFixed(2)}）`,
+    `写作穹舱监测屏锚点应在穹舱碰撞体外（实际 ${anchorDistance.toFixed(2)}）`,
   );
   assert.equal(anchor.x, moss.center.x + moss.anchor.offsetX, "锚点应按屿数据偏移登记");
 });
@@ -667,7 +661,7 @@ test("三径导向标：每径一座、在主岛内、距径中线 ≥1.9（不�
   // 导向标主题色关联三 slug（与目标屿一一对应）
   assert.deepEqual(
     [...TRAIL_BEACONS.map((b) => b.accentSlug)].sort(),
-    ["agehaos", "cs-skin-invest", "moss-world"],
+    ["blog-cms", "calendar", "cs-major-archive"],
   );
 });
 

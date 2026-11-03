@@ -6,7 +6,6 @@ import { Html, useTexture } from "@react-three/drei";
 import {
   AdditiveBlending,
   BufferAttribute,
-  CanvasTexture,
   BufferGeometry,
   Color,
   DoubleSide,
@@ -49,55 +48,25 @@ import { usePrefersReducedMotion } from "../systems/usePrefersReducedMotion";
 import type { PlayerApi } from "../systems/usePlayerController";
 import { useWorldUI } from "../WorldUIContext";
 import { createAgehaosGeometry } from "./agehaosGeometry";
-import { getExperienceOptions, type ExperienceProjectSlug } from "@/lib/world/experiences";
-import { createDemoScreenCanvas } from "./demoScreenTextures";
 
 /**
  * 项目屿（R2 重做）：三座地标从「基础几何占位」升级为有主轮廓的构筑物。
  *
  * - 底座：与主岛同源的分层浮岛几何（岩层 / 雪原 / 岩脊 / 嵌入晶体）；
- * - AgehaOS：错高折面舱壳 + 开放计算核心 + 一体终端操作舱；
- * - CS：抬高行情环 + 24 根真实数据柱 + 中央价格针 + 环形刻度 +
- *   侧翼仪表 + 前置竖屏；
- * - Moss：带经线骨架和两道环箍的玻璃生态穹舱 + 分层苔丘 + 植物群落 +
- *   舱顶通风冠 + 舱外观景台监测屏。
+ * - 冠军档案塔（原终端塔造型，通用几何）：错高折面舱壳 + 开放计算核心 + 一体终端操作舱；
+ * - 日程观测环：抬高圆环 + 侧翼仪表 + 前置竖屏；
+ * - 写作穹舱：带经线骨架和两道环箍的玻璃穹舱 + 舱外观景台监测屏。
  *
- * 功能契约保持不变：交互代理、高亮环、名牌、真实截图屏幕、
- * transmission 名额（Moss 穹舱）与低档降级全部沿用。
+ * 功能契约保持不变：交互代理、高亮环、名牌与低档降级全部沿用；
+ * 本改编中屿内屏幕为空屏占位，不再挂载旧项目的真实截图或演示屏。
  */
 /**
  * P3 演示屏纹理：只在项目屿接近时生成，离开即释放；低画质也能看到体验结果。
  */
-function useDemoScreenTextures(
-  slug: ExperienceProjectSlug | null,
-  enabled: boolean,
-): Record<string, Texture> | null {
-  const textures = useMemo(() => {
-    if (!enabled || !slug) return null;
-    if (slug !== "agehaos" && slug !== "cs-skin-invest") return null;
-    const options = getExperienceOptions(slug);
-    if (!options) return null;
-    return Object.fromEntries(
-      options.map((option) => {
-        const texture = new CanvasTexture(
-          createDemoScreenCanvas(slug, option.id),
-        );
-        texture.colorSpace = SRGBColorSpace;
-        texture.anisotropy = 4;
-        texture.needsUpdate = true;
-        return [option.id, texture];
-      }),
-    ) as Record<string, Texture>;
-  }, [enabled, slug]);
-
-  useEffect(() => {
-    if (!textures) return;
-    return () => {
-      Object.values(textures).forEach((texture) => texture.dispose());
-    };
-  }, [textures]);
-
-  return textures;
+function useDemoScreenTextures(): Record<string, Texture> | null {
+  // 本改编停用演示屏纹理：旧演示纹理描绘的是原作者项目，
+  // 不作为 Momori 作品的演示画面复用；调用点保留以维持体验状态流转。
+  return null;
 }
 
 export function ProjectIsle({
@@ -129,31 +98,31 @@ export function ProjectIsle({
         radiusZ: isle.radius,
         depth:
           isle.radius *
-          (isle.slug === "agehaos" ? 0.6 : isle.slug === "moss-world" ? 0.84 : 0.78),
+          (isle.slug === "cs-major-archive" ? 0.6 : isle.slug === "blog-cms" ? 0.84 : 0.78),
         seed: isle.center.x * 0.13 + isle.center.z * 0.07 + 3.1,
         jaggedness:
-          isle.slug === "agehaos" ? 0.12 : isle.slug === "moss-world" ? 0.1 : 0.095,
+          isle.slug === "cs-major-archive" ? 0.12 : isle.slug === "blog-cms" ? 0.1 : 0.095,
         segments: 56,
         profile:
-          isle.slug === "agehaos"
+          isle.slug === "cs-major-archive"
             ? "mesa"
-            : isle.slug === "cs-skin-invest"
+            : isle.slug === "calendar"
               ? "shard"
               : "rooted",
         // R12.0-B（G5/G6）：三屿屿体 organic 化——此前未开 strataTilt/
         // buttress，屿体是无轮廓波、无沟槽、无岩檐雪的「光滑叠板/松饼」，
-        // AgehaOS 屿侧视读成深色浮板堆。开启后与主岛同一套风化语言，
+        // 档案塔屿侧视读成深色浮板堆。开启后与主岛同一套风化语言，
         // 剖面（mesa/shard/rooted）保持各自体量性格不变。
-        // agehaos 的 mesa 层理平直、叠板感最强，四项参数单独加档
+        // 档案塔的 mesa 层理平直、叠板感最强，四项参数单独加档
         strataTilt:
-          isle.slug === "agehaos" ? 0.075 : isle.slug === "cs-skin-invest" ? 0.065 : 0.06,
+          isle.slug === "cs-major-archive" ? 0.075 : isle.slug === "calendar" ? 0.065 : 0.06,
         buttressCount: 5,
         buttressDepth:
-          isle.slug === "moss-world" ? 0.055 : 0.06,
-        layerJitter: isle.slug === "agehaos" ? 0.026 : 0.02,
+          isle.slug === "blog-cms" ? 0.055 : 0.06,
+        layerJitter: isle.slug === "cs-major-archive" ? 0.026 : 0.02,
         breachCount: 2,
         breachDepth:
-          isle.slug === "agehaos" ? 0.16 : isle.slug === "cs-skin-invest" ? 0.1 : 0.09,
+          isle.slug === "cs-major-archive" ? 0.16 : isle.slug === "calendar" ? 0.1 : 0.09,
       }),
     [isle.radius, isle.center.x, isle.center.z, isle.slug],
   );
@@ -205,29 +174,29 @@ export function ProjectIsle({
 
   const near = useNearPlayer(player, isle.center, screen?.mountDistance ?? 60);
   const experienceOption = experiences[isle.slug] ?? null;
-  const demoSlug: ExperienceProjectSlug | null =
-    isle.slug === "agehaos" || isle.slug === "cs-skin-invest" ? isle.slug : null;
-  const demoScreens = useDemoScreenTextures(demoSlug, near);
+  // 本改编不挂载旧项目的演示屏：旧演示纹理描绘的是原作者项目，
+  // 不作为 Momori 作品的演示画面复用；体验选项仅完成探索目标。
+  const demoScreens = useDemoScreenTextures();
 
   // 开发态体验探针：验收脚本核对选项/演示纹理是否真的挂到这屿
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     const registry =
       (window as unknown as {
-        __AGEHA_ISLE_EXPERIENCE__?: Record<string, () => unknown>;
-      }).__AGEHA_ISLE_EXPERIENCE__ ?? {};
+        __MOMORI_ISLE_EXPERIENCE__?: Record<string, () => unknown>;
+      }).__MOMORI_ISLE_EXPERIENCE__ ?? {};
     registry[isle.slug] = () => ({
       slug: isle.slug,
       option: experienceOption,
       near,
       demos: demoScreens ? Object.keys(demoScreens) : [],
     });
-    (window as unknown as { __AGEHA_ISLE_EXPERIENCE__?: unknown }).__AGEHA_ISLE_EXPERIENCE__ =
+    (window as unknown as { __MOMORI_ISLE_EXPERIENCE__?: unknown }).__MOMORI_ISLE_EXPERIENCE__ =
       registry;
     return () => {
       const current =
-        (window as unknown as { __AGEHA_ISLE_EXPERIENCE__?: Record<string, () => unknown> })
-          .__AGEHA_ISLE_EXPERIENCE__;
+        (window as unknown as { __MOMORI_ISLE_EXPERIENCE__?: Record<string, () => unknown> })
+          .__MOMORI_ISLE_EXPERIENCE__;
       if (current) delete current[isle.slug];
     };
   }, [demoScreens, experienceOption, isle.slug, near]);
@@ -237,12 +206,12 @@ export function ProjectIsle({
 
   const anchorX = isle.anchor?.offsetX ?? 0;
   const anchorZ = isle.anchor?.offsetZ ?? 0;
-  const isMoss = isle.slug === "moss-world";
+  const isMoss = isle.slug === "blog-cms";
   const domeX = isle.collider.offsetX * 0.72;
   const domeZ = isle.collider.offsetZ * 0.72;
   const nameplateX = isMoss ? domeX : isle.collider.offsetX;
   const nameplateZ = isMoss ? domeZ : isle.collider.offsetZ;
-  const nameplateY = isMoss ? 10.2 : isle.slug === "cs-skin-invest" ? 10.8 : 10.6;
+  const nameplateY = isMoss ? 10.2 : isle.slug === "calendar" ? 10.8 : 10.6;
 
   useFrame((state) => {
     // 名牌 / 高亮是低频反馈：每 4 帧更新一次，避免逐帧写 DOM style
@@ -400,12 +369,12 @@ export function ProjectIsle({
 
 /**
  * 三座项目屿的「人工/生态基础」：同一世界观、不同功能语言。
- * AgehaOS = 冰白机库甲板；CS = 观测台铺面；Moss = 苔石护环。
+ * 档案塔 = 冰白机库甲板；日程环 = 观测台铺面；写作穹舱 = 苔石护环。
  * 主建筑仍由各自地标承担，基础层只负责「这块地属于谁」。
  */
 function IsleFoundation({ isle }: { isle: ProjectIsleData }) {
-  if (isle.slug === "agehaos") return <AgehaosFoundation accent={isle.accentColor} />;
-  if (isle.slug === "cs-skin-invest") return <CsFoundation accent={isle.accentColor} />;
+  if (isle.slug === "cs-major-archive") return <AgehaosFoundation accent={isle.accentColor} />;
+  if (isle.slug === "calendar") return <CsFoundation accent={isle.accentColor} />;
   return <MossFoundation accent={isle.accentColor} />;
 }
 
@@ -785,7 +754,7 @@ function IsleStructure({
   experienceOption: string | null;
   demoScreens: Record<string, Texture> | null;
 }) {
-  if (isle.slug === "agehaos") {
+  if (isle.slug === "cs-major-archive") {
     return (
       <AgehaosTerminal
         showScreen={showScreen}
@@ -796,7 +765,7 @@ function IsleStructure({
       />
     );
   }
-  if (isle.slug === "cs-skin-invest") {
+  if (isle.slug === "calendar") {
     return (
       <CsObservatory
         showScreen={showScreen}

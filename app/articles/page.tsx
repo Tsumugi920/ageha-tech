@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: "文章与实验",
   description:
-    "Ageha.tech 的文章与实验：当前还没有已发布文章，这里展示正在构思的写作计划（技术笔记 / 产品思考 / 设计探索）。",
+    "Momori 的文章与实验：当前还没有已发布文章，这里展示正在构思的写作计划（技术笔记 / 产品思考 / 设计探索）。",
 };
 
 /**

@@ -6,7 +6,7 @@ import { projects } from "@/lib/projects";
 export const metadata: Metadata = {
   title: "项目",
   description:
-    "Ageha.tech 正在构建与持续打磨中的项目：Web OS 桌面体验、CS 饰品虚拟投资模拟器与 Moss World 交互式数字生态 —— 均为技术探索中的作品。",
+    "Momori 的全部作品：小而可用的网页工具与实验项目，含 CS MAJOR ARCHIVE、calendar、blog-cms 等 14 个作品。",
 };
 
 /** 右上两行小注记（与首页精选项目版块同一过程性定位，非成果宣言） */
@@ -18,7 +18,7 @@ const PAGE_NOTE = [
 /**
  * 全部项目列表页：页头 + 与首页「精选项目」同一套 ProjectCard 网格，
  * 直接坐在统一 .site-container 全宽内容网格上（不再包整段玻璃大板）。
- * 数据来自 lib/projects.ts（三个探索中的项目，无上线状态 / 演示 / 源码链接）。
+ * 数据来自 lib/projects.ts（14 个核实过的作品；封面为概念视觉占位）。
  */
 export default function ProjectsPage() {
   return (

@@ -41,9 +41,9 @@ import type { PlayerApi } from "../systems/usePlayerController";
  * - 三段深蓝门柱 + 一道横梁，把 52m 的长桥分成有目的的接近段；
  * - 桥下冰撑让「一条悬空细线」变成有结构厚度的路径；
  * - 径面嵌入 14 个低亮度脉冲节点；靠近信标出现“点亮北径”提示，
- *   E / 点击触发后一条暖色光波通向 AgehaOS，并保持点亮 9s 后复位。
+ *   E / 点击触发后一条暖色光波通向档案塔屿，并保持点亮 9s 后复位。
  *
- * 只服务北径（trail-a）与出生区 → AgehaOS 的样板动线，不改其他区域。
+ * 只服务北径（trail-a）与出生区 → 档案塔屿的样板动线，不改其他区域。
  * 全部装饰位于可行走带之外；横梁高于角色，不参与碰撞。
  */
 
@@ -560,7 +560,7 @@ export function NorthRouteDressing({ player }: { player: PlayerApi }) {
         <meshBasicMaterial color="#B8EFFF" transparent opacity={0.55} depthWrite={false} />
       </instancedMesh>
 
-      {/* 沿北径行进的暖光：触发后从径头一路点亮到 AgehaOS */}
+      {/* 沿北径行进的暖光：触发后从径头一路点亮到档案塔屿 */}
       <pointLight ref={waveLightRef} color="#FFD9A0" intensity={0} distance={9} decay={2} />
       <mesh ref={waveOrbRef}>
         <sphereGeometry args={[0.24, 12, 8]} />

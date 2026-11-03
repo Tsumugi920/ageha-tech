@@ -41,11 +41,9 @@ const PROJECT_FIELDS = [
   "links",
 ];
 
-/* 真实入口链接的域名白名单：只允许站长仓库 README 载明的线上地址与公开源码仓库 */
+/* 真实入口链接的域名白名单：只允许助手 GitHub 账号下的公开源码仓库与主页 */
 const PROJECT_LINK_HOST_PATTERNS = [
-  /^https:\/\/os\.ageha\.cn\/?$/,
-  /^https:\/\/cs\.ageha\.cn\/?$/,
-  /^https:\/\/github\.com\/Ageha6912(\/|$)/,
+  /^https:\/\/github\.com\/Tsumugi920(\/|$)/,
 ];
 
 /* 与 PlannedNote 类型对应的诚实字段白名单：无日期、无阅读量、无链接 */
@@ -57,18 +55,24 @@ const accountPattern =
 
 /* ------------------------------ 项目数据 ------------------------------ */
 
-test("lib/projects.ts：links 仅含白名单域名的真实入口，且只属于已上线项目", () => {
+test("lib/projects.ts：links 仅含白名单域名的真实入口（可本地运行项目可有源码链接）", () => {
   assert.ok(projects.length > 0, "项目数据不应为空");
   for (const project of projects) {
     const links = project.links ?? [];
     if (project.status === "已上线") {
       assert.ok(links.length > 0, `${project.slug} 已上线，应提供真实入口链接`);
-    } else {
-      assert.equal(
-        links.length,
-        0,
-        `${project.slug} 没有上线记录，不应渲染任何入口链接`,
+    }
+    // 可本地运行项目可以有源码链接；CS MAJOR ARCHIVE 仓库链接未经核实，
+    // 只允许主页链接；agent-home 不拼猜测仓库链接，故应无链接。
+    if (project.slug === "cs-major-archive") {
+      assert.deepEqual(
+        links.map((link) => link.href),
+        ["https://github.com/Tsumugi920"],
+        "CS MAJOR ARCHIVE 只允许 GitHub 主页链接",
       );
+    }
+    if (project.slug === "agent-home") {
+      assert.equal(links.length, 0, "agent-home 不拼猜测仓库链接，应无链接");
     }
     for (const link of links) {
       assert.ok(
@@ -88,7 +92,7 @@ test("lib/projects.ts：links 仅含白名单域名的真实入口，且只属�
   assert.deepEqual(outsideLinks, [], "links 之外不应出现任何 http(s) 链接");
 });
 
-test("lib/projects.ts：不设日期类字段，字段值不含年份或 ISO 日期", () => {
+test("lib/projects.ts：不设日期类字段，字段值不含年份或 ISO 日期（CS MAJOR ARCHIVE 的档案年份范围除外）", () => {
   for (const project of projects) {
     for (const key of Object.keys(project)) {
       assert.ok(
@@ -97,8 +101,14 @@ test("lib/projects.ts：不设日期类字段，字段值不含年份或 ISO 日
       );
     }
     const serialized = JSON.stringify(project);
-    assert.doesNotMatch(serialized, /(19|20)\d{2}/, `${project.slug} 不应包含年份`);
-    assert.doesNotMatch(serialized, /\d{4}-\d{2}-\d{2}/, `${project.slug} 不应包含 ISO 日期`);
+    if (project.slug === "cs-major-archive") {
+      // 唯一允许的年份：核实过的档案范围 2013—2026（不是项目发布日期）
+      assert.match(serialized, /2013—2026/, "CS MAJOR ARCHIVE 应注明档案范围 2013—2026");
+      assert.doesNotMatch(serialized, /\d{4}-\d{2}-\d{2}/, `${project.slug} 不应包含 ISO 日期`);
+    } else {
+      assert.doesNotMatch(serialized, /(19|20)\d{2}/, `${project.slug} 不应包含年份`);
+      assert.doesNotMatch(serialized, /\d{4}-\d{2}-\d{2}/, `${project.slug} 不应包含 ISO 日期`);
+    }
   }
 
   // 源码层兜底：不允许以任何大小写形式引入 date:/year:/published: 等日期字段
@@ -159,7 +169,7 @@ test("lib/site.ts：GitHub 为白名单内真实账号，其余渠道保持「�
       );
       assert.match(
         contact.href,
-        /^https:\/\/github\.com\/Ageha6912\/?$/,
+        /^https:\/\/github\.com\/Tsumugi920\/?$/,
         `${contact.label} 的链接应在真实账号白名单内`,
       );
     } else {
@@ -189,7 +199,7 @@ test("lib/site.ts：GitHub 为白名单内真实账号，其余渠道保持「�
   for (const url of urls) {
     assert.match(
       url,
-      /^https:\/\/github\.com\/Ageha6912\/?$/,
+      /^https:\/\/github\.com\/Tsumugi920\/?$/,
       `全站配置只允许 GitHub 白名单链接，发现 ${url}`,
     );
   }
@@ -257,7 +267,7 @@ test("3D 世界层诚实边界：世界源码不出现白名单外链接与编�
   );
 });
 
-test("世界详情面板诚实空链：Moss World 渲染如实说明文案，链接只来自数据层", () => {
+test("世界详情面板诚实空链：无链接项目渲染如实说明文案，链接只来自数据层", () => {
   const panel = readProjectFile("components/world/ui/ProjectDetailPanel.tsx");
   // 数据级：links 长度分支（空 → 诚实文案；非空 → 渲染数据内链接）
   assert.match(

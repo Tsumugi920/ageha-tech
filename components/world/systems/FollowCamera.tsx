@@ -27,10 +27,10 @@ const LANDMARK_FOCUS: Record<
   string,
   { lift: number; back: number; lookHeight: number }
 > = {
-  // P1：接近 AgehaOS 时收小后退/抬视量——塔身仍完整，信灯不被拉成远处小点
-  agehaos: { lift: 2.2, back: 2.2, lookHeight: 4.4 },
-  "cs-skin-invest": { lift: 1.9, back: 2.6, lookHeight: 3.6 },
-  "moss-world": { lift: 0.9, back: 1.8, lookHeight: 1.7 },
+  // P1：接近档案塔时收小后退/抬视量——塔身仍完整，信灯不被拉成远处小点
+  "cs-major-archive": { lift: 2.2, back: 2.2, lookHeight: 4.4 },
+  calendar: { lift: 1.9, back: 2.6, lookHeight: 3.6 },
+  "blog-cms": { lift: 0.9, back: 1.8, lookHeight: 1.7 },
 };
 
 /** 模块级命令式入口（同 ApplyShadowPipeline 口径：避免组件内改 hook 返回值） */

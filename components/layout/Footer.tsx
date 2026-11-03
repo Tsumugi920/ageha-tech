@@ -16,7 +16,7 @@ export function Footer() {
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm space-y-4">
             <div className="flex items-center gap-2.5">
-              {/* Logo 为纯装饰：相邻已有可见品牌文字「Ageha.tech」，避免读屏重复播报 */}
+              {/* Logo 为纯装饰：相邻已有可见品牌文字「Momori」，避免读屏重复播报 */}
               <ButterflyLogo
                 gradientId="footer-butterfly"
                 className="size-9"
@@ -42,7 +42,7 @@ export function Footer() {
         {/* 版权行 12px 小字：text-muted #6F86A4 在玻璃底仅 3.48:1，
             正文阈值 4.5:1，用 text-secondary（实测 5.49:1） */}
         <div className="mt-10 border-t border-line pt-6 text-center text-xs text-text-secondary">
-          © 2026 Ageha.tech · {site.tagline}
+          © 2026 {site.name} · {site.tagline}
         </div>
       </GlassPanel>
     </footer>

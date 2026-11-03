@@ -6,7 +6,7 @@ export type ButterflyLogoProps = {
   /**
    * 纯装饰模式：与可见品牌文字 / 已命名链接并存时开启，
    * 撤下 role="img" + aria-label 并置 aria-hidden，避免读屏器
-   * 重复播报「Ageha.tech 蝴蝶 Logo」。
+   * 重复播报「Momori 蝴蝶 Logo」。
    */
   decorative?: boolean;
 };
@@ -19,7 +19,7 @@ export type ButterflyLogoProps = {
 export function ButterflyLogo({
   className,
   gradientId,
-  title = "Ageha.tech 蝴蝶 Logo",
+  title = "Momori 蝴蝶 Logo",
   decorative = false,
 }: ButterflyLogoProps) {
   return (

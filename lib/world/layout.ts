@@ -66,7 +66,7 @@ export const MAIN_ISLAND = {
 
 /**
  * 出生点：主岛东南观景位（R3）。从这里向西北出发，视线正对蝶枢—
- * 北径—AgehaOS 的纵深关系；镜头 yaw=0.3 时按 W 会沿主路径前进，
+ * 北径—CS MAJOR ARCHIVE 的纵深关系；镜头 yaw=0.3 时按 W 会沿主路径前进，
  * 不再出现「初始 3/4 构图、一动就偏离主路」的断层。
  */
 export const SPAWN_POINT = { x: 6.5, y: 0.35, z: 7 } as const;
@@ -90,7 +90,7 @@ export const BUTTERFLY_CORE = {
 export type ProjectIsle = {
   readonly id: string;
   /** 对应 lib/projects.ts 的 slug（交互入口与数据渲染的关联键） */
-  readonly slug: "agehaos" | "cs-skin-invest" | "moss-world";
+  readonly slug: "cs-major-archive" | "calendar" | "blog-cms";
   readonly name: string;
   readonly center: Vec3;
   /** 岛半径（可行走盘面半径，视觉边缘再外扩 ~1） */
@@ -98,7 +98,7 @@ export type ProjectIsle = {
   readonly accentColor: string;
   /**
    * 中央结构碰撞圆柱（相对岛心偏移 + 半径，§6.4）：
-   * Moss 屿穹舱较大且相对岛心偏东北——蝶径 M 终点（西北侧到达区）必须
+   * 写作穹舱较大且相对岛心偏东北——蝶径 M 终点（西北侧到达区）必须
    * 留在碰撞体外（阶段 2 实测调整，蓝图 §2.2 名义值为岛心居中）。
    */
   readonly collider: { readonly offsetX: number; readonly offsetZ: number; readonly radius: number };
@@ -111,9 +111,9 @@ export type ProjectIsle = {
 /** 三座作品之屿（§2.2 / §4；正式造型与交互在阶段 2 落地） */
 export const PROJECT_ISLES: readonly ProjectIsle[] = [
   {
-    id: "isle-agehaos",
-    slug: "agehaos",
-    name: "AgehaOS · 悬浮终端塔",
+    id: "isle-cs-major",
+    slug: "cs-major-archive",
+    name: "CS MAJOR ARCHIVE · 冠军档案塔",
     center: { x: -22, y: 4, z: -58 },
     radius: 12,
     accentColor: "#269DFF",
@@ -123,9 +123,9 @@ export const PROJECT_ISLES: readonly ProjectIsle[] = [
     landingDistance: 10.5,
   },
   {
-    id: "isle-cs",
-    slug: "cs-skin-invest",
-    name: "CS 模拟器 · 行情观测环",
+    id: "isle-calendar",
+    slug: "calendar",
+    name: "calendar · 日程观测环",
     center: { x: -64, y: 8, z: 34 },
     radius: 13,
     accentColor: "#54E3FF",
@@ -135,9 +135,9 @@ export const PROJECT_ISLES: readonly ProjectIsle[] = [
     landingDistance: 10.2,
   },
   {
-    id: "isle-moss",
-    slug: "moss-world",
-    name: "Moss World · 生态穹舱",
+    id: "isle-blog",
+    slug: "blog-cms",
+    name: "blog-cms · 写作穹舱",
     center: { x: 48, y: -3, z: 30 },
     radius: 11,
     accentColor: WORLD_COLORS.mossGreen,
@@ -203,7 +203,7 @@ export const TRAILS: readonly Trail[] = [
   buildTrail(
     "trail-a",
     "蝶径 · 北径",
-    "isle-agehaos",
+    "isle-cs-major",
     3.2,
     [
       { x: -6, y: 0, z: -12 },
@@ -215,7 +215,7 @@ export const TRAILS: readonly Trail[] = [
   buildTrail(
     "trail-c",
     "蝶径 · 西南径",
-    "isle-cs",
+    "isle-calendar",
     3.2,
     [
       { x: -15, y: 0, z: 6 },
@@ -226,7 +226,7 @@ export const TRAILS: readonly Trail[] = [
       // 处于该机位视锥之外——连接功能与起终点不变。
       { x: -24, y: 0.8, z: 10 },
       { x: -38, y: 2.0, z: 17 },
-      // 终点在观测环结构碰撞体之外，落在新 CS 屿西侧到达平台
+      // 终点在观测环结构碰撞体之外，落在日程屿西侧到达平台
       { x: -50, y: 5.5, z: 25 },
       { x: -58, y: 8, z: 31 },
     ],
@@ -234,7 +234,7 @@ export const TRAILS: readonly Trail[] = [
   buildTrail(
     "trail-m",
     "蝶径 · 东南径",
-    "isle-moss",
+    "isle-blog",
     3.2,
     [
       { x: 14, y: 0, z: 7 },
@@ -248,7 +248,7 @@ export const TRAILS: readonly Trail[] = [
 /* ------------------------------ 蝶枢与引导蝶（§5 品牌三件套） ------------------------------ */
 
 /**
- * 引导蝶 Ageha（§5.2，导航角色）：沿「当前未探索」的蝶径往返巡飞；
+ * 引导蝶（§5.2，导航角色）：沿「当前未探索」的蝶径往返巡飞；
  * 玩家静止超过 idleReturnSeconds 秒时飞至玩家前方悬停示意方向。
  * 翅根枢轴扇动 ±40°、8Hz 阻尼正弦；reduced-motion 悬停待命不巡飞。
  */
@@ -381,11 +381,11 @@ export const TRAIL_BEACONS: readonly {
   readonly z: number;
 }[] = [
   // 蝶径 A 起点 (−6,−12)：沿内侧垂直偏移 2.8 → (−8.68,−11.2)
-  { id: "beacon-trail-a", trailId: "trail-a", accentSlug: "agehaos", x: -8.68, z: -11.2 },
+  { id: "beacon-trail-a", trailId: "trail-a", accentSlug: "cs-major-archive", x: -8.68, z: -11.2 },
   // 蝶径 C 起点 (−15,6)：径向 (−0.834,−0.556)，内侧垂直偏移 → (−13.67,4.0)
-  { id: "beacon-trail-c", trailId: "trail-c", accentSlug: "cs-skin-invest", x: -13.67, z: 4.0 },
+  { id: "beacon-trail-c", trailId: "trail-c", accentSlug: "calendar", x: -13.67, z: 4.0 },
   // 蝶径 M 起点 (14,7)：径向 (0.970,−0.243)，内侧垂直偏移 → (13.42,4.67)
-  { id: "beacon-trail-m", trailId: "trail-m", accentSlug: "moss-world", x: 13.42, z: 4.67 },
+  { id: "beacon-trail-m", trailId: "trail-m", accentSlug: "blog-cms", x: 13.42, z: 4.67 },
 ] as const;
 
 /* ------------------------------ 主岛地表形态（视觉与碰撞同源） ------------------------------ */
@@ -532,13 +532,13 @@ export function mainIslandSurfaceY(x: number, z: number): number {
 
 /**
  * 远景浮岛群（R3）：5 座、半径 120~220 环带。
- * 数量从 7 收到 5，避开初始视线正后方的 AgehaOS 主景深线；
+ * 数量从 7 收到 5，避开初始视线正后方的 档案塔主景深线；
  * 每座由 DistantIsles 使用不同剖面（mesa / shard / rooted），
  * 只做第三层空间纵深，不与三座项目地标争夺轮廓。全部不可达。
  */
 export const DISTANT_ISLES: readonly { x: number; y: number; z: number; scale: number }[] = [
   // R4：远景从 200 环带收近到 145~160，让地平线真正有可读的群岛层次；
-  // 仍全部落在 120~220 环带内且不可达。NW 岛框住 AgehaOS，其余补足侧翼。
+  // 仍全部落在 120~220 环带内且不可达。NW 岛框住 CS MAJOR ARCHIVE 屿，其余补足侧翼。
   { x: -110, y: 24, z: -105, scale: 2.4 },
   { x: 30, y: 30, z: -150, scale: 2.1 },
   { x: 130, y: 18, z: -90, scale: 2.3 },
@@ -796,31 +796,11 @@ export type IsleScreenTexture = {
 };
 
 /**
- * 三屿真实封面截图的场景内屏幕贴图登记（数据级可测，world-layout 断言覆盖三 slug）：
- * - AgehaOS：顶层 16:10 主屏；
- * - CS：观测廊主屏（投资组合页）；
- * - Moss：舱外观景台「生态监测屏」（舱内生态零贴图、纯程序化——呼应真实特性）。
- * 体积上限由 world-assets.test.mjs statSync 断言（§11.2 目标体积表）。
+ * 三屿场景内屏幕贴图登记：本改编为空表（见上），不再引用旧截图。
  */
 export const ISLE_SCREENS: readonly IsleScreenTexture[] = [
-  {
-    slug: "agehaos",
-    path: "/world/screens/agehaos-1600.jpg",
-    aspect: 16 / 10,
-    mountDistance: 60,
-  },
-  {
-    slug: "cs-skin-invest",
-    path: "/world/screens/cs-portfolio-1280.webp",
-    aspect: 3 / 4,
-    mountDistance: 60,
-  },
-  {
-    slug: "moss-world",
-    path: "/world/screens/moss-terrarium-1280.webp",
-    aspect: 16 / 10,
-    mountDistance: 60,
-  },
+  // 本改编中三屿不挂载任何真实截图：原登记的三张截图属于原作者项目，
+  // 不再作为 Momori 作品的屏幕贴图复用；屿内屏幕渲染空屏占位。
 ] as const;
 
 export function findIsleScreen(slug: string): IsleScreenTexture | undefined {

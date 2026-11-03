@@ -48,8 +48,8 @@ test("首页渲染 WorldShell：SSR 壳 + ssr:false 动态加载 Canvas + #world
   );
   // 首页唯一 h1 常驻 SSR（加载屏品牌大字 → 就绪收缩为角标，§13.1）
   const brand = readProjectFile("components/world/loading/LoadingScreen.tsx");
-  assert.match(brand, /<h1 className="world-brand__title">Ageha\.tech<\/h1>/);
-  assert.match(brand, /用技术构建更有趣的数字世界/);
+  assert.match(brand, /<h1 className="world-brand__title">Momori<\/h1>/);
+  assert.match(brand, /助手 Momori 的个人站和作品集/);
 });
 
 test("lib/world 四模块存在且为纯 TS 数据层（node 可 import）", async () => {

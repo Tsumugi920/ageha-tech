@@ -11,7 +11,7 @@ import { usePanelA11y } from "./usePanelA11y";
  * 项目详情面板（蓝图 §13.4，右侧 380px 滑入 / 移动端底部抽屉）：
  * - 数据全部来自 lib/projects.ts 原对象（单一数据源，零复制）：
  *   封面（next/image 懒加载）+ 名称 + 分类 + 描述 + 技术栈 + 状态 + 链接；
- * - Moss World 无任何链接（诚实边界铁律）：如实显示
+ * - 无链接的项目（诚实边界铁律）：如实显示
  *   「本地项目 · 未公开上线，暂无公开链接」，不渲染任何外链按钮；
  * - 底部双动作：「在详情页打开」→ /projects/[slug]（SEO 路由双保险）、
  *   「返回探索」→ 关闭面板回世界（世界状态全程保持，不重置）；
@@ -34,7 +34,7 @@ export function ProjectDetailPanel() {
   const project = shownSlug
     ? projects.find((item) => item.slug === shownSlug)
     : undefined;
-  // links 可选（Moss World 无链接）；空数组走诚实说明文案
+  // links 可选（无链接的项目）；空数组走诚实说明文案
   const projectLinks = project?.links ?? [];
 
   return (

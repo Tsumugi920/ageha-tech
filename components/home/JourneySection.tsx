@@ -9,8 +9,8 @@ import type { JourneyStage } from "@/lib/content-types";
  * 阶段描述采用过程性概括，具体经历待站长核对后补充。
  */
 const STAGES: readonly JourneyStage[] = [
-  { title: "探索", description: "学习 Web 前端与产品构建" },
-  { title: "进阶", description: "深入 React / Next.js 体系与工程化" },
+  { title: "探索", description: "学习 Web 前端与小工具构建" },
+  { title: "进阶", description: "原生前端 + Node.js + Express + data.json 的套路" },
   { title: "总结", description: "沉淀方法，持续打磨作品" },
 ];
 

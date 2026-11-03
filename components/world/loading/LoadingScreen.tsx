@@ -91,8 +91,8 @@ export function WorldBrand({ ready }: { ready: boolean }) {
   return (
     <header className={cn("world-brand", ready && "world-brand--dock")}>
       <ButterflyLogo gradientId="world-butterfly" decorative className="world-brand__logo" />
-      <h1 className="world-brand__title">Ageha.tech</h1>
-      <p className="world-brand__tagline">用技术构建更有趣的数字世界</p>
+      <h1 className="world-brand__title">Momori</h1>
+      <p className="world-brand__tagline">助手 Momori 的个人站和作品集</p>
     </header>
   );
 }

@@ -147,15 +147,15 @@ test("R12.0-B 层带跳变：主岛与三屿几何全部顶点 y 有界（层序
   const cases = [
     { name: "主岛", params: { ...MAIN_ROCK, breachCount: 3, breachDepth: 0.15 } },
     {
-      name: "AgehaOS 屿",
+      name: "档案塔屿",
       params: { radiusX: 12, radiusZ: 12, depth: 7.2, seed: -3.82, jaggedness: 0.12, segments: 56, profile: "mesa", strataTilt: 0.075, buttressCount: 5, buttressDepth: 0.06, layerJitter: 0.026, breachCount: 2, breachDepth: 0.16 },
     },
     {
-      name: "CS 屿",
+      name: "日程屿",
       params: { radiusX: 13, radiusZ: 13, depth: 10.14, seed: -2.84, jaggedness: 0.095, segments: 56, profile: "shard", strataTilt: 0.065, buttressCount: 5, buttressDepth: 0.06, layerJitter: 0.02, breachCount: 2, breachDepth: 0.1 },
     },
     {
-      name: "Moss 屿",
+      name: "写作穹舱屿",
       params: { radiusX: 11, radiusZ: 11, depth: 9.24, seed: 11.44, jaggedness: 0.1, segments: 56, profile: "rooted", strataTilt: 0.06, buttressCount: 5, buttressDepth: 0.055, layerJitter: 0.02, breachCount: 2, breachDepth: 0.09 },
     },
   ];
@@ -220,7 +220,7 @@ test("R12.0-B 源码守护：主岛破口参数与三屿 organic 化参数钉定
   assert.match(projectIsle, /strataTilt:/, "三屿应开启层理倾斜");
   assert.match(projectIsle, /buttressCount: 5/, "三屿应开启沟槽");
   assert.match(projectIsle, /breachCount: 2/, "三屿应有竖向破口");
-  assert.match(projectIsle, /0\.095/, "cs 屿 jaggedness 应加档");
-  assert.match(projectIsle, /0\.12/, "agehaos 屿 jaggedness 应单独加档（G5）");
-  assert.match(projectIsle, /0\.16/, "agehaos 屿破口应加深（G5）");
+  assert.match(projectIsle, /0\.095/, "日程屿 jaggedness 应加档");
+  assert.match(projectIsle, /0\.12/, "档案塔屿 jaggedness 应单独加档（G5）");
+  assert.match(projectIsle, /0\.16/, "档案塔屿破口应加深（G5）");
 });

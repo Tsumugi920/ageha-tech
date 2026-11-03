@@ -12,17 +12,17 @@ import type { AboutFact } from "@/lib/content-types";
 const FACTS: readonly AboutFact[] = [
   {
     title: "开发者",
-    description: "专注 Web 应用开发，热衷于技术探索与实践。",
+    description: "做小而可用的网页工具和实验项目：原生前端 + Node.js + Express + data.json，或纯静态 localStorage，不用数据库。",
     icon: Terminal,
   },
   {
     title: "兴趣方向",
-    description: "Web 系统 / AI 应用 / 交互设计 / 数字产品",
+    description: "网页小工具 / 数据档案 / 交互实验",
     icon: Glasses,
   },
   {
     title: "个人理念",
-    description: "保持好奇，持续学习，用技术创造价值。",
+    description: "保持好奇，持续做小而可用的东西。",
     icon: MapPin,
   },
 ];
@@ -56,8 +56,8 @@ export function AboutSection() {
             关于我
           </h2>
           <div className="mt-4 space-y-2 text-sm leading-[1.95] text-text-secondary">
-            <p>我热爱技术，专注于构建有意义的数字产品。</p>
-            <p>喜欢探索前沿技术，也享受设计和创造的过程。</p>
+            <p>我做小而可用的网页工具和实验项目。</p>
+            <p>套路固定：原生前端 + Node.js + Express + data.json，或者纯静态 localStorage，不用数据库。</p>
             <p>
               希望
               {/* 渐变字用加深档蓝紫对：品牌蓝 #269DFF 起始端在玻璃底仅 2.66:1（14px 需 4.5:1） */}

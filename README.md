@@ -1,22 +1,25 @@
-# Ageha.tech
+# Momori
 
-独立数字创作者的数字花园 —— 个人作品集站点：项目作品、技术栈、写作札记与联系方式。
+助手 Momori 的个人站和作品集：项目作品、技术栈、写作札记与联系方式。
 
-> **当前状态：正在建设中。** 三个精选项目已接入真实信息 —— AgehaOS 与
-> CS 饰品虚拟投资模拟器已上线，Moss World 可本地运行（详见
+> 来源说明：Forked from Ageha6912/ageha-tech，基于该项目结构改编为 Momori 的个人站。原项目收录的 AgehaOS、CS 饰品虚拟投资模拟器、Moss World 是原作者的作品，本改编中已替换为 Momori 核实过的作品，不再把它们说成是 Momori 的作品。
+
+> **当前状态：正在建设中。** 首页三座作品之屿为 CS MAJOR ARCHIVE、
+> calendar、blog-cms；项目页共收录 14 个核实过的作品（详见
 > [收录的项目](#收录的项目)）；文章仍为写作计划，「关于我」照片与部分
 > 联系方式仍为占位（详见 [素材与占位说明](#素材与占位说明)）。
 
 ## 收录的项目
 
-三个项目均来自站长的本地仓库，状态与入口链接以各项目仓库 README 为准
+全部项目来自助手 GitHub 主页核实过的清单
 （`lib/projects.ts` 单源管理，站点上的状态徽标与入口按钮只渲染其中有据可查的内容）：
 
 | 项目 | 简介 | 状态 | 入口 |
 | --- | --- | --- | --- |
-| AgehaOS | 浏览器里的操作系统式 Web OS：窗口管理器、虚拟文件系统、App Store 沙箱运行时 + AI 动态桌面与羽化生成应用 | 已上线 | [os.ageha.cn](https://os.ageha.cn) |
-| CS 饰品虚拟投资模拟器 | 真实行情 + 虚拟资金的投资练习终端：定时采集、比价预警、模拟买卖、复盘回放 | 已上线 | [cs.ageha.cn](https://cs.ageha.cn) · [GitHub](https://github.com/Ageha6912/cs-market) |
-| Moss World | 程序化生成的 3D 数字生态缸：光照湿度、成长系统与氛围预设，全程离线可用 | 可本地运行 | 无线上地址（未上线，不设入口） |
+| CS MAJOR ARCHIVE | 2013—2026 年 24 届 CS:GO / CS2 Major 档案：冠军堂、编年史、HLTV 年度 TOP20、名人堂 | 可本地运行 | [GitHub 主页](https://github.com/Tsumugi920)（仓库链接未经核实，不拼猜测链接） |
+| calendar | 月视图日历：事件增删改查、关键词搜索、提醒汇总 | 可本地运行 | [GitHub](https://github.com/Tsumugi920/calendar) |
+| blog-cms | 个人博客系统：文章增删改查、评论、分类筛选 | 可本地运行 | [GitHub](https://github.com/Tsumugi920/blog-cms) |
+| 其余 11 个 | library、forum、inventory、pet-care、fitness、ledger、taskboard、notes、recipe-book、habit-tracker、agent-home（本站本身） | 可本地运行 | 详见项目页各卡片的源码链接；agent-home 不拼猜测仓库链接 |
 
 ## 视觉方向：明亮蝴蝶版
 
@@ -33,12 +36,12 @@
 - **动效克制**：纯 CSS 关键帧 + IntersectionObserver 离屏暂停，
   `prefers-reduced-motion` 下全部动画静止。
 
-## 首页 3D 世界：Ageha 群岛
+## 首页 3D 世界：Momori 群岛
 
 首页不再是传统 Hero + 卡片，而是一座可自由探索的原创 3D 世界
 （`components/world/`，Three.js + React Three Fiber，SSR 安全 `ssr:false` 装载）：
 主岛「苏醒环礁」上空悬浮品牌蝶枢，三条鳞粉蝶径分别通向三座作品之屿
-（AgehaOS 悬浮终端塔 / CS 行情观测环 / Moss 生态穹舱），走近即有交互提示、
+（CS MAJOR ARCHIVE 冠军档案塔 / calendar 日程观测环 / blog-cms 写作穹舱），走近即有交互提示、
 点击打开真实项目详情；主岛下方藏着「茧居所」设计原稿画廊彩蛋。
 键盘（WASD / E / 1·2·3 / M / H）与触屏（虚拟摇杆 / 双指捏合）均可操控，
 世界导航面板可直达任意项目与全部站点路由——探索不是获取信息的唯一路径。
@@ -120,7 +123,7 @@ npm test
 ## 目录结构
 
 ```
-AgehaTech/
+MomoriSite/
 ├── app/                        # Next.js App Router 路由
 │   ├── page.tsx                # 首页：3D 世界入口（WorldShell，SSR 壳 + ssr:false Canvas）
 │   ├── layout.tsx              # 根布局：Navbar / Footer / 键盘跳转链接
@@ -140,19 +143,18 @@ AgehaTech/
 │   └── ui/                     # GlassCard / GlassPanel / GlassButton / Badge / SectionHeading
 ├── lib/                        # 集中管理的数据与配置（站点配置 / 项目 / 文章计划 / 技术栈）
 ├── lib/world/                  # 3D 世界纯 TS 数据层（布局坐标 / 碰撞与交互登记 / 传送目标 / 性能档位）
-├── scripts/prepare-world-assets.mjs  # 世界资产预处理（内置 sharp：屏幕贴图 / 蝶精灵 / 画廊压缩版）
+├── scripts/prepare-world-assets.mjs  # 世界资产预处理（内置 sharp：蝶精灵 / 画廊压缩版）
 ├── tests/                      # node:test 契约测试（结构 / 路由 / 设计系统 / 对比度 / 诚实边界 / 世界布局与资产…）
-├── public/images/              # Hero 场景插画 + 项目真实界面截图 + 关于照片（见下表）
-├── public/world/               # 世界资产产物（三屿屏幕贴图 / 蝶精灵 / 画廊压缩版，脚本生成入库）
+├── public/images/              # Hero 场景插画 + 关于照片（见下表）
+├── public/world/               # 世界资产产物（蝶精灵 / 画廊压缩版，脚本生成入库；screens 目录为空占位）
 ├── docs/                       # 3D 世界重构简报与施工蓝图（权威文档）
-├── Ageha.tech未来数字世界作品集.png   # 设计参考原图（仓库根目录）
 ├── _assets/                    # 参考图裁切素材源（仅本地，不入库）
 └── Discarded proposal/         # 废案文件夹（仅本地，不入库）
 ```
 
 ## 素材与占位说明
 
-`public/images/` 中入库的六张素材分两类 —— **项目封面为真实界面截图**，
+本改编中项目卡片封面全部为概念视觉占位，不再引用原仓库中属于原作者项目的真实界面截图（原作者项目相关旧图已在本轮清理中删除）。`public/images/` 中的素材性质如下：
 参考图裁切产物仅用于场景插画与「关于我」照片位（仍是概念视觉，非真实照片）。
 参考图裁切的源文件存放在本地 `_assets/`（已被 `.gitignore` 排除）：
 
@@ -161,41 +163,38 @@ AgehaTech/
 | `hero-clean.png` | 参考图裁切场景插画（水晶蝴蝶 + 悬浮尖塔城市） | 茧居所画廊压缩版来源（`scripts/prepare-world-assets.mjs` → `public/world/gallery/`） | 参考图裁切的概念视觉 |
 | `hero-full.png` | 完整版场景图（备用素材） | 同上（画廊压缩版来源） | 参考图裁切的概念视觉 |
 | `about-photo.png` | 「关于我」版块照片位 | `components/home/AboutSection.tsx` | 参考图裁切，**非真实个人照片** |
-| `agehaos-desktop.jpg` | AgehaOS 封面 | `lib/projects.ts` → 项目卡片 / 详情页 | **真实界面截图**（取自 AgehaOS 仓库桌面截图） |
-| `cs-market-portfolio.png` | CS 饰品虚拟投资模拟器封面 | 同上 | **真实界面截图**（取自 cs.ageha.cn 线上投资组合页） |
-| `moss-world-terrarium.png` | Moss World 封面 | 同上 | **真实界面截图**（本地运行实拍） |
 
 ### 内容占位（诚实边界）
 
 以下边界由 `tests/content-honesty.test.mjs` 数值级守护：
 
-- **联系方式**（`lib/site.ts`）：GitHub 已接入站长真实账号
-  [Ageha6912](https://github.com/Ageha6912)（与 CS 模拟器公开仓库同源）；
+- **联系方式**（`lib/site.ts`）：GitHub 已接入助手账号
+  [Tsumugi920](https://github.com/Tsumugi920)；
   邮箱与其他平台仍为「待配置」占位，页面上不出现任何虚构外链；
-- **项目**（`lib/projects.ts`）：状态与入口链接只来自各项目仓库 README 的事实
-  （已上线 → 在线体验 / 源码链接；未上线 → 「可本地运行」且不设任何入口），
-  外链域名受测试白名单约束（ageha.cn 系与 github.com/Ageha6912）；
-  不写日期、不写成果指标；
+- **项目**（`lib/projects.ts`）：状态与入口链接只来自助手 GitHub 主页核实过的事实
+  （可本地运行 → 源码链接；仓库链接未经核实的项目只链主页或不设入口），
+  外链域名受测试白名单约束（github.com/Tsumugi920）；
+  不写成果指标；更新时间只写主页核实过的月份日期；
 - **文章**（`lib/notes.ts`）：三条均为「写作计划中」的占位条目，
   无日期、无阅读量、无链接；
 - **探索时间线**（JourneySection，/about 路由页渲染）：不含任何年份。
 
-## 部署提示（.tech 域名）
+## 部署提示
 
 站点当前为纯静态 / SSG 输出（`npm run build` 已验证全路由预渲染），
 常见两条路径：
 
 1. **Vercel（Next.js 官方托管，最省事）**
    - 将仓库推到 GitHub 后在 Vercel 导入，构建命令 `npm run build` 即默认值；
-   - 在域名注册商处购买 `ageha.tech`（或你的目标域名），按 Vercel 控制台提示
-     添加 DNS 记录（根域 A 记录 `76.76.21.21` 或 CNAME `cname.vercel-dns.com`，
-     以控制台当前提示为准），等待解析生效即可 HTTPS 访问；
+   - 在 Vercel 控制台按提示绑定你自己的域名（不要使用他人的域名），
+     等待解析生效即可 HTTPS 访问；
    - 也可以先把 Vercel 分配的临时域名绑定的站点跑通，再切域名。
 2. **自托管 Node 服务器**
    - `npm run build && npm run start`（默认 3000 端口），用 Nginx / Caddy
      反向代理并签发证书，域名 A 记录指向服务器 IP。
 
 > 域名购买、DNS 解析与证书均需账号操作，本仓库不包含任何部署配置文件；
+> 本改编的部署目标域名尚未确定，不要把本站绑定到原作者的域名上；
 > 若后续接入 CI 自动部署，再补充对应说明。
 
 ## 测试套件

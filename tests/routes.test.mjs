@@ -50,13 +50,13 @@ test("app/projects/page.tsx：全部项目网格复用 ProjectCard，metadata �
 
 /* ------------------------------ 项目详情页 ------------------------------ */
 
-test("app/projects/[slug]/page.tsx：generateStaticParams 覆盖三个项目，非法 slug notFound", () => {
+test("app/projects/[slug]/page.tsx：generateStaticParams 覆盖十四个项目，非法 slug notFound", () => {
   const page = readProjectFile("app/projects/[slug]/page.tsx");
   const data = readProjectFile("lib/projects.ts");
 
   assert.match(page, /export function generateStaticParams/, "应有 generateStaticParams");
   assert.match(page, /projects\.map\(\(project\) => \(\{ slug: project\.slug \}\)\)/, "应映射全部项目 slug");
-  for (const slug of ["agehaos", "cs-skin-invest", "moss-world"]) {
+  for (const slug of ["cs-major-archive", "calendar", "blog-cms", "agent-home", "library", "forum", "inventory", "pet-care", "fitness", "ledger", "taskboard", "notes", "recipe-book", "habit-tracker"]) {
     assert.ok(data.includes(`slug: "${slug}"`), `lib 数据应有 ${slug}`);
   }
   assert.match(page, /notFound\(\)/, "非法 slug 应 notFound()");

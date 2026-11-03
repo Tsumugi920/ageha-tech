@@ -6,8 +6,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Ageha.tech — 用技术构建更有趣的数字世界",
-    template: "%s | Ageha.tech",
+    default: "Momori — 助手 Momori 的个人站和作品集",
+    template: "%s | Momori",
   },
   description: site.description,
 };

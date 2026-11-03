@@ -22,73 +22,62 @@ const projectRoot = path.resolve(
 const readProjectFile = (relativePath) =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
-test("lib/projects.ts 集中管理三个项目，slug、标签与真实封面素材就位", () => {
+test("lib/projects.ts 集中管理十四个项目，slug、标签与概念占位封面就位", () => {
   const data = readProjectFile("lib/projects.ts");
 
-  // 三个 slug 齐全
-  for (const slug of ["agehaos", "cs-skin-invest", "moss-world"]) {
+  // 十四个 slug 齐全
+  for (const slug of ["cs-major-archive", "calendar", "blog-cms", "agent-home", "library", "forum", "inventory", "pet-care", "fitness", "ledger", "taskboard", "notes", "recipe-book", "habit-tracker"]) {
     assert.ok(data.includes(`slug: "${slug}"`), `应有 slug ${slug}`);
   }
 
-  // 封面路径指向 public/images/ 下真实存在的文件
-  for (const cover of [
-    "agehaos-desktop.jpg",
-    "cs-market-portfolio.png",
-    "moss-world-terrarium.png",
-  ]) {
-    assert.ok(
-      existsSync(path.join(projectRoot, "public", "images", cover)),
-      `缺少 public/images/${cover}`,
-    );
-    assert.ok(data.includes(`/images/${cover}`), `应引用 /images/${cover}`);
-  }
+  // 封面全部为概念视觉占位，指向 public/images/ 下真实存在的插画文件
+  assert.ok(
+    existsSync(path.join(projectRoot, "public", "images", "hero-clean.png")),
+    "缺少 public/images/hero-clean.png",
+  );
+  assert.ok(data.includes("/images/hero-clean.png"), "应引用 /images/hero-clean.png 占位图");
+  assert.equal((data.match(/coverKind: "concept"/g) ?? []).length, 14, "十四张封面应均为概念视觉占位");
 
-  // 技术标签来自各项目仓库的实际依赖
+  // 技术标签来自各项目核实过的实际套路
   for (const tag of [
-    "React 19",
-    "TypeScript",
-    "Vite",
-    "Zustand",
-    "Tailwind CSS 4",
-    "Next.js 15",
-    "FastAPI",
-    "ECharts",
-    "SQLAlchemy",
-    "Three.js",
-    "React Three Fiber",
+    "Node.js",
+    "Express",
+    "HTML/CSS/JS",
+    "localStorage",
+    "JavaScript",
+    "Next.js",
   ]) {
     assert.ok(data.includes(`"${tag}"`), `应包含标签 ${tag}`);
   }
 });
 
-test("项目状态与入口链接如实：已上线才给链接，封面一律真实界面截图", () => {
+test("项目状态与入口链接如实：可本地运行，封面一律概念视觉占位，链接只在白名单内", () => {
   const data = readProjectFile("lib/projects.ts");
 
-  // 只允许两种有据可查的状态词；未上线的表述仍禁止
+  // 只允许两种有据可查的状态词
   for (const banned of ["正式发布", "已发布", "demoUrl", "sourceUrl", "liveUrl"]) {
     assert.ok(!data.includes(banned), `项目数据不应出现 ${banned}`);
   }
-  assert.ok(data.includes('status: "已上线"'), "AgehaOS/CS 已上线（站长 README 载明）");
   assert.ok(
     data.includes('status: "可本地运行"'),
-    "Moss World 无上线记录，应为可本地运行",
+    "全部作品均为可本地运行（本地 Node 服务或静态页）",
   );
 
-  // 三张封面全部为真实界面截图，不再使用概念占位
-  assert.equal((data.match(/coverKind: "real"/g) ?? []).length, 3, "三张封面应均为真实界面截图");
+  // 十四张封面全部为概念视觉占位
+  assert.equal((data.match(/coverKind: "concept"/g) ?? []).length, 14, "十四张封面应均为概念视觉占位");
   assert.ok(
-    !data.includes("概念视觉占位"),
-    "项目封面已是真实截图，不应再出现概念占位标注",
+    data.includes("概念视觉占位"),
+    "项目封面应如实标注为概念视觉占位",
   );
 
-  // 真实入口链接（域名白名单）只属于已上线项目
+  // 真实入口链接（域名白名单）：只允许助手 GitHub 账号
   const linkHosts = [...data.matchAll(/href: "(https?:\/\/[^"]+)"/g)].map(
     (match) => match[1],
   );
   for (const href of linkHosts) {
     assert.match(
       href,
-      /^https:\/\/(os\.ageha\.cn|cs\.ageha\.cn|github\.com\/Ageha6912)(\/|$)/,
+      /^https:\/\/github\.com\/Tsumugi920(\/|$)/,
       `入口链接 ${href} 不在真实链接白名单内`,
     );
   }
@@ -100,7 +89,6 @@ test("保留版块源文件与共享数据一律不出现年份或时间区间",
     "components/projects/ProjectCard.tsx",
     "components/home/AboutSection.tsx",
     "components/home/JourneySection.tsx",
-    "lib/projects.ts",
     "lib/content-types.ts",
   ];
   for (const file of files) {
@@ -111,6 +99,10 @@ test("保留版块源文件与共享数据一律不出现年份或时间区间",
     );
     assert.ok(!src.includes("至今"), `${file} 不应出现「至今」等时间定位`);
   }
+  // 例外：lib/projects.ts 中唯一允许的年份是 CS MAJOR ARCHIVE 核实过的档案范围
+  const projectSrc = readProjectFile("lib/projects.ts");
+  assert.ok(projectSrc.includes("2013—2026"), "应注明档案范围 2013—2026");
+  assert.ok(!projectSrc.includes("至今"), "lib/projects.ts 不应出现「至今」等时间定位");
 });
 
 test("ProjectCard：共享卡片唯一实现，诚实标注与 slug 链接就位", () => {
@@ -146,8 +138,8 @@ test("AboutSection：通栏玻璃板四区结构、三句文案与概念插画�
   assert.match(src, /About Me/i, "应有 ABOUT ME eyebrow");
   assert.ok(src.includes("关于我"), "应有版块标题");
   for (const sentence of [
-    "我热爱技术，专注于构建有意义的数字产品。",
-    "喜欢探索前沿技术，也享受设计和创造的过程。",
+    "我做小而可用的网页工具和实验项目。",
+    "套路固定：原生前端 + Node.js + Express + data.json，或者纯静态 localStorage，不用数据库。",
     "把一些有趣的想法变成现实。",
   ]) {
     assert.ok(src.includes(sentence), `应包含文案：${sentence}`);
@@ -170,8 +162,8 @@ test("JourneySection：三阶段时间线就位，桌面嵌套 About、移动端
   assert.match(src, /My Journey/i, "应有 MY JOURNEY 面板标题");
   assert.ok(src.includes("探索与成长"), "移动端应有「探索与成长」标题");
   for (const [title, desc] of [
-    ["探索", "学习 Web 前端与产品构建"],
-    ["进阶", "深入 React / Next.js 体系与工程化"],
+    ["探索", "学习 Web 前端与小工具构建"],
+    ["进阶", "原生前端 + Node.js + Express + data.json 的套路"],
     ["总结", "沉淀方法，持续打磨作品"],
   ]) {
     assert.ok(
@@ -264,7 +256,7 @@ test("ProjectDetailPanel：lib/projects.ts 原对象直渲染，封面 next/imag
   assert.match(panel, /aria-label="关闭详情，返回探索"/, "关闭按钮应有可访问名称");
 });
 
-test("ProjectDetailPanel 诚实边界：Moss World 无链接时如实说明，不渲染入口按钮", () => {
+test("ProjectDetailPanel 诚实边界：无链接项目如实说明，不渲染入口按钮", () => {
   const panel = readProjectFile("components/world/ui/ProjectDetailPanel.tsx");
   // 空链接 → 诚实文案（不编造入口；Moss World links 为空数组）
   assert.match(
@@ -278,9 +270,9 @@ test("ProjectDetailPanel 诚实边界：Moss World 无链接时如实说明，�
     /projectLinks\.length > 0/,
     "链接按钮应按 projectLinks 非空条件渲染",
   );
-  // 数据级复核：lib/projects.ts 中 Moss World 确无 links 字段值
-  const moss = projects.find((project) => project.slug === "moss-world");
-  assert.equal((moss?.links ?? []).length, 0, "Moss World 数据层应无任何链接");
+  // 数据级复核：lib/projects.ts 中 agent-home 确无 links 字段值（不拼猜测仓库链接）
+  const agentHome = projects.find((project) => project.slug === "agent-home");
+  assert.equal((agentHome?.links ?? []).length, 0, "agent-home 数据层应无任何链接");
 });
 
 test("WorldNavPanel：传送卡 + 站点路由单源 site.navItems + 联系入口按 configured 过滤", () => {

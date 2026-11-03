@@ -57,9 +57,9 @@ test("探索目标：恰好五个、id 唯一，三个项目体验映射到各�
     EXPLORE_GOALS.map((goal) => goal.id),
     [
       "north-relay",
-      "agehaos-experience",
-      "cs-experience",
-      "moss-experience",
+      "cs-major-experience",
+      "calendar-experience",
+      "blog-experience",
       "nook-discovery",
     ],
   );
@@ -67,9 +67,9 @@ test("探索目标：恰好五个、id 唯一，三个项目体验映射到各�
     assert.ok(goal.title.length > 0, `${goal.id} 应有标题`);
     assert.ok(goal.hint.length > 0, `${goal.id} 应有提示`);
   }
-  assert.equal(goalIdForExperience("agehaos"), "agehaos-experience");
-  assert.equal(goalIdForExperience("cs-skin-invest"), "cs-experience");
-  assert.equal(goalIdForExperience("moss-world"), "moss-experience");
+  assert.equal(goalIdForExperience("cs-major-archive"), "cs-major-experience");
+  assert.equal(goalIdForExperience("calendar"), "calendar-experience");
+  assert.equal(goalIdForExperience("blog-cms"), "blog-experience");
   assert.equal(goalIdForExperience("unknown"), null);
   // 三项目与 lib/world/experiences.ts 的 slug 单源一致
   for (const slug of Object.keys(EXPERIENCE_OPTIONS)) {
@@ -86,13 +86,13 @@ test("完成状态：幂等、不修改原对象、计数与顺序稳定", () =>
   assert.equal(isExploreComplete(empty), false);
   assert.deepEqual(listCompletedGoals(empty), []);
 
-  const one = completeExploreGoal(empty, "cs-experience");
+  const one = completeExploreGoal(empty, "calendar-experience");
   assert.notEqual(one, empty, "完成目标应返回新状态");
-  assert.equal(empty["cs-experience"], false, "原状态不得被修改");
+  assert.equal(empty["calendar-experience"], false, "原状态不得被修改");
   assert.equal(countCompletedGoals(one), 1);
-  assert.deepEqual(listCompletedGoals(one), ["cs-experience"]);
+  assert.deepEqual(listCompletedGoals(one), ["calendar-experience"]);
 
-  const again = completeExploreGoal(one, "cs-experience");
+  const again = completeExploreGoal(one, "calendar-experience");
   assert.equal(again, one, "重复完成应原样返回（不重复写盘）");
 
   const all = EXPLORE_GOALS.reduce(
@@ -112,12 +112,12 @@ test("完成状态：幂等、不修改原对象、计数与顺序稳定", () =>
 test("存档 payload：带版本号、只含目标 id，可往返解析", () => {
   const progress = completeExploreGoal(
     completeExploreGoal(createEmptyExploreProgress(), "north-relay"),
-    "moss-experience",
+    "blog-experience",
   );
   const raw = serializeExploreProgress(progress);
   const payload = JSON.parse(raw);
   assert.equal(payload.version, EXPLORE_STORAGE_VERSION);
-  assert.deepEqual(payload.completed, ["north-relay", "moss-experience"]);
+  assert.deepEqual(payload.completed, ["north-relay", "blog-experience"]);
   assert.deepEqual(Object.keys(payload).sort(), ["completed", "version"]);
   assert.deepEqual(parseExploreProgress(raw), progress);
 
@@ -158,7 +158,7 @@ test("Storage 适配：读取、写入、清除均可用，且只写必要字段
   assert.equal(countCompletedGoals(empty.progress), 0);
 
   const progress = completeExploreGoal(
-    completeExploreGoal(createEmptyExploreProgress(), "agehaos-experience"),
+    completeExploreGoal(createEmptyExploreProgress(), "cs-major-experience"),
     "nook-discovery",
   );
   assert.equal(saveExploreProgress(storage, progress), true);
@@ -167,7 +167,7 @@ test("Storage 适配：读取、写入、清除均可用，且只写必要字段
   const loaded = loadExploreProgress(storage);
   assert.equal(loaded.persisted, true);
   assert.deepEqual(listCompletedGoals(loaded.progress), [
-    "agehaos-experience",
+    "cs-major-experience",
     "nook-discovery",
   ]);
 

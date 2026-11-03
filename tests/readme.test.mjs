@@ -1,7 +1,7 @@
 /**
  * README 契约测试（node:test）：
  * 守护 README 与仓库真实状态一致 —— 运行命令与 package.json scripts 逐字对应、
- * 六张 public/images 素材全部在素材表中如实登记、诚实占位说明在位。
+ * 三张 public/images 素材全部在素材表中如实登记、诚实占位说明在位。
  * 防止 README 漂移成「愿景文档」。运行方式：npm test
  */
 import assert from "node:assert/strict";
@@ -42,11 +42,11 @@ test("README 快速开始命令与 package.json scripts 逐字对应", () => {
   assert.match(readme, /npm install/, "README 应包含依赖安装步骤");
 });
 
-test("README 素材表登记 public/images 全部六张图，且引用的文件真实存在", () => {
+test("README 素材表登记 public/images 全部三张图，且引用的文件真实存在", () => {
   const readme = readProjectFile("README.md");
   const images = readdirSync(path.join(projectRoot, "public", "images"));
 
-  assert.equal(images.length, 6, "public/images 应恰好有六张登记素材");
+  assert.equal(images.length, 3, "public/images 应恰好有三张登记素材");
   for (const image of images) {
     assert.ok(
       existsSync(path.join(projectRoot, "public", "images", image)),
