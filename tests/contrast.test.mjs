@@ -327,7 +327,7 @@ test("世界 HUD / 引导卡 / 信息面板：玻璃底上一律深墨文字，�
 
 /* --------------------------- 统计口径对齐 --------------------------- */
 
-test("引导卡统计口径与站内可数内容逐项对齐：16 = 技术项实数，18+ = 收录作品数", () => {
+test("引导卡统计口径与站内可数内容逐项对齐：16 = 技术项实数，21+ = 收录作品数", () => {
   const toast = readProjectFile("components/world/ui/IntroToast.tsx");
   const techItemCount = techGroups.reduce((sum, group) => sum + group.items.length, 0);
 
@@ -339,7 +339,7 @@ test("引导卡统计口径与站内可数内容逐项对齐：16 = 技术项实
   );
   assert.ok(techItemCount > 0 && techGroups.length === 4, "技术栈应为四组真实数据");
 
-  // 18+ 收录作品 = lib/projects.ts 项目数（18+ 为「以上」语义，允许 ≥）
+  // 21+ 收录作品 = lib/projects.ts 项目数（21+ 为「以上」语义，允许 ≥）
   assert.match(
     toast,
     new RegExp(`\\{ value: "${projects.length}\\+", label: "收录作品" \\}`),

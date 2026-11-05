@@ -356,4 +356,61 @@ external: true,
 },
 ],
 },
+{
+slug: "volunteer-hub",
+name: "volunteer-hub",
+category: "Tools · Volunteering",
+description:
+"校园志愿服务平台：组织与活动、报名与满员校验、志愿者、时长认证、证书与公告，43 个接口、7 类资源各 12 条示例数据。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3034。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/volunteer-hub",
+external: true,
+},
+],
+},
+{
+slug: "club-hub",
+name: "club-hub",
+category: "Tools · Clubs",
+description:
+"校园社团管理平台：社团、成员、活动、报名、会费、公告与入社申请审核，46 个接口、7 类资源各 12 条示例数据。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3035。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/club-hub",
+external: true,
+},
+],
+},
+{
+slug: "exam-bank",
+name: "exam-bank",
+category: "Tools · Exam Bank",
+description:
+"题库刷题平台：科目与题目、题库、在线答题交卷（分数由服务端算）、错题本自动收录、收藏与评论，38 个接口，12 个科目、24 道示例题。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3036。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/exam-bank",
+external: true,
+},
+],
+},
 ];

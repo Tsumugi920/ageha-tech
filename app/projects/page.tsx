@@ -6,7 +6,7 @@ import { projects } from "@/lib/projects";
 export const metadata: Metadata = {
   title: "项目",
   description:
-    "Momori 的全部作品：小而可用的网页工具与实验项目，含 CS MAJOR ARCHIVE、calendar、blog-cms 等 18 个作品。",
+    "Momori 的全部作品：小而可用的网页工具与实验项目，含 CS MAJOR ARCHIVE、calendar、blog-cms 等 21 个作品。",
 };
 
 /** 右上两行小注记（与首页精选项目版块同一过程性定位，非成果宣言） */
@@ -18,7 +18,7 @@ const PAGE_NOTE = [
 /**
  * 全部项目列表页：页头 + 与首页「精选项目」同一套 ProjectCard 网格，
  * 直接坐在统一 .site-container 全宽内容网格上（不再包整段玻璃大板）。
- * 数据来自 lib/projects.ts（18 个核实过的作品；封面为概念视觉占位）。
+ * 数据来自 lib/projects.ts（21 个核实过的作品；封面为概念视觉占位）。
  */
 export default function ProjectsPage() {
   return (

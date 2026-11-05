@@ -36,7 +36,7 @@ test("lib/projects.ts 集中管理十四个项目，slug、标签与概念占位
     "缺少 public/images/hero-clean.png",
   );
   assert.ok(data.includes("/images/hero-clean.png"), "应引用 /images/hero-clean.png 占位图");
-  assert.equal((data.match(/coverKind: "concept"/g) ?? []).length, 18, "十八张封面应均为概念视觉占位");
+  assert.equal((data.match(/coverKind: "concept"/g) ?? []).length, 21, "二十一张封面应均为概念视觉占位");
 
   // 技术标签来自各项目核实过的实际套路
   for (const tag of [
@@ -63,8 +63,8 @@ test("项目状态与入口链接如实：可本地运行，封面一律概念�
     "全部作品均为可本地运行（本地 Node 服务或静态页）",
   );
 
-  // 十八张封面全部为概念视觉占位
-  assert.equal((data.match(/coverKind: "concept"/g) ?? []).length, 18, "十八张封面应均为概念视觉占位");
+  // 二十一张封面全部为概念视觉占位
+  assert.equal((data.match(/coverKind: "concept"/g) ?? []).length, 21, "二十一张封面应均为概念视觉占位");
   assert.ok(
     data.includes("概念视觉占位"),
     "项目封面应如实标注为概念视觉占位",
