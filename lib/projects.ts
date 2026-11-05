@@ -280,4 +280,80 @@ external: true,
 },
 ],
 },
+{
+slug: "campus-market",
+name: "campus-market",
+category: "Tools · Campus Market",
+description:
+"校园二手市集与社团活动平台：二手商品发布筛选、求购、留言出价、社团活动报名、站内信与管理员审核，20 个接口、7 类资源。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3030。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/campus-market",
+external: true,
+},
+],
+},
+{
+slug: "teamspace",
+name: "teamspace",
+category: "Tools · Team Collaboration",
+description:
+"团队协作平台：项目、任务、文档、考勤、日程、报销与成员，37 个接口、7 类资源，角色校验 x-role: admin|member。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3031。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/teamspace",
+external: true,
+},
+],
+},
+{
+slug: "course-hub",
+name: "course-hub",
+category: "Tools · Course Reviews",
+description:
+"课程评价与学习资料平台：课程详情、1–5 星评价与点赞、资料下载计数、课程问答与采纳回答、学习小组加入退出、教师页与收藏，42 个接口、8 类资源各 12 条示例数据。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3032。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/course-hub",
+external: true,
+},
+],
+},
+{
+slug: "intern-board",
+name: "intern-board",
+category: "Tools · Internships",
+description:
+"校园实习招聘平台：企业与实习岗位发布、岗位搜索筛选排序、学生投递与重复投递校验、投递状态流转、简历库、面试安排与站内消息，7 类资源各 12 条示例数据。原生前端 + Node.js + Express，数据存在 data.json，默认端口 3033。",
+tags: ["Node.js", "Express", "HTML/CSS/JS"],
+cover: CONCEPT_COVER,
+coverAlt: CONCEPT_ALT,
+coverKind: "concept",
+status: "可本地运行",
+links: [
+{
+label: "查看源码",
+href: "https://github.com/Tsumugi920/intern-board",
+external: true,
+},
+],
+},
 ];

@@ -51,9 +51,9 @@ test("IntroToast 文案一字不差：个人简介 / 双按钮 / 统计口径（
   assert.match(toast, /href="\/about"/);
   assert.match(toast, /了解我/);
 
-  // 摘要统计（口径与站内可数内容对齐：14 个收录作品、16 项在用/在学技术，
+  // 摘要统计（口径与站内可数内容对齐：18 个收录作品、16 项在用/在学技术，
   // 数据级对齐校验见 contrast.test.mjs；∞ 为装饰性表达）
-  assert.match(toast, /14\+/);
+  assert.match(toast, /18\+/);
   assert.match(toast, /收录作品/);
   assert.match(toast, /\{ value: "16", label: "在用\/在学技术" \}/);
   assert.match(toast, /∞/);

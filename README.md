@@ -5,7 +5,7 @@
 > 来源说明：Forked from Ageha6912/ageha-tech，基于该项目结构改编为 Momori 的个人站。原项目收录的 AgehaOS、CS 饰品虚拟投资模拟器、Moss World 是原作者的作品，本改编中已替换为 Momori 核实过的作品，不再把它们说成是 Momori 的作品。
 
 > **当前状态：正在建设中。** 首页三座作品之屿为 CS MAJOR ARCHIVE、
-> calendar、blog-cms；项目页共收录 14 个核实过的作品（详见
+> calendar、blog-cms；项目页共收录 18 个核实过的作品（详见
 > [收录的项目](#收录的项目)）；文章仍为写作计划，「关于我」照片与部分
 > 联系方式仍为占位（详见 [素材与占位说明](#素材与占位说明)）。
 
